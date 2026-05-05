@@ -452,163 +452,9 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
   );
 }
 
-function AuthLoadingGate() {
-  return (
-    <div className="login-gate">
-      <div className="login-card">
-        <p className="eyebrow">Loading</p>
-        <h1>SML Project Note</h1>
-        <p className="login-copy">
-          Restoring your session and loading the shared board.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function LoginGate() {
-  const register = useBoardStore((state) => state.register);
-  const login = useBoardStore((state) => state.login);
-  const clearAuthError = useBoardStore((state) => state.clearAuthError);
-  const isAuthenticating = useBoardStore((state) => state.isAuthenticating);
-  const authError = useBoardStore((state) => state.authError);
-  const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'manager',
-  });
-
-  useEffect(() => {
-    clearAuthError();
-  }, [mode, clearAuthError]);
-
-  const submitAuth = async (event) => {
-    event.preventDefault();
-
-    if (mode === 'login') {
-      await login({
-        email: form.email,
-        password: form.password,
-      });
-      return;
-    }
-
-    await register(form);
-  };
-
-  return (
-    <div className="login-gate">
-      <form className="login-card" onSubmit={submitAuth}>
-        <p className="eyebrow">Internal Login</p>
-        <h1>SML Project Note</h1>
-        <p className="login-copy">
-          Sign in to the shared board, or create an account that will keep your
-          board data synced on Netlify.
-        </p>
-        <div className="auth-tabs">
-          <button
-            type="button"
-            className={mode === 'login' ? 'active' : ''}
-            onClick={() => setMode('login')}
-          >
-            Login
-          </button>
-          <button
-            type="button"
-            className={mode === 'register' ? 'active' : ''}
-            onClick={() => setMode('register')}
-          >
-            Create account
-          </button>
-        </div>
-        {mode === 'register' ? (
-          <label className="field">
-            <span>Name</span>
-            <input
-              value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
-              placeholder="Example: Andrew"
-            />
-          </label>
-        ) : null}
-        <label className="field">
-          <span>Email</span>
-          <input
-            type="email"
-            value={form.email}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, email: event.target.value }))
-            }
-            placeholder="name@example.com"
-          />
-        </label>
-        <label className="field">
-          <span>Password</span>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, password: event.target.value }))
-            }
-            placeholder="At least 8 characters"
-          />
-        </label>
-        {mode === 'register' ? (
-          <label className="field">
-            <span>Role</span>
-            <select
-              value={form.role}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, role: event.target.value }))
-              }
-            >
-              <option value="manager">Manager</option>
-              <option value="staff">Staff</option>
-            </select>
-          </label>
-        ) : null}
-        <div className="login-note">
-          <span>Manager accounts review work and check items as manager.</span>
-          <span>Staff accounts update work and check items as staff.</span>
-          <span>Board changes are saved through the backend instead of localStorage.</span>
-        </div>
-        {authError ? <p className="auth-status">{authError}</p> : null}
-        <div className="login-actions">
-          <button type="submit" disabled={isAuthenticating}>
-            {isAuthenticating
-              ? 'Working...'
-              : mode === 'login'
-                ? 'Login'
-                : 'Create account'}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() =>
-              setForm({
-                name: '',
-                email: '',
-                password: '',
-                role: 'manager',
-              })
-            }
-            disabled={isAuthenticating}
-          >
-            Clear
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
 function Header({ searchTerm, setSearchTerm }) {
   const currentUser = useBoardStore((state) => state.currentUser);
-  const logout = useBoardStore((state) => state.logout);
+  const setRole = useBoardStore((state) => state.setRole);
 
   return (
     <header className="app-header">
@@ -629,10 +475,26 @@ function Header({ searchTerm, setSearchTerm }) {
       </label>
 
       <div className="header-actions">
-        <button type="button" className="profile-chip" onClick={logout}>
+        <div className="role-toggle">
+          <button
+            type="button"
+            className={currentUser.role === 'manager' ? 'active' : ''}
+            onClick={() => setRole('manager')}
+          >
+            Manager
+          </button>
+          <button
+            type="button"
+            className={currentUser.role === 'staff' ? 'active' : ''}
+            onClick={() => setRole('staff')}
+          >
+            Staff
+          </button>
+        </div>
+        <div className="profile-chip">
           <span>{currentUser.name}</span>
           <small>{currentUser.role}</small>
-        </button>
+        </div>
       </div>
     </header>
   );
@@ -1870,12 +1732,6 @@ function App() {
   const bringToFront = useBoardStore((state) => state.bringToFront);
   const addChecklistItem = useBoardStore((state) => state.addChecklistItem);
   const toggleChecklistItem = useBoardStore((state) => state.toggleChecklistItem);
-  const initializeSession = useBoardStore((state) => state.initializeSession);
-  const isAuthenticated = useBoardStore(
-    (state) => state.currentUser.isAuthenticated
-  );
-  const authChecked = useBoardStore((state) => state.authChecked);
-  const syncError = useBoardStore((state) => state.syncError);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCardId, setActiveCardId] = useState(null);
   const [focusCardId, setFocusCardId] = useState(null);
@@ -1895,10 +1751,6 @@ function App() {
     assignedPerson: '',
     startDate: '',
   });
-
-  useEffect(() => {
-    void initializeSession();
-  }, [initializeSession]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -2092,21 +1944,12 @@ function App() {
     setShowExportConfig(false);
   };
 
-  if (!authChecked) {
-    return <AuthLoadingGate />;
-  }
-
-  if (!isAuthenticated) {
-    return <LoginGate />;
-  }
-
   return (
     <div className="app-shell">
       <Header
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
       />
-      {syncError ? <div className="sync-banner">{syncError}</div> : null}
       <div className="view-switcher">
         <button
           type="button"
