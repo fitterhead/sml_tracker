@@ -22,8 +22,8 @@ const STACK_LIMIT = 5;
 const DATE_MATCHER =
   /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?)\b/gi;
 const EXPORT_FIELDS = [
-  { key: 'taskName', label: 'Task name' },
-  { key: 'jobName', label: 'Job name' },
+  { key: 'taskName', label: 'Project name' },
+  { key: 'jobName', label: 'Client name' },
   { key: 'lane', label: 'Lane' },
   { key: 'priority', label: 'Priority' },
   { key: 'assignedPerson', label: 'Assigned person' },
@@ -43,15 +43,15 @@ const columnMeta = {
   },
   done: {
     title: 'Done List',
-    subtitle: 'Completed jobs',
+    subtitle: 'Completed clients',
   },
   hold: {
     title: 'On Hold',
     subtitle: 'Paused for now',
   },
   incomplete: {
-    title: 'Task Need To Fill More Information',
-    subtitle: 'Missing required task or job information',
+    title: 'Project Needs More Information',
+    subtitle: 'Missing required project or client information',
   },
 };
 
@@ -158,6 +158,15 @@ const buildDraftFromCard = (card) => ({
   })),
   priority: card.priority || 0,
 });
+
+const triggerActionOnEnter = (event, action) => {
+  if (event.key !== 'Enter' || event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  action();
+};
 
 function HighlightedText({ text = '' }) {
   const value = String(text);
@@ -451,7 +460,7 @@ function LoginGate() {
     <div className="login-gate">
       <div className="login-card">
         <p className="eyebrow">Internal Login</p>
-        <h1>SML Task Note</h1>
+        <h1>SML Project Note</h1>
         <p className="login-copy">
           Enter the person using this board, then choose the working role for
           this session.
@@ -495,7 +504,7 @@ function Header({ searchTerm, setSearchTerm }) {
       <div className="brand">
         <div className="brand-mark">F</div>
         <div>
-          <strong>SML Task Note</strong>
+          <strong>SML Project Note</strong>
         </div>
       </div>
 
@@ -504,7 +513,7 @@ function Header({ searchTerm, setSearchTerm }) {
         <input
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search tasks, jobs..."
+          placeholder="Search projects, clients..."
         />
       </label>
 
@@ -665,11 +674,11 @@ function CardShell({
       onDoubleClick={onDoubleClick}
     >
       <div className="card-top">
-        <h3 title={card.jobName || 'JOB - (No Job Name)'}>
-          <HighlightedText text={card.jobName || 'JOB - (No Job Name)'} />
+        <h3 title={card.jobName || 'CLIENT - (No Client Name)'}>
+          <HighlightedText text={card.jobName || 'CLIENT - (No Client Name)'} />
         </h3>
         <p>
-          <HighlightedText text={card.taskName || 'no task assigned yet'} />
+          <HighlightedText text={card.taskName || 'no project assigned yet'} />
         </p>
       </div>
 
@@ -925,6 +934,10 @@ function CreateCardPopup({
   onSubmit,
   onCancel,
 }) {
+  const submitComposerFromKeyboard = () => {
+    onSubmit({ preventDefault() {} });
+  };
+
   if (!open) {
     return null;
   }
@@ -934,7 +947,7 @@ function CreateCardPopup({
       <form className="composer-popup" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="composer-grid">
           <label className="field">
-            <span>Task</span>
+            <span>Project</span>
             <input
               value={composerDraft.taskName}
               onChange={(event) =>
@@ -943,11 +956,14 @@ function CreateCardPopup({
                   taskName: event.target.value,
                 }))
               }
-              placeholder="Task name"
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, submitComposerFromKeyboard)
+              }
+              placeholder="Project name"
             />
           </label>
           <label className="field">
-            <span>Job</span>
+            <span>Client</span>
             <select
               value={composerDraft.jobChoice || '__new__'}
               onChange={(event) =>
@@ -958,18 +974,21 @@ function CreateCardPopup({
                     event.target.value === '__new__' ? '' : event.target.value,
                 }))
               }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, submitComposerFromKeyboard)
+              }
             >
               {jobOptions.map((jobName) => (
                 <option key={jobName} value={jobName}>
                   {jobName}
                 </option>
               ))}
-              <option value="__new__">Add new job</option>
+              <option value="__new__">Add new client</option>
             </select>
           </label>
           {(!composerDraft.jobChoice || composerDraft.jobChoice === '__new__') ? (
             <label className="field field-full">
-              <span>Add new job</span>
+              <span>Add new client</span>
               <input
                 value={composerDraft.jobName}
                 onChange={(event) =>
@@ -978,7 +997,10 @@ function CreateCardPopup({
                     jobName: event.target.value,
                   }))
                 }
-                placeholder="New job name"
+                onKeyDown={(event) =>
+                  triggerActionOnEnter(event, submitComposerFromKeyboard)
+                }
+                placeholder="New client name"
               />
             </label>
           ) : null}
@@ -991,6 +1013,9 @@ function CreateCardPopup({
                   ...draft,
                   assignedPerson: event.target.value,
                 }))
+              }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
               placeholder="Person"
             />
@@ -1005,6 +1030,9 @@ function CreateCardPopup({
                   ...draft,
                   startDate: event.target.value,
                 }))
+              }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
             />
           </label>
@@ -1084,8 +1112,8 @@ function IncompletePage({
   return (
     <main className="incomplete-page">
       <div className="incomplete-page-head">
-        <h2>Task Need To Fill More Information</h2>
-        <p>These cards stay out of the main board until task name and job name are filled in.</p>
+        <h2>Project Needs More Information</h2>
+        <p>These cards stay out of the main board until project name and client name are filled in.</p>
       </div>
 
       <div className="incomplete-page-body">
@@ -1219,6 +1247,12 @@ function FocusModal({ card, onClose }) {
       checklist: draft.checklist,
     });
     onClose();
+  };
+
+  const saveChangesFromKeyboard = () => {
+    if (isDirty) {
+      saveChanges();
+    }
   };
 
   const openDraftChecklistToggle = (item) => {
@@ -1378,7 +1412,7 @@ function FocusModal({ card, onClose }) {
           <div>
             <p className="eyebrow">Focus Mode</p>
             <h2>
-              <HighlightedText text={card.jobName || 'Untitled job'} />
+              <HighlightedText text={card.jobName || 'Untitled client'} />
             </h2>
           </div>
           <button type="button" className="close-button" onClick={onClose}>
@@ -1388,7 +1422,7 @@ function FocusModal({ card, onClose }) {
 
         <div className="focus-grid">
           <label className="field">
-            <span>Task name</span>
+            <span>Project name</span>
             <input
               value={draft.taskName}
               onChange={(event) =>
@@ -1397,11 +1431,14 @@ function FocusModal({ card, onClose }) {
                   taskName: event.target.value,
                 }))
               }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, saveChangesFromKeyboard)
+              }
             />
           </label>
 
           <label className="field">
-            <span>Job name</span>
+            <span>Client name</span>
             <select
               value={jobOptions.includes(draft.jobName) ? draft.jobName : '__custom__'}
               onChange={(event) =>
@@ -1411,19 +1448,22 @@ function FocusModal({ card, onClose }) {
                     event.target.value === '__custom__' ? '' : event.target.value,
                 }))
               }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, saveChangesFromKeyboard)
+              }
             >
-              <option value="">Select existing job</option>
+              <option value="">Select existing client</option>
               {jobOptions.map((jobName) => (
                 <option key={jobName} value={jobName}>
                   {jobName}
                 </option>
               ))}
-              <option value="__custom__">Add new job</option>
+              <option value="__custom__">Add new client</option>
             </select>
           </label>
           {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
             <label className="field field-full">
-              <span>Add new job</span>
+              <span>Add new client</span>
               <input
                 value={draft.jobName}
                 onChange={(event) =>
@@ -1431,6 +1471,9 @@ function FocusModal({ card, onClose }) {
                     ...current,
                     jobName: event.target.value,
                   }))
+                }
+                onKeyDown={(event) =>
+                  triggerActionOnEnter(event, saveChangesFromKeyboard)
                 }
               />
             </label>
@@ -1446,6 +1489,9 @@ function FocusModal({ card, onClose }) {
                   assignedPerson: event.target.value,
                 }))
               }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, saveChangesFromKeyboard)
+              }
             />
           </label>
 
@@ -1459,6 +1505,9 @@ function FocusModal({ card, onClose }) {
                   ...current,
                   startDate: event.target.value,
                 }))
+              }
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, saveChangesFromKeyboard)
               }
             />
           </label>
@@ -1819,7 +1868,7 @@ function App() {
 
     const worksheet = XLSX.utils.json_to_sheet(orderedRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'TaskBoard');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'ProjectBoard');
     XLSX.writeFile(workbook, 'noteboard-export.xlsx');
     setShowExportConfig(false);
   };

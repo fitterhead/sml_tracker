@@ -50,11 +50,11 @@ export const getMissingFields = (card) => {
   const missing = [];
 
   if (!card.taskName.trim()) {
-    missing.push('Task name');
+    missing.push('Project name');
   }
 
   if (!card.jobName.trim()) {
-    missing.push('Job name');
+    missing.push('Client name');
   }
 
   return missing;
@@ -130,8 +130,8 @@ export const useBoardStore = create(
           const highestOrder = getHighestOrder(state.cards) + 1;
           const userRole = state.currentUser.role;
           const nextNumber = state.cards.length + 1;
-          const taskName = initialValues.taskName?.trim() || `Task ${nextNumber}`;
-          const jobName = initialValues.jobName?.trim() || `JOB ${nextNumber}`;
+          const taskName = initialValues.taskName?.trim() || `Project ${nextNumber}`;
+          const jobName = initialValues.jobName?.trim() || `Client ${nextNumber}`;
 
           return {
             cards: [
