@@ -1,0 +1,378 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+const ACTIVE = 'active';
+const DONE = 'done';
+const HOLD = 'hold';
+
+const createId = () => {
+  if (typeof window !== 'undefined' && window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `card-${Math.random().toString(36).slice(2, 11)}`;
+};
+
+const createChecklistItem = (text, createdBy, overrides = {}) => ({
+  id: createId(),
+  text,
+  checked: false,
+  checkedBy: null,
+  createdAt: new Date().toISOString(),
+  completedAt: '',
+  context: '',
+  contextHistory: [],
+  createdBy,
+  ...overrides,
+});
+
+const createSeedCards = () => [
+  {
+    id: createId(),
+    taskName: 'Task B - Product',
+    jobName: 'JOB 05 - User Dashboard',
+    assignedPerson: 'Duy Nguyen',
+    startDate: '2026-05-12',
+    lane: ACTIVE,
+    priority: 3,
+    order: 1,
+    checklist: [
+      createChecklistItem('Create color palette', 'manager', {
+        checked: true,
+        checkedBy: 'manager',
+      }),
+      createChecklistItem('Typography system', 'staff', {
+        checked: true,
+        checkedBy: 'staff',
+      }),
+      createChecklistItem('Component library', 'manager'),
+      createChecklistItem('Icon set', 'staff'),
+    ],
+  },
+  {
+    id: createId(),
+    taskName: 'Task B - Development',
+    jobName: 'JOB 06 - API Integration',
+    assignedPerson: '',
+    startDate: '',
+    lane: ACTIVE,
+    priority: 2,
+    order: 2,
+    checklist: [
+      createChecklistItem('Confirm payload contract', 'manager'),
+      createChecklistItem('Map API error states', 'staff'),
+    ],
+  },
+  {
+    id: createId(),
+    taskName: 'Task D - Marketing',
+    jobName: 'JOB 07 - Landing Page',
+    assignedPerson: 'Minh Tran',
+    startDate: '2026-05-22',
+    lane: HOLD,
+    priority: 1,
+    order: 3,
+    checklist: [createChecklistItem('Prepare hero section copy', 'staff')],
+  },
+  {
+    id: createId(),
+    taskName: 'Task C - Development',
+    jobName: 'JOB 03 - Deploy to Server',
+    assignedPerson: 'Ops Team',
+    startDate: '2026-05-25',
+    lane: DONE,
+    priority: 5,
+    order: 4,
+    checklist: [
+      createChecklistItem('Create release checklist', 'manager', {
+        checked: true,
+        checkedBy: 'manager',
+      }),
+      createChecklistItem('Deploy staging build', 'staff', {
+        checked: true,
+        checkedBy: 'staff',
+      }),
+    ],
+  },
+  {
+    id: createId(),
+    taskName: '',
+    jobName: 'JOB 08 - No Task',
+    assignedPerson: '',
+    startDate: '',
+    lane: ACTIVE,
+    priority: 0,
+    order: 5,
+    checklist: [createChecklistItem('Confirm task owner', 'manager')],
+  },
+  {
+    id: createId(),
+    taskName: 'Task A - Planning',
+    jobName: '',
+    assignedPerson: '',
+    startDate: '',
+    lane: ACTIVE,
+    priority: 0,
+    order: 6,
+    checklist: [createChecklistItem('Fill in job title', 'staff')],
+  },
+];
+
+const getHighestOrder = (cards) =>
+  cards.reduce((max, card) => Math.max(max, card.order ?? 0), 0);
+
+export const isCardIncomplete = (card) =>
+  !card.taskName.trim() || !card.jobName.trim();
+
+export const getMissingFields = (card) => {
+  const missing = [];
+
+  if (!card.taskName.trim()) {
+    missing.push('Task name');
+  }
+
+  if (!card.jobName.trim()) {
+    missing.push('Job name');
+  }
+
+  return missing;
+};
+
+export const isCardComplete = (card) =>
+  card.checklist.length > 0 && card.checklist.every((item) => item.checked);
+
+export const getCardZone = (card) => {
+  if (isCardIncomplete(card)) {
+    return 'incomplete';
+  }
+
+  if (card.lane === DONE) {
+    return DONE;
+  }
+
+  return card.lane === HOLD ? HOLD : ACTIVE;
+};
+
+const bumpCardOrder = (cards, cardId) => {
+  const highestOrder = getHighestOrder(cards) + 1;
+
+  return cards.map((card) =>
+    card.id === cardId ? { ...card, order: highestOrder } : card
+  );
+};
+
+export const useBoardStore = create(
+  persist(
+    (set, get) => ({
+      cards: createSeedCards(),
+      currentUser: {
+        name: 'Duy Nguyen',
+        role: 'manager',
+        isAuthenticated: false,
+      },
+      login(name, role) {
+        const fallbackName = role === 'manager' ? 'Team Manager' : 'Team Staff';
+
+        set((state) => ({
+          currentUser: {
+            ...state.currentUser,
+            name: name.trim() || fallbackName,
+            role,
+            isAuthenticated: true,
+          },
+        }));
+      },
+      logout() {
+        set((state) => ({
+          currentUser: {
+            ...state.currentUser,
+            isAuthenticated: false,
+          },
+        }));
+      },
+      setRole(role) {
+        set((state) => ({
+          currentUser: {
+            ...state.currentUser,
+            role,
+          },
+        }));
+      },
+      bringToFront(cardId) {
+        set((state) => ({
+          cards: bumpCardOrder(state.cards, cardId),
+        }));
+      },
+      createCard(initialValues = {}) {
+        set((state) => {
+          const highestOrder = getHighestOrder(state.cards) + 1;
+          const userRole = state.currentUser.role;
+          const nextNumber = state.cards.length + 1;
+          const taskName = initialValues.taskName?.trim() || `Task ${nextNumber}`;
+          const jobName = initialValues.jobName?.trim() || `JOB ${nextNumber}`;
+
+          return {
+            cards: [
+              ...state.cards,
+              {
+                id: createId(),
+                taskName,
+                jobName,
+                assignedPerson: initialValues.assignedPerson?.trim() || '',
+                startDate: initialValues.startDate || '',
+                lane: initialValues.lane || ACTIVE,
+                priority: initialValues.priority ?? 0,
+                order: highestOrder,
+                checklist: [
+                  createChecklistItem('Add first checklist item', userRole),
+                ],
+              },
+            ],
+          };
+        });
+      },
+      updateCard(cardId, updates) {
+        set((state) => ({
+          cards: state.cards.map((card) => {
+            if (card.id !== cardId) {
+              return card;
+            }
+
+            const nextCard = { ...card, ...updates };
+
+            if (isCardIncomplete(nextCard)) {
+              return { ...nextCard, lane: ACTIVE };
+            }
+
+            return nextCard;
+          }),
+        }));
+      },
+      deleteCard(cardId) {
+        set((state) => ({
+          cards: state.cards.filter((card) => card.id !== cardId),
+        }));
+      },
+      addChecklistItem(cardId, text = '') {
+        set((state) => ({
+          cards: state.cards.map((card) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  lane:
+                    card.lane === HOLD || card.lane === DONE
+                      ? ACTIVE
+                      : card.lane,
+                  checklist: [
+                    ...card.checklist,
+                    createChecklistItem(
+                      text || 'New checklist item',
+                      state.currentUser.role
+                    ),
+                  ],
+                }
+              : card
+          ),
+        }));
+      },
+      updateChecklistItem(cardId, itemId, text) {
+        set((state) => ({
+          cards: state.cards.map((card) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  checklist: card.checklist.map((item) =>
+                    item.id === itemId ? { ...item, text } : item
+                  ),
+                }
+              : card
+          ),
+        }));
+      },
+      toggleChecklistItem(cardId, itemId, context = '') {
+        set((state) => ({
+          cards: state.cards.map((card) => {
+            if (card.id !== cardId) {
+              return card;
+            }
+
+            if (card.lane === HOLD) {
+              return card;
+            }
+
+            const nextChecklist = card.checklist.map((item) => {
+              if (item.id !== itemId) {
+                return item;
+              }
+
+              const nextChecked = !item.checked;
+              const previousHistory = Array.isArray(item.contextHistory)
+                ? item.contextHistory
+                : [];
+              const previousNote = item.context.trim();
+              const nextNote = context.trim();
+              const shouldArchivePrevious =
+                previousNote && previousNote !== nextNote;
+              const nextHistory = shouldArchivePrevious
+                ? [
+                    ...previousHistory,
+                    {
+                      note: item.context,
+                      createdAt: item.createdAt || '',
+                      completedAt: item.completedAt || '',
+                    },
+                  ]
+                : previousHistory;
+
+              return {
+                ...item,
+                checked: nextChecked,
+                checkedBy: nextChecked ? state.currentUser.role : null,
+                completedAt: nextChecked ? new Date().toISOString() : '',
+                context: context.trim(),
+                contextHistory: nextHistory,
+              };
+            });
+
+            const nextCard = { ...card, checklist: nextChecklist };
+
+            if (!isCardIncomplete(nextCard) && isCardComplete(nextCard)) {
+              return { ...nextCard, lane: DONE };
+            }
+
+            return nextCard;
+          }),
+        }));
+      },
+      moveCard(cardId, targetLane) {
+        set((state) => ({
+          cards: state.cards.map((card) => {
+            if (card.id !== cardId) {
+              return card;
+            }
+
+            const validTarget =
+              targetLane === DONE
+                ? !isCardIncomplete(card) && isCardComplete(card)
+                : true;
+
+            return validTarget ? { ...card, lane: targetLane } : card;
+          }),
+        }));
+      },
+      resetBoard() {
+        set(() => ({
+          cards: createSeedCards(),
+        }));
+      },
+    }),
+    {
+      name: 'tracker-card-board',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        cards: state.cards,
+        currentUser: state.currentUser,
+      }),
+    }
+  )
+);
