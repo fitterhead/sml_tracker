@@ -175,24 +175,37 @@ export const useBoardStore = create(
           cards: state.cards.filter((card) => card.id !== cardId),
         }));
       },
-      addChecklistItem(cardId, text = '') {
+      addChecklistItem(cardId, input = '') {
         set((state) => ({
           cards: state.cards.map((card) =>
             card.id === cardId
-              ? {
-                  ...card,
-                  lane:
-                    card.lane === HOLD || card.lane === DONE
-                      ? ACTIVE
-                      : card.lane,
-                  checklist: [
-                    ...card.checklist,
-                    createChecklistItem(
-                      text || 'New checklist item',
-                      state.currentUser.role
-                    ),
-                  ],
-                }
+              ? (() => {
+                  const nextInput =
+                    typeof input === 'string'
+                      ? { text: input, context: '' }
+                      : {
+                          text: input?.text || '',
+                          context: input?.context || '',
+                        };
+
+                  return {
+                    ...card,
+                    lane:
+                      card.lane === HOLD || card.lane === DONE
+                        ? ACTIVE
+                        : card.lane,
+                    checklist: [
+                      ...card.checklist,
+                      createChecklistItem(
+                        nextInput.text || 'New checklist item',
+                        state.currentUser.role,
+                        {
+                          context: nextInput.context.trim(),
+                        }
+                      ),
+                    ],
+                  };
+                })()
               : card
           ),
         }));

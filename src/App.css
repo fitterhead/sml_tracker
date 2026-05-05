@@ -1073,6 +1073,57 @@ textarea {
   margin-top: 24px;
 }
 
+.modal-check-composer {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(95, 76, 49, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 248, 236, 0.85);
+}
+
+.modal-check-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-check-editor {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(95, 76, 49, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 252, 246, 0.92);
+}
+
+.modal-check-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.modal-check-input {
+  width: 100%;
+}
+
+.modal-check-context-field {
+  margin: 0;
+}
+
+.modal-check-context {
+  display: grid;
+  gap: 10px;
+}
+
+.modal-check-context-clear {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .modal-check-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
@@ -1115,7 +1166,8 @@ textarea {
 @media (max-width: 1120px) {
   .app-header,
   .focus-grid,
-  .modal-check-row {
+  .modal-check-row,
+  .modal-check-main {
     grid-template-columns: 1fr;
   }
 

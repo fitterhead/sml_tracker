@@ -654,6 +654,7 @@ function CardShell({
   const [expandedContexts, setExpandedContexts] = useState({});
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
+  const [newChecklistContext, setNewChecklistContext] = useState('');
 
   const submitChecklistItem = (event) => {
     event.stopPropagation();
@@ -662,8 +663,12 @@ function CardShell({
       return;
     }
 
-    onAddChecklistItem(trimmedText);
+    onAddChecklistItem({
+      text: trimmedText,
+      context: newChecklistContext,
+    });
     setNewChecklistText('');
+    setNewChecklistContext('');
     setShowAddChecklistComposer(false);
   };
 
@@ -734,6 +739,12 @@ function CardShell({
                 placeholder="Checklist item"
                 autoFocus
               />
+              <textarea
+                value={newChecklistContext}
+                onChange={(event) => setNewChecklistContext(event.target.value)}
+                placeholder="Optional context"
+                rows={3}
+              />
               <div className="inline-checklist-actions">
                 <button
                   type="button"
@@ -742,6 +753,7 @@ function CardShell({
                     event.stopPropagation();
                     setShowAddChecklistComposer(false);
                     setNewChecklistText('');
+                    setNewChecklistContext('');
                   }}
                 >
                   Cancel
@@ -1199,28 +1211,31 @@ function FocusModal({ card, onClose }) {
   );
   const [draft, setDraft] = useState(null);
   const [pendingToggle, setPendingToggle] = useState(null);
-  const [expandedContexts, setExpandedContexts] = useState({});
-  const [editingChecklistId, setEditingChecklistId] = useState(null);
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [pendingDeleteCard, setPendingDeleteCard] = useState(false);
+  const [showAddDraftChecklistComposer, setShowAddDraftChecklistComposer] = useState(false);
+  const [newDraftChecklistText, setNewDraftChecklistText] = useState('');
+  const [newDraftChecklistContext, setNewDraftChecklistContext] = useState('');
 
   useEffect(() => {
     if (!card) {
       setDraft(null);
       setPendingToggle(null);
-      setExpandedContexts({});
-      setEditingChecklistId(null);
       setPendingDeleteItem(null);
       setPendingDeleteCard(false);
+      setShowAddDraftChecklistComposer(false);
+      setNewDraftChecklistText('');
+      setNewDraftChecklistContext('');
       return;
     }
 
     setDraft(buildDraftFromCard(card));
     setPendingToggle(null);
-    setExpandedContexts({});
-    setEditingChecklistId(null);
     setPendingDeleteItem(null);
     setPendingDeleteCard(false);
+    setShowAddDraftChecklistComposer(false);
+    setNewDraftChecklistText('');
+    setNewDraftChecklistContext('');
   }, [card]);
 
   if (!card || !draft) {
@@ -1325,6 +1340,15 @@ function FocusModal({ card, onClose }) {
     }));
   };
 
+  const updateDraftChecklistContext = (itemId, context) => {
+    setDraft((current) => ({
+      ...current,
+      checklist: current.checklist.map((item) =>
+        item.id === itemId ? { ...item, context } : item
+      ),
+    }));
+  };
+
   const deleteDraftCurrentContext = (itemId) => {
     setDraft((current) => ({
       ...current,
@@ -1360,12 +1384,6 @@ function FocusModal({ card, onClose }) {
       ...current,
       checklist: current.checklist.filter((item) => item.id !== itemId),
     }));
-    setEditingChecklistId((current) => (current === itemId ? null : current));
-    setExpandedContexts((current) => {
-      const next = { ...current };
-      delete next[itemId];
-      return next;
-    });
   };
 
   const confirmDeleteDraftChecklistItem = () => {
@@ -1378,25 +1396,32 @@ function FocusModal({ card, onClose }) {
   };
 
   const addDraftChecklistItem = () => {
+    const trimmedText = newDraftChecklistText.trim();
+    if (!trimmedText) {
+      return;
+    }
+
     const tempId = `draft-${Date.now()}`;
-    setEditingChecklistId(tempId);
     setDraft((current) => ({
       ...current,
       checklist: [
         ...current.checklist,
         {
           id: tempId,
-          text: 'New checklist item',
+          text: trimmedText,
           checked: false,
           checkedBy: null,
           createdAt: new Date().toISOString(),
           completedAt: '',
-          context: '',
+          context: newDraftChecklistContext.trim(),
           contextHistory: [],
           createdBy: useBoardStore.getState().currentUser.role,
         },
       ],
     }));
+    setShowAddDraftChecklistComposer(false);
+    setNewDraftChecklistText('');
+    setNewDraftChecklistContext('');
   };
 
   const confirmDeleteCard = () => {
@@ -1528,46 +1553,86 @@ function FocusModal({ card, onClose }) {
         <div className="modal-checklist">
           <div className="modal-section-header">
             <h3>Checklist</h3>
-            <button type="button" onClick={addDraftChecklistItem}>
+            <button
+              type="button"
+              onClick={() => setShowAddDraftChecklistComposer((current) => !current)}
+            >
               + Add item
             </button>
           </div>
-          {draft.checklist.map((item) => (
-            <div className="modal-check-row" key={item.id}>
-              <ChecklistItem
-                item={item}
-                disabled={card.lane === 'hold'}
-                expanded={Boolean(expandedContexts[item.id])}
-                onToggleContext={() =>
-                  setExpandedContexts((current) => ({
-                    ...current,
-                    [item.id]: !current[item.id],
-                  }))
-                }
-                onToggle={() => openDraftChecklistToggle(item)}
-                onDeleteCurrentContext={() => deleteDraftCurrentContext(item.id)}
-                onDeleteHistoryContext={(historyIndex) =>
-                  deleteDraftHistoryContext(item.id, historyIndex)
-                }
+          {showAddDraftChecklistComposer ? (
+            <div className="modal-check-composer">
+              <input
+                value={newDraftChecklistText}
+                onChange={(event) => setNewDraftChecklistText(event.target.value)}
+                placeholder="Checklist item"
+                autoFocus
               />
+              <textarea
+                value={newDraftChecklistContext}
+                onChange={(event) =>
+                  setNewDraftChecklistContext(event.target.value)
+                }
+                placeholder="Optional context"
+                rows={3}
+              />
+              <div className="modal-check-composer-actions">
+                <button
+                  type="button"
+                  className="ghost-button muted"
+                  onClick={() => {
+                    setShowAddDraftChecklistComposer(false);
+                    setNewDraftChecklistText('');
+                    setNewDraftChecklistContext('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={addDraftChecklistItem}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {draft.checklist.map((item) => (
+            <div className="modal-check-editor" key={item.id}>
+              <div className="modal-check-main">
+                <button
+                  type="button"
+                  className="check-toggle"
+                  onClick={() => openDraftChecklistToggle(item)}
+                  disabled={card.lane === 'hold'}
+                  aria-label={item.checked ? 'Uncheck item' : 'Check item'}
+                >
+                  <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
+                </button>
+                <input
+                  value={item.text}
+                  onChange={(event) =>
+                    updateDraftChecklistItem(item.id, event.target.value)
+                  }
+                  className="modal-check-input"
+                />
+                {formatChecklistTimeline(item) ? (
+                  <span className="check-date">{formatChecklistTimeline(item)}</span>
+                ) : null}
+              </div>
+              <label className="field field-full modal-check-context-field">
+                <span>Context</span>
+                <textarea
+                  value={item.context || ''}
+                  onChange={(event) =>
+                    updateDraftChecklistContext(item.id, event.target.value)
+                  }
+                  rows={3}
+                  placeholder="Optional context"
+                />
+              </label>
               <div className="modal-check-actions">
-                {item.checked && editingChecklistId !== item.id ? (
-                  <button
-                    type="button"
-                    className="ghost-button muted"
-                    onClick={() => setEditingChecklistId(item.id)}
-                  >
-                    Edit
-                  </button>
-                ) : (
-                  <input
-                    value={item.text}
-                    onChange={(event) =>
-                      updateDraftChecklistItem(item.id, event.target.value)
-                    }
-                    onFocus={() => setEditingChecklistId(item.id)}
-                  />
-                )}
                 <button
                   type="button"
                   className="ghost-button muted"
@@ -1578,6 +1643,58 @@ function FocusModal({ card, onClose }) {
                   Delete
                 </button>
               </div>
+              {Array.isArray(item.contextHistory) && item.contextHistory.length > 0 ? (
+                <div className="modal-check-context">
+                  <div className="check-context-body">
+                    {item.contextHistory
+                      .slice()
+                      .reverse()
+                      .map((entry, index) => (
+                        <div
+                          className="context-entry context-entry-history"
+                          key={`${entry.createdAt}-${entry.completedAt}-${index}`}
+                        >
+                          <div className="context-entry-head">
+                            <span className="context-entry-date">
+                              {formatContextHistoryTimeline(entry)}
+                            </span>
+                            <button
+                              type="button"
+                              className="ghost-button muted context-delete-button"
+                              onClick={() => deleteDraftHistoryContext(item.id, index)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <p className="context-entry-note">
+                            <HighlightedText text={entry.note || ''} />
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                  {item.context?.trim() ? (
+                    <div className="modal-check-context-clear">
+                      <button
+                        type="button"
+                        className="ghost-button muted"
+                        onClick={() => deleteDraftCurrentContext(item.id)}
+                      >
+                        Clear current context
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : item.context?.trim() ? (
+                <div className="modal-check-context-clear">
+                  <button
+                    type="button"
+                    className="ghost-button muted"
+                    onClick={() => deleteDraftCurrentContext(item.id)}
+                  >
+                    Clear current context
+                  </button>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
