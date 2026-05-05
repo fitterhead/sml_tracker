@@ -721,7 +721,7 @@ function CardShell({
                   value={newChecklistContext}
                   onChange={(event) => setNewChecklistContext(event.target.value)}
                   placeholder="Optional context"
-                  rows={3}
+                  rows={2}
                 />
               ) : (
                 <button
@@ -789,6 +789,12 @@ function ChecklistItemModal({
   onDelete,
   onCancel,
 }) {
+  const [showContextField, setShowContextField] = useState(Boolean(item?.context));
+
+  useEffect(() => {
+    setShowContextField(Boolean(item?.context));
+  }, [item]);
+
   if (!open || !item) {
     return null;
   }
@@ -809,15 +815,25 @@ function ChecklistItemModal({
             autoFocus
           />
         </label>
-        <label className="field field-full">
-          <span>Context</span>
-          <textarea
-            value={item.context}
-            onChange={(event) => onContextChange(event.target.value)}
-            rows={4}
-            placeholder="Optional context"
-          />
-        </label>
+        {showContextField ? (
+          <label className="field field-full checklist-modal-context">
+            <span>Context</span>
+            <textarea
+              value={item.context}
+              onChange={(event) => onContextChange(event.target.value)}
+              rows={2}
+              placeholder="Optional context"
+            />
+          </label>
+        ) : (
+          <button
+            type="button"
+            className="ghost-button muted checklist-context-trigger"
+            onClick={() => setShowContextField(true)}
+          >
+            Add context
+          </button>
+        )}
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onDelete}>
             Delete

@@ -504,7 +504,7 @@ textarea {
 .inline-checklist-composer {
   display: grid;
   gap: 8px;
-  max-width: 180px;
+  max-width: 168px;
 }
 
 .inline-checklist-composer input {
@@ -519,14 +519,14 @@ textarea {
 
 .inline-checklist-composer textarea {
   width: 100%;
-  padding: 8px 0 6px;
+  padding: 6px 0 4px;
   border: 0;
   background: transparent;
   box-shadow: inset 0 -1px 0 rgba(95, 76, 49, 0.12);
   color: var(--text);
   font-size: 0.76rem;
   resize: vertical;
-  min-height: 74px;
+  min-height: 42px;
 }
 
 .inline-checklist-actions {
@@ -950,6 +950,14 @@ textarea {
 
 .login-card {
   width: min(480px, calc(100vw - 32px));
+}
+
+.checklist-modal-context textarea {
+  min-height: 56px;
+}
+
+.checklist-context-trigger {
+  justify-self: flex-start;
 }
 
 .focus-grid {
