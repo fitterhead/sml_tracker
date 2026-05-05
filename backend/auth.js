@@ -1,0 +1,99 @@
+const crypto = require('node:crypto');
+
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+
+const hashPassword = (password) =>
+  new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(16).toString('hex');
+
+    crypto.scrypt(password, salt, 64, (error, derivedKey) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(`${salt}:${derivedKey.toString('hex')}`);
+    });
+  });
+
+const verifyPassword = (password, storedHash) =>
+  new Promise((resolve, reject) => {
+    const [salt, key] = String(storedHash || '').split(':');
+
+    if (!salt || !key) {
+      resolve(false);
+      return;
+    }
+
+    crypto.scrypt(password, salt, 64, (error, derivedKey) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(
+        crypto.timingSafeEqual(
+          Buffer.from(key, 'hex'),
+          Buffer.from(derivedKey.toString('hex'), 'hex')
+        )
+      );
+    });
+  });
+
+const encode = (value) => Buffer.from(value).toString('base64url');
+
+const decode = (value) =>
+  JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+
+const createToken = (payload, secret) => {
+  const body = encode(
+    JSON.stringify({
+      ...payload,
+      exp: Date.now() + 1000 * 60 * 60 * 24 * 14,
+    })
+  );
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(body)
+    .digest('base64url');
+
+  return `${body}.${signature}`;
+};
+
+const verifyToken = (token, secret) => {
+  const [body, signature] = String(token || '').split('.');
+
+  if (!body || !signature) {
+    throw new Error('Missing token.');
+  }
+
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(body)
+    .digest('base64url');
+
+  if (
+    !crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expected)
+    )
+  ) {
+    throw new Error('Invalid token.');
+  }
+
+  const payload = decode(body);
+
+  if (payload.exp < Date.now()) {
+    throw new Error('Token expired.');
+  }
+
+  return payload;
+};
+
+module.exports = {
+  createToken,
+  hashPassword,
+  normalizeEmail,
+  verifyPassword,
+  verifyToken,
+};
