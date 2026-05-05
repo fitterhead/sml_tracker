@@ -359,6 +359,17 @@ textarea {
   line-height: 1.4;
 }
 
+.check-label-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
 .check-context-block {
   padding-left: 28px;
   display: grid;
@@ -504,6 +515,18 @@ textarea {
   box-shadow: inset 0 -1px 0 rgba(95, 76, 49, 0.12);
   color: var(--text);
   font-size: 0.76rem;
+}
+
+.inline-checklist-composer textarea {
+  width: 100%;
+  padding: 8px 0 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 rgba(95, 76, 49, 0.12);
+  color: var(--text);
+  font-size: 0.76rem;
+  resize: vertical;
+  min-height: 74px;
 }
 
 .inline-checklist-actions {
@@ -974,6 +997,10 @@ textarea {
 
 .confirm-modal {
   width: min(520px, calc(100vw - 32px));
+}
+
+.checklist-modal {
+  width: min(560px, calc(100vw - 32px));
 }
 
 .confirm-modal h2,

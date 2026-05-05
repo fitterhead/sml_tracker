@@ -508,6 +508,7 @@ function ChecklistItem({
   onToggleContext,
   onDeleteCurrentContext,
   onDeleteHistoryContext,
+  onEdit,
 }) {
   const checkedClass = item.checkedBy ? `checked-${item.checkedBy}` : '';
   const historyEntries = Array.isArray(item.contextHistory)
@@ -528,9 +529,21 @@ function ChecklistItem({
         >
           <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
         </button>
-        <span className="check-label">
-          <HighlightedText text={item.text} />
-        </span>
+        {onEdit ? (
+          <button
+            type="button"
+            className="check-label-button"
+            onClick={onEdit}
+          >
+            <span className="check-label">
+              <HighlightedText text={item.text} />
+            </span>
+          </button>
+        ) : (
+          <span className="check-label">
+            <HighlightedText text={item.text} />
+          </span>
+        )}
         {formatChecklistTimeline(item) ? (
           <span className="check-date">{formatChecklistTimeline(item)}</span>
         ) : null}
@@ -605,6 +618,7 @@ function CardShell({
   onAddChecklistItem,
   onRequestChecklistToggle,
   onPriorityChange,
+  onEditChecklistItem,
 }) {
   const missingFields = getMissingFields(card);
   const isOnHold = getCardZone(card) === 'hold';
@@ -612,6 +626,7 @@ function CardShell({
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [newChecklistContext, setNewChecklistContext] = useState('');
+  const [showChecklistContextField, setShowChecklistContextField] = useState(false);
 
   const submitChecklistItem = (event) => {
     event.stopPropagation();
@@ -626,6 +641,7 @@ function CardShell({
     });
     setNewChecklistText('');
     setNewChecklistContext('');
+    setShowChecklistContextField(false);
     setShowAddChecklistComposer(false);
   };
 
@@ -678,6 +694,10 @@ function CardShell({
                   onRequestChecklistToggle(item);
                 }
               }}
+              onEdit={(event) => {
+                event.stopPropagation();
+                onEditChecklistItem?.(item);
+              }}
             />
           ))}
         </div>
@@ -696,12 +716,25 @@ function CardShell({
                 placeholder="Checklist item"
                 autoFocus
               />
-              <textarea
-                value={newChecklistContext}
-                onChange={(event) => setNewChecklistContext(event.target.value)}
-                placeholder="Optional context"
-                rows={3}
-              />
+              {showChecklistContextField ? (
+                <textarea
+                  value={newChecklistContext}
+                  onChange={(event) => setNewChecklistContext(event.target.value)}
+                  placeholder="Optional context"
+                  rows={3}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="ghost-button muted"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setShowChecklistContextField(true);
+                  }}
+                >
+                  Add context
+                </button>
+              )}
               <div className="inline-checklist-actions">
                 <button
                   type="button"
@@ -711,6 +744,7 @@ function CardShell({
                     setShowAddChecklistComposer(false);
                     setNewChecklistText('');
                     setNewChecklistContext('');
+                    setShowChecklistContextField(false);
                   }}
                 >
                   Cancel
@@ -743,6 +777,60 @@ function CardShell({
         />
       </div>
     </article>
+  );
+}
+
+function ChecklistItemModal({
+  open,
+  item,
+  onTextChange,
+  onContextChange,
+  onSave,
+  onDelete,
+  onCancel,
+}) {
+  if (!open || !item) {
+    return null;
+  }
+
+  return (
+    <div className="focus-backdrop" onClick={onCancel}>
+      <div
+        className="confirm-modal checklist-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="eyebrow">Checklist Item</p>
+        <h2>Edit checklist item</h2>
+        <label className="field field-full">
+          <span>Item</span>
+          <input
+            value={item.text}
+            onChange={(event) => onTextChange(event.target.value)}
+            autoFocus
+          />
+        </label>
+        <label className="field field-full">
+          <span>Context</span>
+          <textarea
+            value={item.context}
+            onChange={(event) => onContextChange(event.target.value)}
+            rows={4}
+            placeholder="Optional context"
+          />
+        </label>
+        <div className="focus-actions">
+          <button type="button" className="ghost-button muted" onClick={onDelete}>
+            Delete
+          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="ghost-button" onClick={onSave}>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -815,6 +903,7 @@ function CardSection({
   onOpenCard,
   onAddChecklistItem,
   onRequestChecklistToggle,
+  onEditChecklistItem,
 }) {
   const meta = columnMeta[lane];
   const visibleCards = cards.slice(-STACK_LIMIT);
@@ -855,6 +944,9 @@ function CardSection({
                 onRequestChecklistToggle={(item) =>
                   onRequestChecklistToggle(card.id, item)
                 }
+                onEditChecklistItem={(item) =>
+                  onEditChecklistItem(card.id, item)
+                }
                 onPriorityChange={(priority) =>
                   useBoardStore.getState().updateCard(card.id, { priority })
                 }
@@ -868,6 +960,9 @@ function CardSection({
                 onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
                 onRequestChecklistToggle={(item) =>
                   onRequestChecklistToggle(card.id, item)
+                }
+                onEditChecklistItem={(item) =>
+                  onEditChecklistItem(card.id, item)
                 }
                 onPriorityChange={(priority) =>
                   useBoardStore.getState().updateCard(card.id, { priority })
@@ -1026,6 +1121,7 @@ function BoardLayout({
   setFocusCardId,
   addChecklistItem,
   onRequestChecklistToggle,
+  onEditChecklistItem,
 }) {
   return (
     <main className="board-row">
@@ -1038,6 +1134,7 @@ function BoardLayout({
           onOpenCard={(card) => setFocusCardId(card.id)}
           onAddChecklistItem={addChecklistItem}
           onRequestChecklistToggle={onRequestChecklistToggle}
+          onEditChecklistItem={onEditChecklistItem}
         />
       </div>
 
@@ -1051,6 +1148,7 @@ function BoardLayout({
           onOpenCard={(card) => setFocusCardId(card.id)}
           onAddChecklistItem={addChecklistItem}
           onRequestChecklistToggle={onRequestChecklistToggle}
+          onEditChecklistItem={onEditChecklistItem}
         />
       </div>
 
@@ -1064,6 +1162,7 @@ function BoardLayout({
           onOpenCard={(card) => setFocusCardId(card.id)}
           onAddChecklistItem={addChecklistItem}
           onRequestChecklistToggle={onRequestChecklistToggle}
+          onEditChecklistItem={onEditChecklistItem}
         />
       </div>
     </main>
@@ -1077,6 +1176,7 @@ function IncompletePage({
   setFocusCardId,
   addChecklistItem,
   onRequestChecklistToggle,
+  onEditChecklistItem,
 }) {
   return (
     <main className="incomplete-page">
@@ -1095,6 +1195,7 @@ function IncompletePage({
           onOpenCard={(card) => setFocusCardId(card.id)}
           onAddChecklistItem={addChecklistItem}
           onRequestChecklistToggle={onRequestChecklistToggle}
+          onEditChecklistItem={onEditChecklistItem}
         />
       </div>
     </main>
@@ -1108,6 +1209,7 @@ function AllCardsPage({
   onOpenCard,
   onAddChecklistItem,
   onRequestChecklistToggle,
+  onEditChecklistItem,
 }) {
   const meta = columnMeta[lane];
 
@@ -1133,6 +1235,7 @@ function AllCardsPage({
               onDoubleClick={() => {}}
               onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
               onRequestChecklistToggle={(item) => onRequestChecklistToggle(card.id, item)}
+              onEditChecklistItem={(item) => onEditChecklistItem(card.id, item)}
               onPriorityChange={(priority) =>
                 useBoardStore.getState().updateCard(card.id, { priority })
               }
@@ -1146,6 +1249,7 @@ function AllCardsPage({
               onDoubleClick={() => {}}
               onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
               onRequestChecklistToggle={(item) => onRequestChecklistToggle(card.id, item)}
+              onEditChecklistItem={(item) => onEditChecklistItem(card.id, item)}
               onPriorityChange={(priority) =>
                 useBoardStore.getState().updateCard(card.id, { priority })
               }
@@ -1728,6 +1832,8 @@ function FocusModal({ card, onClose }) {
 function App() {
   const cards = useBoardStore((state) => state.cards);
   const createCard = useBoardStore((state) => state.createCard);
+  const updateCard = useBoardStore((state) => state.updateCard);
+  const deleteCard = useBoardStore((state) => state.deleteCard);
   const moveCard = useBoardStore((state) => state.moveCard);
   const bringToFront = useBoardStore((state) => state.bringToFront);
   const addChecklistItem = useBoardStore((state) => state.addChecklistItem);
@@ -1741,6 +1847,7 @@ function App() {
   const [showExportConfig, setShowExportConfig] = useState(false);
   const [pendingToggle, setPendingToggle] = useState(null);
   const [pendingReopenCardId, setPendingReopenCardId] = useState(null);
+  const [editingChecklistTarget, setEditingChecklistTarget] = useState(null);
   const [exportColumns, setExportColumns] = useState(() =>
     EXPORT_FIELDS.map((field) => ({ ...field, enabled: true }))
   );
@@ -1867,6 +1974,64 @@ function App() {
 
     addChecklistItem(pendingReopenCardId);
     setPendingReopenCardId(null);
+  };
+
+  const openChecklistEditor = (cardId, item) => {
+    setEditingChecklistTarget({
+      cardId,
+      itemId: item.id,
+      text: item.text || '',
+      context: item.context || '',
+    });
+  };
+
+  const saveChecklistEditor = () => {
+    if (!editingChecklistTarget) {
+      return;
+    }
+
+    const targetCard = cards.find((card) => card.id === editingChecklistTarget.cardId);
+    if (!targetCard) {
+      setEditingChecklistTarget(null);
+      return;
+    }
+
+    updateCard(targetCard.id, {
+      checklist: targetCard.checklist.map((item) =>
+        item.id === editingChecklistTarget.itemId
+          ? {
+              ...item,
+              text: editingChecklistTarget.text,
+              context: editingChecklistTarget.context,
+            }
+          : item
+      ),
+    });
+    setEditingChecklistTarget(null);
+  };
+
+  const deleteChecklistEditorItem = () => {
+    if (!editingChecklistTarget) {
+      return;
+    }
+
+    const targetCard = cards.find((card) => card.id === editingChecklistTarget.cardId);
+    if (!targetCard) {
+      setEditingChecklistTarget(null);
+      return;
+    }
+
+    const nextChecklist = targetCard.checklist.filter(
+      (item) => item.id !== editingChecklistTarget.itemId
+    );
+
+    if (nextChecklist.length === 0) {
+      deleteCard(targetCard.id);
+    } else {
+      updateCard(targetCard.id, { checklist: nextChecklist });
+    }
+
+    setEditingChecklistTarget(null);
   };
 
   const toggleExportColumn = (key) => {
@@ -2011,6 +2176,7 @@ function App() {
             onOpenCard={(card) => setFocusCardId(card.id)}
             onAddChecklistItem={addChecklistItem}
             onRequestChecklistToggle={openChecklistToggle}
+            onEditChecklistItem={openChecklistEditor}
           />
         ) : viewMode === 'board' ? (
           (
@@ -2021,6 +2187,7 @@ function App() {
               setFocusCardId={setFocusCardId}
               addChecklistItem={addChecklistItem}
               onRequestChecklistToggle={openChecklistToggle}
+              onEditChecklistItem={openChecklistEditor}
             />
           )
         ) : (
@@ -2031,6 +2198,7 @@ function App() {
             setFocusCardId={setFocusCardId}
             addChecklistItem={addChecklistItem}
             onRequestChecklistToggle={openChecklistToggle}
+            onEditChecklistItem={openChecklistEditor}
           />
         )}
 
@@ -2067,6 +2235,23 @@ function App() {
       />
 
       <FocusModal card={focusCard} onClose={() => setFocusCardId(null)} />
+      <ChecklistItemModal
+        open={Boolean(editingChecklistTarget)}
+        item={editingChecklistTarget}
+        onTextChange={(text) =>
+          setEditingChecklistTarget((current) =>
+            current ? { ...current, text } : current
+          )
+        }
+        onContextChange={(context) =>
+          setEditingChecklistTarget((current) =>
+            current ? { ...current, context } : current
+          )
+        }
+        onSave={saveChecklistEditor}
+        onDelete={deleteChecklistEditorItem}
+        onCancel={() => setEditingChecklistTarget(null)}
+      />
       <ChecklistConfirmModal
         open={Boolean(pendingToggle)}
         nextChecked={pendingToggle?.nextChecked}
