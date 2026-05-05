@@ -870,7 +870,9 @@ function DraggableCard(props) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`draggable-card ${isDragging ? 'dragging' : ''}`}
+      className={`draggable-card ${isDragging ? 'dragging' : ''} ${
+        props.isFrontCard ? 'front-card' : 'hover-lift-card'
+      }`}
       onMouseDown={() => bringToFront(props.card.id)}
       {...listeners}
       {...attributes}
@@ -882,7 +884,11 @@ function DraggableCard(props) {
 
 function StaticCard(props) {
   return (
-    <div className="draggable-card static-card">
+    <div
+      className={`draggable-card static-card ${
+        props.isFrontCard ? 'front-card' : 'hover-lift-card'
+      }`}
+    >
       <CardShell {...props} />
     </div>
   );
@@ -953,6 +959,7 @@ function CardSection({
             {lane === 'incomplete' ? (
               <StaticCard
                 card={card}
+                isFrontCard={index === visibleCards.length - 1}
                 zIndex={10 + index}
                 onClick={() => onOpenCard(card)}
                 onDoubleClick={() => {}}
@@ -970,6 +977,7 @@ function CardSection({
             ) : (
               <DraggableCard
                 card={card}
+                isFrontCard={index === visibleCards.length - 1}
                 zIndex={10 + index}
                 onClick={() => onOpenCard(card)}
                 onDoubleClick={() => {}}
@@ -1246,6 +1254,7 @@ function AllCardsPage({
             <StaticCard
               key={card.id}
               card={card}
+              isFrontCard={false}
               zIndex={10}
               onClick={() => onOpenCard(card)}
               onDoubleClick={() => {}}
@@ -1260,6 +1269,7 @@ function AllCardsPage({
             <DraggableCard
               key={card.id}
               card={card}
+              isFrontCard={false}
               zIndex={10}
               onClick={() => onOpenCard(card)}
               onDoubleClick={() => {}}

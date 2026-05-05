@@ -237,6 +237,19 @@ textarea {
 }
 
 .job-card {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.draggable-card.hover-lift-card:hover {
+  z-index: 999 !important;
+}
+
+.draggable-card.hover-lift-card:hover .job-card {
+  transform: translateY(-18px);
+  box-shadow: 0 16px 30px rgba(93, 73, 44, 0.12);
+}
+
+.job-card {
   border: 0;
   background: #fffdf9;
   padding: 18px 18px 20px;
