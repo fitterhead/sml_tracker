@@ -29,92 +29,14 @@ const createChecklistItem = (text, createdBy, overrides = {}) => ({
 const createSeedCards = () => [
   {
     id: createId(),
-    taskName: 'Task B - Product',
-    jobName: 'JOB 05 - User Dashboard',
-    assignedPerson: 'Duy Nguyen',
-    startDate: '2026-05-12',
-    lane: ACTIVE,
-    priority: 3,
-    order: 1,
-    checklist: [
-      createChecklistItem('Create color palette', 'manager', {
-        checked: true,
-        checkedBy: 'manager',
-      }),
-      createChecklistItem('Typography system', 'staff', {
-        checked: true,
-        checkedBy: 'staff',
-      }),
-      createChecklistItem('Component library', 'manager'),
-      createChecklistItem('Icon set', 'staff'),
-    ],
-  },
-  {
-    id: createId(),
-    taskName: 'Task B - Development',
-    jobName: 'JOB 06 - API Integration',
-    assignedPerson: '',
-    startDate: '',
-    lane: ACTIVE,
-    priority: 2,
-    order: 2,
-    checklist: [
-      createChecklistItem('Confirm payload contract', 'manager'),
-      createChecklistItem('Map API error states', 'staff'),
-    ],
-  },
-  {
-    id: createId(),
-    taskName: 'Task D - Marketing',
-    jobName: 'JOB 07 - Landing Page',
-    assignedPerson: 'Minh Tran',
-    startDate: '2026-05-22',
-    lane: HOLD,
-    priority: 1,
-    order: 3,
-    checklist: [createChecklistItem('Prepare hero section copy', 'staff')],
-  },
-  {
-    id: createId(),
-    taskName: 'Task C - Development',
-    jobName: 'JOB 03 - Deploy to Server',
-    assignedPerson: 'Ops Team',
-    startDate: '2026-05-25',
-    lane: DONE,
-    priority: 5,
-    order: 4,
-    checklist: [
-      createChecklistItem('Create release checklist', 'manager', {
-        checked: true,
-        checkedBy: 'manager',
-      }),
-      createChecklistItem('Deploy staging build', 'staff', {
-        checked: true,
-        checkedBy: 'staff',
-      }),
-    ],
-  },
-  {
-    id: createId(),
     taskName: '',
-    jobName: 'JOB 08 - No Task',
-    assignedPerson: '',
-    startDate: '',
-    lane: ACTIVE,
-    priority: 0,
-    order: 5,
-    checklist: [createChecklistItem('Confirm task owner', 'manager')],
-  },
-  {
-    id: createId(),
-    taskName: 'Task A - Planning',
     jobName: '',
     assignedPerson: '',
     startDate: '',
     lane: ACTIVE,
     priority: 0,
-    order: 6,
-    checklist: [createChecklistItem('Fill in job title', 'staff')],
+    order: 1,
+    checklist: [createChecklistItem('Add checklist item', 'manager')],
   },
 ];
 
@@ -166,7 +88,7 @@ export const useBoardStore = create(
     (set, get) => ({
       cards: createSeedCards(),
       currentUser: {
-        name: 'Duy Nguyen',
+        name: 'Andrew',
         role: 'manager',
         isAuthenticated: false,
       },
@@ -368,7 +290,17 @@ export const useBoardStore = create(
     }),
     {
       name: 'tracker-card-board',
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState) => ({
+        ...persistedState,
+        cards: createSeedCards(),
+        currentUser: {
+          name: 'Andrew',
+          role: 'manager',
+          isAuthenticated: false,
+        },
+      }),
       partialize: (state) => ({
         cards: state.cards,
         currentUser: state.currentUser,

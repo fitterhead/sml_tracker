@@ -5,9 +5,9 @@ const app = express();
 const port = process.env.PORT || 4000;
 
 const users = [
-  { id: 'manager-1', name: 'Duy Nguyen', role: 'manager' },
-  { id: 'staff-1', name: 'Minh Tran', role: 'staff' },
-  { id: 'staff-2', name: 'Linh Pham', role: 'staff' },
+  { id: 'manager-1', name: 'Andrew', role: 'manager' },
+  { id: 'staff-1', name: 'Staff 1', role: 'staff' },
+  { id: 'staff-2', name: 'Staff 2', role: 'staff' },
 ];
 
 app.use(cors());

@@ -445,7 +445,7 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
 
 function LoginGate() {
   const login = useBoardStore((state) => state.login);
-  const [name, setName] = useState('Duy Nguyen');
+  const [name, setName] = useState('Andrew');
 
   return (
     <div className="login-gate">
@@ -461,7 +461,7 @@ function LoginGate() {
           <input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Example: Duy Nguyen"
+            placeholder="Example: Andrew"
           />
         </label>
         <div className="login-note">
