@@ -815,6 +815,13 @@ function ChecklistItemModal({
             autoFocus
           />
         </label>
+        <button
+          type="button"
+          className="ghost-button muted checklist-context-trigger"
+          onClick={() => setShowContextField((current) => !current)}
+        >
+          {showContextField ? 'Hide context' : 'Show context'}
+        </button>
         {showContextField ? (
           <label className="field field-full checklist-modal-context">
             <span>Context</span>
@@ -825,15 +832,7 @@ function ChecklistItemModal({
               placeholder="Optional context"
             />
           </label>
-        ) : (
-          <button
-            type="button"
-            className="ghost-button muted checklist-context-trigger"
-            onClick={() => setShowContextField(true)}
-          >
-            Add context
-          </button>
-        )}
+        ) : null}
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onDelete}>
             Delete
@@ -1298,6 +1297,7 @@ function FocusModal({ card, onClose }) {
   );
   const [draft, setDraft] = useState(null);
   const [pendingToggle, setPendingToggle] = useState(null);
+  const [expandedDraftContexts, setExpandedDraftContexts] = useState({});
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [pendingDeleteCard, setPendingDeleteCard] = useState(false);
   const [showAddDraftChecklistComposer, setShowAddDraftChecklistComposer] = useState(false);
@@ -1308,6 +1308,7 @@ function FocusModal({ card, onClose }) {
     if (!card) {
       setDraft(null);
       setPendingToggle(null);
+      setExpandedDraftContexts({});
       setPendingDeleteItem(null);
       setPendingDeleteCard(false);
       setShowAddDraftChecklistComposer(false);
@@ -1318,6 +1319,7 @@ function FocusModal({ card, onClose }) {
 
     setDraft(buildDraftFromCard(card));
     setPendingToggle(null);
+    setExpandedDraftContexts({});
     setPendingDeleteItem(null);
     setPendingDeleteCard(false);
     setShowAddDraftChecklistComposer(false);
@@ -1708,18 +1710,19 @@ function FocusModal({ card, onClose }) {
                   <span className="check-date">{formatChecklistTimeline(item)}</span>
                 ) : null}
               </div>
-              <label className="field field-full modal-check-context-field">
-                <span>Context</span>
-                <textarea
-                  value={item.context || ''}
-                  onChange={(event) =>
-                    updateDraftChecklistContext(item.id, event.target.value)
-                  }
-                  rows={3}
-                  placeholder="Optional context"
-                />
-              </label>
               <div className="modal-check-actions">
+                <button
+                  type="button"
+                  className="ghost-button muted"
+                  onClick={() =>
+                    setExpandedDraftContexts((current) => ({
+                      ...current,
+                      [item.id]: !current[item.id],
+                    }))
+                  }
+                >
+                  {expandedDraftContexts[item.id] ? 'Hide context' : 'Show context'}
+                </button>
                 <button
                   type="button"
                   className="ghost-button muted"
@@ -1730,6 +1733,19 @@ function FocusModal({ card, onClose }) {
                   Delete
                 </button>
               </div>
+              {expandedDraftContexts[item.id] ? (
+                <label className="field field-full modal-check-context-field">
+                  <span>Context</span>
+                  <textarea
+                    value={item.context || ''}
+                    onChange={(event) =>
+                      updateDraftChecklistContext(item.id, event.target.value)
+                    }
+                    rows={2}
+                    placeholder="Optional context"
+                  />
+                </label>
+              ) : null}
               {Array.isArray(item.contextHistory) && item.contextHistory.length > 0 ? (
                 <div className="modal-check-context">
                   <div className="check-context-body">
