@@ -10,6 +10,10 @@
   animation: surface-fade-in 160ms ease-out;
 }
 
+.nested-backdrop {
+  z-index: 140;
+}
+
 .focus-modal,
 .login-card,
 .confirm-modal,

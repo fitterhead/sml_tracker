@@ -548,6 +548,12 @@ function ChecklistConfirmModal({
       <div
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+            event.preventDefault();
+            onConfirm();
+          }
+        }}
       >
         <p className="eyebrow">{nextChecked ? 'confirm check' : 'confirm uncheck'}</p>
         <h2>{nextChecked ? 'mark this item as complete?' : 'remove this completed mark?'}</h2>
@@ -755,6 +761,38 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
           <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
           <button type="button" className="ghost-button" onClick={onConfirm}>
             delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnsavedChangesModal({ open, onSave, onExit, onCancel }) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="focus-backdrop nested-backdrop" onClick={onCancel}>
+      <div
+        className="confirm-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="eyebrow">unsaved changes</p>
+        <h2>do you want to exit?</h2>
+        <p className="confirm-item-text">
+          You have unsaved changes. Save them before leaving, or exit without saving.
+        </p>
+        <div className="focus-actions">
+          <button type="button" className="ghost-button muted" onClick={onExit}>
+            exit
+          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>
+            stay
+          </button>
+          <button type="button" className="ghost-button" onClick={onSave}>
+            save
           </button>
         </div>
       </div>
@@ -1179,6 +1217,12 @@ function ChecklistItemModal({
       <div
         className="confirm-modal checklist-modal"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+            event.preventDefault();
+            onSave();
+          }
+        }}
       >
         <p className="eyebrow">checklist item</p>
         <h2>edit checklist item</h2>
@@ -1592,6 +1636,7 @@ function FocusModal({ card, onClose }) {
   const [draftContextInputs, setDraftContextInputs] = useState({});
   const [clientRenameDraft, setClientRenameDraft] = useState('');
   const [editingDraftChecklistId, setEditingDraftChecklistId] = useState(null);
+  const [showUnsavedExit, setShowUnsavedExit] = useState(false);
 
   useEffect(() => {
     if (!card) {
@@ -1607,6 +1652,7 @@ function FocusModal({ card, onClose }) {
       setDraftContextInputs({});
       setClientRenameDraft('');
       setEditingDraftChecklistId(null);
+      setShowUnsavedExit(false);
       return;
     }
 
@@ -1622,6 +1668,7 @@ function FocusModal({ card, onClose }) {
     setDraftContextInputs({});
     setClientRenameDraft(card.jobName || '');
     setEditingDraftChecklistId(null);
+    setShowUnsavedExit(false);
   }, [card]);
 
   if (!card || !draft) {
@@ -1647,6 +1694,24 @@ function FocusModal({ card, onClose }) {
       lane: nextLane,
       checklist: draft.checklist,
     });
+  };
+
+  const closeFocusModal = () => {
+    if (isDirty) {
+      setShowUnsavedExit(true);
+      return;
+    }
+
+    onClose();
+  };
+
+  const saveAndCloseFocusModal = () => {
+    if (isDirty) {
+      saveChanges();
+    }
+
+    setShowUnsavedExit(false);
+    onClose();
   };
 
   const saveChangesFromKeyboard = () => {
@@ -1936,7 +2001,7 @@ function FocusModal({ card, onClose }) {
   };
 
   return (
-    <div className="focus-backdrop" onClick={onClose}>
+    <div className="focus-backdrop" onClick={closeFocusModal}>
       <div className="focus-modal" onClick={(event) => event.stopPropagation()}>
         <div className="focus-header">
           <div>
@@ -1945,7 +2010,7 @@ function FocusModal({ card, onClose }) {
               <HighlightedText text={card.jobName || 'untitled client'} />
             </h2>
           </div>
-          <button type="button" className="close-button" onClick={onClose}>CLOSE</button>
+          <button type="button" className="close-button" onClick={closeFocusModal}>CLOSE</button>
         </div>
 
         <div className="focus-grid">
@@ -2302,6 +2367,15 @@ function FocusModal({ card, onClose }) {
         onConfirm={confirmDeleteCard}
         onCancel={() => setPendingDeleteCard(false)}
       />
+      <UnsavedChangesModal
+        open={showUnsavedExit}
+        onSave={saveAndCloseFocusModal}
+        onExit={() => {
+          setShowUnsavedExit(false);
+          onClose();
+        }}
+        onCancel={() => setShowUnsavedExit(false)}
+      />
     </div>
   );
 }
@@ -2341,6 +2415,8 @@ function App() {
   const [boardHydrated, setBoardHydrated] = useState(false);
   const [serverBoardUpdatedAt, setServerBoardUpdatedAt] = useState('');
   const [serverMeta, setServerMeta] = useState(createEmptyServerMeta);
+  const [showComposerUnsavedPrompt, setShowComposerUnsavedPrompt] = useState(false);
+  const [showChecklistUnsavedPrompt, setShowChecklistUnsavedPrompt] = useState(false);
   const [authForm, setAuthForm] = useState({
     name: '',
     email: '',
@@ -2610,6 +2686,18 @@ function App() {
       todoColumnId: '',
     });
     setShowComposer(false);
+    setShowComposerUnsavedPrompt(false);
+  };
+
+  const resetComposerDraft = () => {
+    setComposerDraft({
+      taskName: '',
+      jobName: '',
+      jobChoice: '',
+      assignedPerson: '',
+      startDate: '',
+      todoColumnId: '',
+    });
   };
 
   const hasComposerDraftContent = () =>
@@ -2622,10 +2710,16 @@ function App() {
 
   const closeComposerFromBackdrop = () => {
     if (hasComposerDraftContent()) {
-      submitComposer({ preventDefault() {} });
+      setShowComposerUnsavedPrompt(true);
       return;
     }
 
+    setShowComposer(false);
+  };
+
+  const discardComposerDraft = () => {
+    resetComposerDraft();
+    setShowComposerUnsavedPrompt(false);
     setShowComposer(false);
   };
 
@@ -2716,12 +2810,19 @@ function App() {
       cardId,
       itemId: item.id,
       text: item.text || '',
+      originalText: item.text || '',
       context: item.context || '',
+      originalContext: item.context || '',
       contextCreatedAt:
         item.contextCreatedAt || item.createdAt || item.completedAt || '',
+      originalContextCreatedAt:
+        item.contextCreatedAt || item.createdAt || item.completedAt || '',
       contextCompletedAt: item.contextCompletedAt || '',
+      originalContextCompletedAt: item.contextCompletedAt || '',
       contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
+      originalContextCreatedBy: item.contextCreatedBy || item.createdBy || '',
       contextHistory: getChecklistContextHistory(item),
+      originalContextHistory: getChecklistContextHistory(item),
       contextInput: '',
     });
   };
@@ -2785,6 +2886,35 @@ function App() {
           : item
       ),
     });
+    setShowChecklistUnsavedPrompt(false);
+    setEditingChecklistTarget(null);
+  };
+
+  const isChecklistEditorDirty = () => {
+    if (!editingChecklistTarget) {
+      return false;
+    }
+
+    return (
+      editingChecklistTarget.text !== editingChecklistTarget.originalText ||
+      editingChecklistTarget.context !== editingChecklistTarget.originalContext ||
+      editingChecklistTarget.contextCreatedAt !==
+        editingChecklistTarget.originalContextCreatedAt ||
+      editingChecklistTarget.contextCompletedAt !==
+        editingChecklistTarget.originalContextCompletedAt ||
+      editingChecklistTarget.contextCreatedBy !==
+        editingChecklistTarget.originalContextCreatedBy ||
+      JSON.stringify(getChecklistContextHistory(editingChecklistTarget)) !==
+        JSON.stringify(editingChecklistTarget.originalContextHistory || [])
+    );
+  };
+
+  const requestCloseChecklistEditor = () => {
+    if (isChecklistEditorDirty()) {
+      setShowChecklistUnsavedPrompt(true);
+      return;
+    }
+
     setEditingChecklistTarget(null);
   };
 
@@ -2809,6 +2939,7 @@ function App() {
       updateCard(targetCard.id, { checklist: nextchecklist });
     }
 
+    setShowChecklistUnsavedPrompt(false);
     setEditingChecklistTarget(null);
   };
 
@@ -3132,6 +3263,12 @@ function App() {
         onOutsideCommit={closeComposerFromBackdrop}
         onCancel={() => setShowComposer(false)}
       />
+      <UnsavedChangesModal
+        open={showComposerUnsavedPrompt}
+        onSave={() => submitComposer({ preventDefault() {} })}
+        onExit={discardComposerDraft}
+        onCancel={() => setShowComposerUnsavedPrompt(false)}
+      />
 
       <FocusModal card={focusCard} onClose={() => setFocusCardId(null)} />
       <ChecklistItemModal
@@ -3154,7 +3291,16 @@ function App() {
         onDeleteHistoryContext={deleteChecklistEditorHistoryContext}
         onSave={saveChecklistEditor}
         onDelete={deleteChecklistEditorItem}
-        onCancel={() => setEditingChecklistTarget(null)}
+        onCancel={requestCloseChecklistEditor}
+      />
+      <UnsavedChangesModal
+        open={showChecklistUnsavedPrompt}
+        onSave={saveChecklistEditor}
+        onExit={() => {
+          setShowChecklistUnsavedPrompt(false);
+          setEditingChecklistTarget(null);
+        }}
+        onCancel={() => setShowChecklistUnsavedPrompt(false)}
       />
       <ChecklistConfirmModal
         key={
