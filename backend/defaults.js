@@ -2,6 +2,7 @@ const { randomUUID } = require('node:crypto');
 
 const ACTIVE = 'active';
 const TODO_COLUMN_LIMIT = 2;
+const DEFAULT_PRIORITY = 1;
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -67,7 +68,7 @@ const createSeedCards = (todoColumns = createSeedTodoColumns()) => [
     completedAt: '',
     lane: ACTIVE,
     todoColumnId: todoColumns[0]?.id || '',
-    priority: 0,
+    priority: DEFAULT_PRIORITY,
     order: 1,
     checklist: [createChecklistItem('add checklist item', 'manager')],
   },
@@ -124,7 +125,7 @@ const normalizeCard = (card = {}, todoColumns = []) => ({
   todoColumnId: todoColumns.some((column) => column.id === card.todoColumnId)
     ? card.todoColumnId
     : todoColumns[0]?.id || '',
-  priority: Number(card.priority) || 0,
+  priority: Number(card.priority) || DEFAULT_PRIORITY,
   order: Number(card.order) || 1,
   checklist:
     Array.isArray(card.checklist) && card.checklist.length > 0

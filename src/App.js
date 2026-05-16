@@ -180,7 +180,7 @@ const buildCardsFromImportedRows = (rows) => {
     const assignedPerson = String(getImportValue(row, 'assignedPerson') || '').trim();
     const startDate = normalizeImportedDate(getImportValue(row, 'startDate'));
     const lane = normalizeImportedLane(getImportValue(row, 'lane'));
-    const priority = Number(getImportValue(row, 'priority')) || 0;
+    const priority = Number(getImportValue(row, 'priority')) || 1;
     const checklistText = String(getImportValue(row, 'checklistText') || '').trim();
     const checklistContext = String(getImportValue(row, 'checklistContext') || '').trim();
     const key = [jobName, taskName, assignedPerson, startDate, lane, priority].join('|') || `row-${index}`;
@@ -231,7 +231,7 @@ const buildDraftFromCard = (card) => ({
     contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
     contextHistory: item.contextHistory || [],
   })),
-  priority: card.priority || 0,
+  priority: card.priority || 1,
 });
 
 const triggerActionOnEnter = (event, action) => {
@@ -1179,8 +1179,8 @@ function CardShell({
             </button>
           )}
         </div>
-        <PriorityDots
-          value={card.priority || 0}
+          <PriorityDots
+          value={card.priority || 1}
           onChange={(priority) => onPriorityChange?.(priority)}
         />
       </div>
@@ -2178,7 +2178,7 @@ function FocusModal({ card, onClose }) {
             <div className="modal-section-header">
               <h3>priority</h3>
               <PriorityDots
-                value={draft.priority || 0}
+                value={draft.priority || 1}
                 onChange={(priority) =>
                   setDraft((current) => ({ ...current, priority }))
                 }
@@ -3040,7 +3040,7 @@ function App() {
         taskName: card.taskName,
         jobName: card.jobName,
         lane: getCardZone(card),
-        priority: card.priority || 0,
+        priority: card.priority || 1,
         assignedPerson: card.assignedPerson,
         startDate: card.startDate,
         checklistText: item.text,

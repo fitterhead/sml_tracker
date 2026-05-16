@@ -5,6 +5,7 @@ const ACTIVE = 'active';
 const DONE = 'done';
 const HOLD = 'hold';
 const TODO_COLUMN_LIMIT = 2;
+const DEFAULT_PRIORITY = 1;
 
 const getPrimaryTodoColumnId = (todoColumns) => todoColumns[0]?.id || '';
 
@@ -67,7 +68,7 @@ export const createSeedCards = (todoColumns = createSeedTodoColumns()) => [
     completedAt: '',
     lane: ACTIVE,
     todoColumnId: todoColumns[0]?.id || '',
-    priority: 0,
+    priority: DEFAULT_PRIORITY,
     order: 1,
     checklist: [createChecklistItem('add checklist item', 'manager')],
   },
@@ -156,7 +157,7 @@ const normalizeCardsForTodoColumns = (cards = [], todoColumns = []) => {
         todoColumnId: todoColumnIds.has(card.todoColumnId)
           ? card.todoColumnId
           : fallbackTodoColumnId,
-        priority: Number(card.priority) || 0,
+        priority: Number(card.priority) || DEFAULT_PRIORITY,
         order: Number(card.order) || index + 1,
         checklist:
           Array.isArray(card.checklist) && card.checklist.length > 0
@@ -282,7 +283,7 @@ export const useBoardStore = create(
                   completedAt: '',
                   lane: initialValues.lane || ACTIVE,
                   todoColumnId: fallbackTodoColumnId,
-                  priority: initialValues.priority ?? 0,
+                  priority: initialValues.priority ?? DEFAULT_PRIORITY,
                   order: highestOrder,
                   checklist: [
                     createChecklistItem('add first checklist item', userRole),
@@ -342,7 +343,7 @@ export const useBoardStore = create(
                   completedAt: '',
                   lane: item.lane || ACTIVE,
                   todoColumnId: fallbackTodoColumnId,
-                  priority: Number(item.priority) || 0,
+                  priority: Number(item.priority) || DEFAULT_PRIORITY,
                   order: nextOrder,
                   checklist,
                 };
