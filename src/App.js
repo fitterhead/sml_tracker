@@ -1292,11 +1292,21 @@ function DraggableCard(props) {
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
       onMouseEnter={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
         if (isCardHeaderTarget(event.target)) {
           props.onHoverPreview?.(props.card, event);
         }
       }}
       onMouseMove={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
         if (!isCardHeaderTarget(event.target)) {
           props.onHoverPreviewEnd?.();
           return;
@@ -1321,11 +1331,21 @@ function StaticCard(props) {
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
       onMouseEnter={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
         if (isCardHeaderTarget(event.target)) {
           props.onHoverPreview?.(props.card, event);
         }
       }}
       onMouseMove={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
         if (!isCardHeaderTarget(event.target)) {
           props.onHoverPreviewEnd?.();
           return;
