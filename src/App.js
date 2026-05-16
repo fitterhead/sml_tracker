@@ -1432,6 +1432,7 @@ function CreateCardPopup({
   setComposerDraft,
   onSubmit,
   onCancel,
+  onOutsideCommit,
 }) {
   const submitComposerFromKeyboard = () => {
     onSubmit({ preventDefault() {} });
@@ -1442,7 +1443,7 @@ function CreateCardPopup({
   }
 
   return (
-    <div className="focus-backdrop" onClick={onCancel}>
+    <div className="focus-backdrop" onClick={onOutsideCommit}>
       <form className="composer-popup" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="composer-grid">
           <label className="field">
@@ -1571,6 +1572,7 @@ function FocusModal({ card, onClose }) {
   const [showNewDraftChecklistContext, setShowNewDraftChecklistContext] = useState(false);
   const [draftContextInputs, setDraftContextInputs] = useState({});
   const [clientRenameDraft, setClientRenameDraft] = useState('');
+  const [editingDraftChecklistId, setEditingDraftChecklistId] = useState(null);
 
   useEffect(() => {
     if (!card) {
@@ -1585,6 +1587,7 @@ function FocusModal({ card, onClose }) {
       setShowNewDraftChecklistContext(false);
       setDraftContextInputs({});
       setClientRenameDraft('');
+      setEditingDraftChecklistId(null);
       return;
     }
 
@@ -1599,6 +1602,7 @@ function FocusModal({ card, onClose }) {
     setShowNewDraftChecklistContext(false);
     setDraftContextInputs({});
     setClientRenameDraft(card.jobName || '');
+    setEditingDraftChecklistId(null);
   }, [card]);
 
   if (!card || !draft) {
@@ -2119,13 +2123,31 @@ function FocusModal({ card, onClose }) {
                   >
                     <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
                   </button>
-                  <input
-                    value={item.text}
-                    onChange={(event) =>
-                      updateDraftChecklistItem(item.id, event.target.value)
-                    }
-                    className="modal-check-input"
-                  />
+                  {editingDraftChecklistId === item.id ? (
+                    <input
+                      value={item.text}
+                      onChange={(event) =>
+                        updateDraftChecklistItem(item.id, event.target.value)
+                      }
+                      onBlur={() => setEditingDraftChecklistId(null)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          setEditingDraftChecklistId(null);
+                        }
+                      }}
+                      className="modal-check-input"
+                      autoFocus
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="modal-check-label-button"
+                      onClick={() => setEditingDraftChecklistId(item.id)}
+                    >
+                      <HighlightedText text={item.text} />
+                    </button>
+                  )}
                   <ContextActionButton
                     open={Boolean(expandedDraftContexts[item.id])}
                     hasContext={hasChecklistContext(item)}
@@ -2136,6 +2158,15 @@ function FocusModal({ card, onClose }) {
                       }))
                     }
                   />
+                  {editingDraftChecklistId !== item.id ? (
+                    <button
+                      type="button"
+                      className="ghost-button muted"
+                      onClick={() => setEditingDraftChecklistId(item.id)}
+                    >
+                      edit
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="ghost-button muted"
@@ -2537,6 +2568,23 @@ function App() {
       startDate: '',
       todoColumnId: '',
     });
+    setShowComposer(false);
+  };
+
+  const hasComposerDraftContent = () =>
+    Boolean(
+      composerDraft.taskName.trim() ||
+        composerDraft.jobName.trim() ||
+        composerDraft.assignedPerson.trim() ||
+        composerDraft.startDate
+    );
+
+  const closeComposerFromBackdrop = () => {
+    if (hasComposerDraftContent()) {
+      submitComposer({ preventDefault() {} });
+      return;
+    }
+
     setShowComposer(false);
   };
 
@@ -3009,6 +3057,7 @@ function App() {
         composerDraft={composerDraft}
         setComposerDraft={setComposerDraft}
         onSubmit={submitComposer}
+        onOutsideCommit={closeComposerFromBackdrop}
         onCancel={() => setShowComposer(false)}
       />
 

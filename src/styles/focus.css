@@ -57,13 +57,28 @@
 
 .modal-check-main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   gap: var(--space-4);
   align-items: center;
 }
 
 .modal-check-input {
   width: 100%;
+}
+
+.modal-check-label-button {
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.modal-check-label-button:hover {
+  color: var(--accent);
 }
 
 .modal-check-input,
