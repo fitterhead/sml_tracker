@@ -2677,7 +2677,7 @@ function App() {
     }
 
     setHoverPreview({
-      card,
+      cardId: card.id,
       ...getHoverPreviewPosition(event),
     });
   };
@@ -2692,6 +2692,9 @@ function App() {
     );
   };
   const hideHoverPreview = () => setHoverPreview(null);
+  const hoverPreviewCard = hoverPreview
+    ? cards.find((card) => card.id === hoverPreview.cardId)
+    : null;
 
   const submitComposer = (event) => {
     event.preventDefault();
@@ -3248,7 +3251,7 @@ function App() {
         </DragOverlay>
       </DndContext>
 
-      {hoverPreview ? (
+      {hoverPreview && hoverPreviewCard ? (
         <div
           className="hover-card-preview"
           style={{
@@ -3257,7 +3260,7 @@ function App() {
           }}
         >
           <CardShell
-            card={hoverPreview.card}
+            card={hoverPreviewCard}
             forceFull
             isOverlay
             onClick={() => {}}
