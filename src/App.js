@@ -18,7 +18,7 @@ import {
 } from './components/BoardViews';
 import {
   columnMeta,
-  formatCardAge,
+  formatCardDisplayDate,
   formatChecklistTimeline,
   formatContextHistoryTimeline,
   getPileHeight,
@@ -1036,7 +1036,9 @@ function CardShell({
 
       <div className="card-meta">
         <span className="meta-date">
-          <HighlightedText text={formatCardAge(card.createdAt || card.startDate)} />
+          <HighlightedText
+            text={formatCardDisplayDate(card.startDate, card.createdAt)}
+          />
         </span>
         <span>
           <HighlightedText text={card.assignedPerson || 'unassigned'} />

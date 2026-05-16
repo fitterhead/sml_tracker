@@ -53,6 +53,26 @@ export const formatCardAge = (value) => {
   return `${yearCount} ${yearCount === 1 ? 'year' : 'years'}`;
 };
 
+export const formatCardDisplayDate = (startDate, createdAt) => {
+  const value = startDate || createdAt;
+
+  if (!value) {
+    return 'today';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+};
+
 export const formatCompletedDate = (value) => {
   if (!value) {
     return 'not complete';
