@@ -1230,7 +1230,6 @@ function DraggableCard(props) {
 
   const style = {
     transform: CSS.Translate.toString(transform),
-    zIndex: props.zIndex,
     opacity: isDragging ? 0.4 : 1,
   };
 
@@ -1364,6 +1363,7 @@ function CardSection({
               className="pile-slot"
               style={{
                 transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
+                zIndex: 10 + index,
               }}
             >
               {lane === 'incomplete' ? (

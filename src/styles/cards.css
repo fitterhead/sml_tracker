@@ -10,10 +10,6 @@
     opacity 140ms ease;
 }
 
-.draggable-card.hover-lift-card:hover {
-  z-index: 999 !important;
-}
-
 .draggable-card.hover-lift-card:hover .job-card {
   transform: translateY(-18px);
   box-shadow: 0 16px 30px rgba(93, 73, 44, 0.12);

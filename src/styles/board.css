@@ -205,6 +205,10 @@
   transform-origin: top left;
 }
 
+.pile-slot:hover {
+  z-index: 999 !important;
+}
+
 .row-todo .pile-slot {
   width: calc(100% - var(--todo-pile-spread));
 }
