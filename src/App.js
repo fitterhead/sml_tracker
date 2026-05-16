@@ -1268,12 +1268,7 @@ const getHoverPreviewPosition = (event) => ({
   y: Math.min(event.clientY + 18, window.innerHeight - 360),
 });
 
-const isCardContentTarget = (target) =>
-  Boolean(
-    target?.closest?.(
-      '.card-top, .card-meta, .missing-box, .checklist, .card-footer, button, input, textarea, select, label'
-    )
-  );
+const isCardHeaderTarget = (target) => Boolean(target?.closest?.('.card-top'));
 
 function DraggableCard(props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -1297,15 +1292,12 @@ function DraggableCard(props) {
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
       onMouseEnter={(event) => {
-        if (isCardContentTarget(event.target)) {
-          props.onHoverPreviewEnd?.();
-          return;
+        if (isCardHeaderTarget(event.target)) {
+          props.onHoverPreview?.(props.card, event);
         }
-
-        props.onHoverPreview?.(props.card, event);
       }}
       onMouseMove={(event) => {
-        if (isCardContentTarget(event.target)) {
+        if (!isCardHeaderTarget(event.target)) {
           props.onHoverPreviewEnd?.();
           return;
         }
@@ -1329,15 +1321,12 @@ function StaticCard(props) {
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
       onMouseEnter={(event) => {
-        if (isCardContentTarget(event.target)) {
-          props.onHoverPreviewEnd?.();
-          return;
+        if (isCardHeaderTarget(event.target)) {
+          props.onHoverPreview?.(props.card, event);
         }
-
-        props.onHoverPreview?.(props.card, event);
       }}
       onMouseMove={(event) => {
-        if (isCardContentTarget(event.target)) {
+        if (!isCardHeaderTarget(event.target)) {
           props.onHoverPreviewEnd?.();
           return;
         }
