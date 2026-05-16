@@ -1268,6 +1268,13 @@ const getHoverPreviewPosition = (event) => ({
   y: Math.min(event.clientY + 18, window.innerHeight - 360),
 });
 
+const isCardContentTarget = (target) =>
+  Boolean(
+    target?.closest?.(
+      '.card-top, .card-meta, .missing-box, .checklist, .card-footer, button, input, textarea, select, label'
+    )
+  );
+
 function DraggableCard(props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -1289,9 +1296,24 @@ function DraggableCard(props) {
       className={`draggable-card ${isDragging ? 'dragging' : ''} ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
-      onMouseEnter={(event) => props.onHoverPreview?.(props.card, event)}
-      onMouseMove={(event) => props.onHoverPreviewMove?.(event)}
+      onMouseEnter={(event) => {
+        if (isCardContentTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreview?.(props.card, event);
+      }}
+      onMouseMove={(event) => {
+        if (isCardContentTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreviewMove?.(event);
+      }}
       onMouseLeave={props.onHoverPreviewEnd}
+      onPointerDown={props.onHoverPreviewEnd}
       {...listeners}
       {...attributes}
     >
@@ -1306,9 +1328,24 @@ function StaticCard(props) {
       className={`draggable-card static-card ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
-      onMouseEnter={(event) => props.onHoverPreview?.(props.card, event)}
-      onMouseMove={(event) => props.onHoverPreviewMove?.(event)}
+      onMouseEnter={(event) => {
+        if (isCardContentTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreview?.(props.card, event);
+      }}
+      onMouseMove={(event) => {
+        if (isCardContentTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreviewMove?.(event);
+      }}
       onMouseLeave={props.onHoverPreviewEnd}
+      onPointerDown={props.onHoverPreviewEnd}
     >
       <CardShell {...props} />
     </div>
