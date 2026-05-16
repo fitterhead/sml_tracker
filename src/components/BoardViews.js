@@ -11,6 +11,9 @@ export function BoardLayout({
   addChecklistItem,
   onRequestChecklistToggle,
   onEditChecklistItem,
+  onHoverPreview,
+  onHoverPreviewMove,
+  onHoverPreviewEnd,
 }) {
   return (
     <main className="board-row">
@@ -30,6 +33,9 @@ export function BoardLayout({
                 onAddChecklistItem={addChecklistItem}
                 onRequestChecklistToggle={onRequestChecklistToggle}
                 onEditChecklistItem={onEditChecklistItem}
+                onHoverPreview={onHoverPreview}
+                onHoverPreviewMove={onHoverPreviewMove}
+                onHoverPreviewEnd={onHoverPreviewEnd}
                 showCreateButton={index === 0}
                 showHeader={index === 0}
               />
@@ -50,6 +56,9 @@ export function BoardLayout({
             onAddChecklistItem={addChecklistItem}
             onRequestChecklistToggle={onRequestChecklistToggle}
             onEditChecklistItem={onEditChecklistItem}
+            onHoverPreview={onHoverPreview}
+            onHoverPreviewMove={onHoverPreviewMove}
+            onHoverPreviewEnd={onHoverPreviewEnd}
           />
         </div>
 
@@ -64,6 +73,9 @@ export function BoardLayout({
             onAddChecklistItem={addChecklistItem}
             onRequestChecklistToggle={onRequestChecklistToggle}
             onEditChecklistItem={onEditChecklistItem}
+            onHoverPreview={onHoverPreview}
+            onHoverPreviewMove={onHoverPreviewMove}
+            onHoverPreviewEnd={onHoverPreviewEnd}
           />
         </div>
       </div>
@@ -79,6 +91,9 @@ export function IncompletePage({
   addChecklistItem,
   onRequestChecklistToggle,
   onEditChecklistItem,
+  onHoverPreview,
+  onHoverPreviewMove,
+  onHoverPreviewEnd,
 }) {
   return (
     <main className="incomplete-page">
@@ -98,6 +113,9 @@ export function IncompletePage({
           onAddChecklistItem={addChecklistItem}
           onRequestChecklistToggle={onRequestChecklistToggle}
           onEditChecklistItem={onEditChecklistItem}
+          onHoverPreview={onHoverPreview}
+          onHoverPreviewMove={onHoverPreviewMove}
+          onHoverPreviewEnd={onHoverPreviewEnd}
         />
       </div>
     </main>
@@ -114,6 +132,9 @@ export function AllCardsPage({
   onAddChecklistItem,
   onRequestChecklistToggle,
   onEditChecklistItem,
+  onHoverPreview,
+  onHoverPreviewMove,
+  onHoverPreviewEnd,
 }) {
   const meta = columnMeta[lane];
 
@@ -144,6 +165,9 @@ export function AllCardsPage({
             onPriorityChange={(priority) =>
               useBoardStore.getState().updateCard(card.id, { priority })
             }
+            onHoverPreview={onHoverPreview}
+            onHoverPreviewMove={onHoverPreviewMove}
+            onHoverPreviewEnd={onHoverPreviewEnd}
           />
         ))}
       </div>

@@ -1219,6 +1219,11 @@ function ChecklistItemModal({
   );
 }
 
+const getHoverPreviewPosition = (event) => ({
+  x: Math.min(event.clientX + 18, window.innerWidth - 340),
+  y: Math.min(event.clientY + 18, window.innerHeight - 360),
+});
+
 function DraggableCard(props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -1240,6 +1245,9 @@ function DraggableCard(props) {
       className={`draggable-card ${isDragging ? 'dragging' : ''} ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
+      onMouseEnter={(event) => props.onHoverPreview?.(props.card, event)}
+      onMouseMove={(event) => props.onHoverPreviewMove?.(event)}
+      onMouseLeave={props.onHoverPreviewEnd}
       {...listeners}
       {...attributes}
     >
@@ -1254,6 +1262,9 @@ function StaticCard(props) {
       className={`draggable-card static-card ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
+      onMouseEnter={(event) => props.onHoverPreview?.(props.card, event)}
+      onMouseMove={(event) => props.onHoverPreviewMove?.(event)}
+      onMouseLeave={props.onHoverPreviewEnd}
     >
       <CardShell {...props} />
     </div>
@@ -1302,6 +1313,9 @@ function CardSection({
   onAddChecklistItem,
   onRequestChecklistToggle,
   onEditChecklistItem,
+  onHoverPreview,
+  onHoverPreviewMove,
+  onHoverPreviewEnd,
   title,
   subtitle,
   showHeader = true,
@@ -1363,7 +1377,6 @@ function CardSection({
               className="pile-slot"
               style={{
                 transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
-                zIndex: 10 + index,
               }}
             >
               {lane === 'incomplete' ? (
@@ -1383,6 +1396,9 @@ function CardSection({
                   onPriorityChange={(priority) =>
                     useBoardStore.getState().updateCard(card.id, { priority })
                   }
+                  onHoverPreview={onHoverPreview}
+                  onHoverPreviewMove={onHoverPreviewMove}
+                  onHoverPreviewEnd={onHoverPreviewEnd}
                 />
               ) : (
                 <DraggableCard
@@ -1401,6 +1417,9 @@ function CardSection({
                   onPriorityChange={(priority) =>
                     useBoardStore.getState().updateCard(card.id, { priority })
                   }
+                  onHoverPreview={onHoverPreview}
+                  onHoverPreviewMove={onHoverPreviewMove}
+                  onHoverPreviewEnd={onHoverPreviewEnd}
                 />
               )}
             </div>
@@ -2307,6 +2326,7 @@ function App() {
   const [viewMode, setViewMode] = useState('board');
   const [expandedSection, setExpandedSection] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
+  const [hoverPreview, setHoverPreview] = useState(null);
   const [showExportConfig, setShowExportConfig] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
   const [pendingToggle, setPendingToggle] = useState(null);
@@ -2549,6 +2569,27 @@ function App() {
     () => [...new Set(cards.map((card) => card.jobName.trim()).filter(Boolean))].sort(),
     [cards]
   );
+  const showHoverPreview = (card, event) => {
+    if (activeCardId) {
+      return;
+    }
+
+    setHoverPreview({
+      card,
+      ...getHoverPreviewPosition(event),
+    });
+  };
+  const moveHoverPreview = (event) => {
+    setHoverPreview((current) =>
+      current
+        ? {
+            ...current,
+            ...getHoverPreviewPosition(event),
+          }
+        : current
+    );
+  };
+  const hideHoverPreview = () => setHoverPreview(null);
 
   const submitComposer = (event) => {
     event.preventDefault();
@@ -2991,6 +3032,9 @@ function App() {
             onAddChecklistItem={addChecklistItem}
             onRequestChecklistToggle={openChecklistToggle}
             onEditChecklistItem={openChecklistEditor}
+            onHoverPreview={showHoverPreview}
+            onHoverPreviewMove={moveHoverPreview}
+            onHoverPreviewEnd={hideHoverPreview}
           />
         ) : viewMode === 'board' ? (
           (
@@ -3010,6 +3054,9 @@ function App() {
               addChecklistItem={addChecklistItem}
               onRequestChecklistToggle={openChecklistToggle}
               onEditChecklistItem={openChecklistEditor}
+              onHoverPreview={showHoverPreview}
+              onHoverPreviewMove={moveHoverPreview}
+              onHoverPreviewEnd={hideHoverPreview}
             />
           )
         ) : (
@@ -3021,6 +3068,9 @@ function App() {
             addChecklistItem={addChecklistItem}
             onRequestChecklistToggle={openChecklistToggle}
             onEditChecklistItem={openChecklistEditor}
+            onHoverPreview={showHoverPreview}
+            onHoverPreviewMove={moveHoverPreview}
+            onHoverPreviewEnd={hideHoverPreview}
           />
         )}
 
@@ -3040,6 +3090,28 @@ function App() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {hoverPreview ? (
+        <div
+          className="hover-card-preview"
+          style={{
+            left: hoverPreview.x,
+            top: hoverPreview.y,
+          }}
+        >
+          <CardShell
+            card={hoverPreview.card}
+            forceFull
+            isOverlay
+            onClick={() => {}}
+            onDoubleClick={() => {}}
+            onAddChecklistItem={() => {}}
+            onRequestChecklistToggle={() => {}}
+            onEditChecklistItem={() => {}}
+            onPriorityChange={() => {}}
+          />
+        </div>
+      ) : null}
 
       <footer className="board-legend">
         <span>checked by manager</span>
