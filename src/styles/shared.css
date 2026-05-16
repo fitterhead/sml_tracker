@@ -10,8 +10,7 @@
 .add-item:hover,
 .pile-more:hover,
 .job-card:hover .card-top h3,
-.job-card:hover .card-top p,
-.job-card:hover .card-meta span {
+.job-card:hover .card-top p {
   text-decoration: underline;
   text-underline-offset: 0.12em;
   text-decoration-thickness: 1px;

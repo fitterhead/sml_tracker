@@ -1302,7 +1302,7 @@ function DraggableCard(props) {
           return;
         }
 
-        props.onHoverPreviewMove?.(event);
+        props.onHoverPreview?.(props.card, event);
       }}
       onMouseLeave={props.onHoverPreviewEnd}
       onPointerDown={props.onHoverPreviewEnd}
@@ -1331,7 +1331,7 @@ function StaticCard(props) {
           return;
         }
 
-        props.onHoverPreviewMove?.(event);
+        props.onHoverPreview?.(props.card, event);
       }}
       onMouseLeave={props.onHoverPreviewEnd}
       onPointerDown={props.onHoverPreviewEnd}
