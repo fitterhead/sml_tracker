@@ -1,0 +1,106 @@
+@media (max-width: 1120px) {
+  .app-header,
+  .focus-grid,
+  .excel-tools-grid,
+  .modal-check-row,
+  .modal-check-main {
+    grid-template-columns: 1fr;
+  }
+
+  .focus-modal {
+    width: min(640px, calc(100vw - 32px));
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+  }
+
+  .board-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-9);
+    overflow: auto;
+  }
+
+  .side-status-column {
+    grid-template-rows: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: auto;
+    overflow: visible;
+  }
+
+  .todo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-11);
+  }
+
+  .row-todo,
+  .row-done,
+  .row-hold {
+    justify-content: flex-start;
+    padding-right: 0;
+  }
+
+  .pile-area,
+  .row-todo .pile-area,
+  .row-done .pile-area,
+  .row-hold .pile-area {
+    width: min(100%, 404px);
+    min-height: 420px;
+  }
+
+  .side-status-column .row-slot,
+  .side-status-column .plain-section,
+  .side-status-column .pile-area {
+    width: min(100%, 260px);
+  }
+
+  .composer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: var(--space-7);
+  }
+
+  .todo-grid,
+  .side-status-column {
+    grid-template-columns: 1fr;
+  }
+
+  .todo-grid {
+    gap: var(--space-9);
+  }
+
+  .search-bar {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .search-actions {
+    justify-content: flex-start;
+    padding: 0 var(--space-7) var(--space-5);
+  }
+
+  .board-column,
+  .focus-modal,
+  .login-card {
+    padding: var(--space-8);
+  }
+
+  .job-card,
+  .drag-overlay .job-card,
+  .job-card.overlay {
+    width: min(100%, 304px);
+    min-height: 300px;
+  }
+
+  .compact-card,
+  .drag-overlay .compact-card,
+  .compact-card.overlay {
+    width: min(100%, 260px);
+    min-height: 0;
+  }
+}

@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = (process.env.REACT_APP_API_BASE || '/api').replace(/\/$/, '');
 
 const request = async (path, options = {}) => {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -39,9 +39,9 @@ export const fetchSession = (token) =>
     token,
   });
 
-export const saveBoardRequest = (token, cards) =>
+export const saveBoardRequest = (token, board) =>
   request('/board', {
     method: 'PUT',
     token,
-    body: { cards },
+    body: Array.isArray(board) ? { cards: board } : { board },
   });

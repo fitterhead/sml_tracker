@@ -1,72 +1,76 @@
-# Getting Started with Create React App
+# SML Tracker Card
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React board app for tracking project/client cards with checklist context history,
+Excel import/export, focus mode, and server-backed login/autosave.
 
-## Available Scripts
+## Run Locally
 
-In the project directory, you can run:
+Install dependencies:
 
-### `npm start`
+```sh
+npm install
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Run frontend and backend together:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```sh
+npm run dev
+```
 
-### `npm test`
+Open:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```txt
+http://localhost:3000
+```
 
-### `npm run build`
+The API health check is:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```txt
+http://localhost:4000/api/health
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Useful Commands
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```sh
+npm test -- --watchAll=false
+npm run build
+npm run server
+```
 
-### `npm run eject`
+## Production
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Detailed deployment notes are in:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```txt
+docs/deployment.md
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Supported production paths:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- Netlify-only: React app + Netlify Function API + Netlify Blobs storage.
+- Railway + Netlify: Express API on Railway, React frontend on Netlify.
 
-## Learn More
+## Environment Variables
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Local/backend:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```sh
+APP_AUTH_SECRET=replace-with-a-long-random-secret
+DATA_DIR=/data
+```
 
-### Code Splitting
+Optional Netlify Blobs storage for the local/Express API:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```sh
+NETLIFY_BLOBS_ENABLED=true
+NETLIFY_SITE_ID=your-netlify-site-id
+NETLIFY_ACCESS_TOKEN=your-netlify-personal-access-token
+```
 
-### Analyzing the Bundle Size
+Frontend when using Railway API:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+```sh
+REACT_APP_API_BASE=https://your-railway-service.up.railway.app/api
+```
 
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-
-# sml_tracker
+Do not commit real secrets.

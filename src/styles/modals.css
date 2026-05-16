@@ -1,0 +1,280 @@
+.focus-backdrop,
+.login-gate {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 18, 28, 0.45);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+  animation: surface-fade-in 160ms ease-out;
+}
+
+.focus-modal,
+.login-card,
+.confirm-modal,
+.export-modal {
+  width: min(920px, calc(100vw - 32px));
+  max-height: min(86vh, 860px);
+  overflow: auto;
+  padding: var(--space-9);
+  background: rgba(255, 249, 235, 0.98);
+  box-shadow: none;
+  border: 1px solid var(--line-soft);
+  animation: modal-rise-in 180ms ease-out;
+}
+
+.focus-modal {
+  width: min(50vw, 720px);
+  max-height: min(86vh, 760px);
+  padding: var(--space-12);
+}
+
+.login-card {
+  width: min(480px, calc(100vw - 32px));
+}
+
+.checklist-context-trigger {
+  justify-self: flex-start;
+}
+
+@keyframes surface-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.focus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+  padding: var(--space-6) 0;
+  border-top: 1px solid rgba(95, 76, 49, 0.1);
+  border-bottom: 1px solid rgba(95, 76, 49, 0.1);
+}
+
+.focus-grid .field-full {
+  grid-column: auto;
+}
+
+.focus-grid > .modal-checklist,
+.focus-grid > .focus-command-row,
+.focus-grid > .focus-move-actions,
+.focus-grid > .focus-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.field span,
+.eyebrow {
+  color: var(--muted);
+  text-transform: lowercase;
+  letter-spacing: 0.08em;
+  font-size: var(--font-md);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border: 0;
+  background: var(--field-surface);
+  box-shadow: inset 0 0 0 1px rgba(90, 72, 48, 0.12);
+  font-size: var(--font-md);
+  font-family: inherit;
+}
+
+.field textarea {
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border: 0;
+  background: var(--field-surface);
+  box-shadow: inset 0 0 0 1px rgba(90, 72, 48, 0.12);
+  font-size: var(--font-md);
+  resize: vertical;
+  min-height: 96px;
+}
+
+.confirm-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.checklist-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.confirm-modal h2,
+.export-modal h2 {
+  margin: 0 0 20px;
+  font-size: var(--font-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.confirm-item-text {
+  margin: 0 0 18px;
+  font-size: var(--font-md);
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.export-modal {
+  width: min(920px, calc(100vw - 32px));
+}
+
+.excel-tools-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+  gap: var(--space-9);
+  align-items: start;
+}
+
+.excel-panel {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.excel-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.excel-panel-head p {
+  margin: var(--space-2) 0 0;
+  color: var(--muted);
+  font-size: var(--font-md);
+  line-height: 1.35;
+}
+
+.export-table {
+  border-top: 1px solid rgba(95, 76, 49, 0.12);
+  border-bottom: 1px solid rgba(95, 76, 49, 0.12);
+  max-height: min(48vh, 420px);
+  overflow: auto;
+}
+
+.export-table-head,
+.export-table-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 120px;
+  gap: 16px;
+  align-items: center;
+}
+
+.export-table-head {
+  padding: 12px 0;
+  font-size: var(--font-sm);
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.export-table-row {
+  padding: 14px 0;
+  border-top: 1px dashed rgba(95, 76, 49, 0.14);
+}
+
+.export-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.export-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.export-check span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(17, 17, 17, 0.34);
+  background: #fff;
+  display: inline-block;
+}
+
+.export-check input:checked + span {
+  background: var(--text);
+}
+
+.export-column-label {
+  font-size: var(--font-md);
+}
+
+.export-order-actions {
+  display: inline-flex;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.export-order-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.excel-dropzone {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-8) 0;
+  border-top: 1px dashed var(--line-dashed);
+  border-bottom: 1px dashed var(--line-dashed);
+  cursor: pointer;
+}
+
+.excel-dropzone input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.excel-dropzone span {
+  font-size: var(--font-lg);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.excel-dropzone small,
+.import-status {
+  color: var(--muted);
+  font-size: var(--font-md);
+  line-height: 1.4;
+}
+
+.import-status {
+  margin: 0;
+}
+
+.import-status.success {
+  color: #1f6b39;
+}
+
+.import-status.error {
+  color: #8d3b24;
+}

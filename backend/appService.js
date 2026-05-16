@@ -1,5 +1,5 @@
 const { randomUUID } = require('node:crypto');
-const { createInitialState, normalizeState } = require('./defaults');
+const { createInitialState, normalizeBoard, normalizeState } = require('./defaults');
 const {
   createToken,
   hashPassword,
@@ -109,14 +109,22 @@ const createAppService = ({ loadState, saveState, secret }) => {
 
       return buildSession(user, state, secret);
     },
-    async saveBoard(token, cards) {
-      assert(Array.isArray(cards), 'Cards payload is invalid.');
+    async saveBoard(token, boardPayload) {
+      const incomingBoard = Array.isArray(boardPayload)
+        ? { cards: boardPayload }
+        : boardPayload;
+
+      assert(
+        incomingBoard && Array.isArray(incomingBoard.cards),
+        'Board payload is invalid.'
+      );
 
       const { state } = await getUserFromToken(token);
-      state.board = {
-        cards,
+      state.board = normalizeBoard({
+        ...state.board,
+        ...incomingBoard,
         updatedAt: new Date().toISOString(),
-      };
+      });
       await saveState(state);
 
       return state.board;

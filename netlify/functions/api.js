@@ -1,25 +1,15 @@
-const { getStore } = require('@netlify/blobs');
 const { createAppService } = require('../../backend/appService');
+const { createBlobStateStore } = require('../../backend/blobStore');
+const { loadEnv } = require('../../backend/loadEnv');
+
+loadEnv();
 
 const secret = process.env.APP_AUTH_SECRET || process.env.NETLIFY_AUTH_SECRET;
-const manualBlobConfig =
-  process.env.NETLIFY_SITE_ID && process.env.NETLIFY_ACCESS_TOKEN
-    ? {
-        siteID: process.env.NETLIFY_SITE_ID,
-        token: process.env.NETLIFY_ACCESS_TOKEN,
-      }
-    : undefined;
+const blobStore = createBlobStateStore();
 
 const service = createAppService({
-  loadState: async () => {
-    const store = getStore('sml-tracker', manualBlobConfig);
-    const state = await store.get('app-state', { type: 'json' });
-    return state;
-  },
-  saveState: async (state) => {
-    const store = getStore('sml-tracker', manualBlobConfig);
-    await store.set('app-state', JSON.stringify(state));
-  },
+  loadState: blobStore.loadState,
+  saveState: blobStore.saveState,
   secret: secret || 'netlify-dev-secret-change-me',
 });
 
@@ -106,9 +96,10 @@ exports.handler = async (event) => {
     }
 
     if (event.httpMethod === 'PUT' && path === '/api/board') {
+      const body = parseBody(event.body);
       const board = await service.saveBoard(
         readToken(event.headers),
-        parseBody(event.body).cards
+        body.board || body.cards
       );
       return json(200, board);
     }

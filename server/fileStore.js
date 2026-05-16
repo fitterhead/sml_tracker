@@ -2,7 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { createInitialState } = require('../backend/defaults');
 
-const dataDirectory = path.join(__dirname, 'data');
+const dataDirectory = process.env.DATA_DIR || path.join(__dirname, 'data');
 const dataFile = path.join(dataDirectory, 'app-state.json');
 
 const ensureDataFile = async () => {

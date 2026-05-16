@@ -1,15 +1,21 @@
 const cors = require('cors');
 const express = require('express');
 const { createAppService } = require('../backend/appService');
-const { loadState, saveState } = require('./fileStore');
+const { createBlobStateStore, shouldUseBlobStore } = require('../backend/blobStore');
+const { loadEnv } = require('../backend/loadEnv');
+const fileStore = require('./fileStore');
+
+loadEnv();
 
 const app = express();
 const port = process.env.PORT || 4000;
 const secret = process.env.APP_AUTH_SECRET || 'local-dev-secret-change-me';
+const stateStore = shouldUseBlobStore() ? createBlobStateStore() : fileStore;
+const storageMode = shouldUseBlobStore() ? 'netlify-blobs' : 'file';
 
 const service = createAppService({
-  loadState,
-  saveState,
+  loadState: stateStore.loadState,
+  saveState: stateStore.saveState,
   secret,
 });
 
@@ -36,6 +42,7 @@ app.get('/api/health', (_request, response) => {
   response.json({
     status: 'ok',
     mode: 'local-api',
+    storage: storageMode,
     timestamp: new Date().toISOString(),
   });
 });
@@ -69,13 +76,16 @@ app.get('/api/auth/session', async (request, response) => {
 
 app.put('/api/board', async (request, response) => {
   try {
-    const board = await service.saveBoard(readToken(request), request.body?.cards);
+    const board = await service.saveBoard(
+      readToken(request),
+      request.body?.board || request.body?.cards
+    );
     response.json(board);
   } catch (error) {
     sendError(response, error);
   }
 });
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`TrackerCard API running on http://localhost:${port}`);
 });

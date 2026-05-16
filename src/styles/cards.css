@@ -1,0 +1,424 @@
+.draggable-card {
+  touch-action: none;
+  width: 100%;
+}
+
+.job-card {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 140ms ease;
+}
+
+.draggable-card.hover-lift-card:hover {
+  z-index: 999 !important;
+}
+
+.draggable-card.hover-lift-card:hover .job-card {
+  transform: translateY(-18px);
+  box-shadow: 0 16px 30px rgba(93, 73, 44, 0.12);
+}
+
+.job-card {
+  border: 0;
+  background: var(--surface);
+  padding: var(--space-8) var(--space-8) var(--space-9);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: min(100%, 384px);
+  min-height: 316px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.compact-card {
+  width: min(100%, 260px);
+  min-height: 0;
+  padding: var(--space-5) var(--space-6);
+  cursor: pointer;
+  border-top: 0;
+}
+
+.compact-card .card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.compact-card .card-top h3,
+.compact-card .card-top p {
+  white-space: nowrap;
+}
+
+.compact-card .card-top h3 {
+  flex: 1 1 auto;
+}
+
+.compact-card .card-top p {
+  flex: 0 1 46%;
+  max-width: 46%;
+  text-align: right;
+}
+
+.drag-overlay .compact-card,
+.compact-card.overlay {
+  width: min(100%, 260px);
+  min-height: 0;
+}
+
+.pile-area.lane-done .job-card {
+  background: #fffdf9;
+}
+
+.pile-area.lane-hold .job-card {
+  background: #fffdf9;
+}
+
+.pile-area.lane-incomplete .job-card {
+  background: #fffdf9;
+}
+
+.job-card::before {
+  display: none;
+}
+
+.drag-overlay .job-card,
+.job-card.overlay {
+  width: min(100%, 384px);
+  cursor: grabbing;
+  transform: none;
+  box-shadow: 0 14px 28px rgba(93, 73, 44, 0.08);
+}
+
+.draggable-card.dragging .job-card {
+  cursor: grabbing;
+}
+
+.drag-overlay .compact-card,
+.compact-card.overlay {
+  width: min(100%, 260px);
+  min-height: 0;
+}
+
+.job-card h3 {
+  font-size: var(--font-md);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.job-card p {
+  font-size: var(--font-md);
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-dot {
+  display: none;
+}
+
+.card-meta {
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-top: var(--space-6);
+  font-size: var(--font-sm);
+  color: var(--text);
+  padding-top: 0;
+  border-top: 0;
+}
+
+.missing-box {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px dashed var(--line-dashed);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.checklist {
+  margin-top: var(--space-6);
+  display: grid;
+  gap: var(--space-5);
+  padding-top: var(--space-6);
+  border-top: 1px dashed var(--line-dashed);
+}
+
+.check-entry {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.check-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.check-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  appearance: none;
+  -webkit-appearance: none;
+  line-height: 1;
+}
+
+.check-toggle:disabled {
+  cursor: default;
+}
+
+.check-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-md);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.check-label-button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.check-context-block {
+  padding-left: 28px;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.check-context-body {
+  padding-top: var(--space-3);
+  border-top: 1px dashed rgba(95, 76, 49, 0.16);
+  color: inherit;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.context-entry {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.context-entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.context-entry-history {
+  padding-top: var(--space-4);
+  border-top: 1px dashed var(--line-soft);
+}
+
+.context-entry-date {
+  font-size: var(--font-sm);
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  color: inherit;
+}
+
+.context-entry-note {
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: inherit;
+}
+
+.context-delete-button {
+  flex: 0 0 auto;
+  font-size: var(--font-sm);
+}
+
+.pile-area.lane-hold .checklist,
+.pile-area.lane-hold .check-item,
+.pile-area.lane-hold .check-date,
+.pile-area.lane-hold .add-item,
+.pile-area.lane-hold .context-action-button,
+.pile-area.lane-hold .check-context-body {
+  color: rgba(17, 17, 17, 0.42);
+}
+
+.pile-area.lane-hold .check-mark {
+  border-color: rgba(17, 17, 17, 0.18);
+}
+
+.check-date {
+  margin-left: auto;
+  font-size: var(--font-sm);
+  color: inherit;
+  white-space: nowrap;
+}
+
+.check-mark {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(17, 17, 17, 0.34);
+  flex: 0 0 auto;
+  background: #fff;
+  border-radius: 999px;
+}
+
+.check-mark.filled {
+  background: currentColor;
+  border-color: currentColor;
+}
+
+.focus-modal .priority-dot {
+  width: 15px;
+  height: 15px;
+  border-color: rgba(17, 17, 17, 0.44);
+  background: #fffef9;
+}
+
+.checked-manager {
+  color: rgba(17, 17, 17, 0.42);
+  text-decoration: none;
+}
+
+.checked-staff {
+  color: rgba(17, 17, 17, 0.42);
+  text-decoration: none;
+}
+
+.add-item {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8b6b24;
+  cursor: pointer;
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.card-add-area {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.inline-checklist-composer {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 168px;
+}
+
+.inline-checklist-composer input {
+  width: 100%;
+  padding: 8px 0 6px;
+  border: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 rgba(95, 76, 49, 0.12);
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.inline-checklist-composer textarea {
+  width: 100%;
+  padding: 6px 0 4px;
+  border: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 rgba(95, 76, 49, 0.12);
+  color: var(--text);
+  font-size: var(--font-sm);
+  resize: vertical;
+  min-height: 42px;
+}
+
+.inline-checklist-actions {
+  display: inline-flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.card-footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  border-top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-7);
+}
+
+.priority-dots {
+  display: flex;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.priority-dot {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(17, 17, 17, 0.22);
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 0;
+  cursor: pointer;
+}
+
+.priority-dot.filled {
+  background: var(--dot-color);
+  border-color: var(--dot-color);
+}
+
+.role-note {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text);
+}
+
+.ghost-button {
+  color: #6f5c36;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.ghost-button.muted {
+  color: var(--muted);
+}
+
+.job-card :is(.ghost-button, .context-action-button, .add-item, .context-delete-button) {
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+}
+
+.job-card .check-label-button {
+  font-size: var(--font-md);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.more-pill {
+  background: rgba(120, 111, 97, 0.09);
+  color: var(--muted);
+}

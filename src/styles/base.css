@@ -1,0 +1,43 @@
+:root {
+  --bg: #f6f0df;
+  --text: #111111;
+  --muted: #111111;
+  --line-soft: rgba(95, 76, 49, 0.12);
+  --line-dashed: rgba(95, 76, 49, 0.18);
+  --surface: #fffdf9;
+  --field-surface: #fffdf6;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 12px;
+  --space-6: 14px;
+  --space-7: 16px;
+  --space-8: 18px;
+  --space-9: 22px;
+  --space-10: 24px;
+  --space-11: 28px;
+  --space-12: 32px;
+  --font-sm: 0.7rem;
+  --font-md: 0.84rem;
+  --font-lg: 0.96rem;
+}
+
+* {
+  box-sizing: border-box;
+  font-weight: 400;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(226, 193, 99, 0.12), transparent 30%),
+    linear-gradient(180deg, #fbf6ea 0%, #f0e6cf 100%);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

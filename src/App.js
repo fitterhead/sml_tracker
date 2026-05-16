@@ -12,137 +12,180 @@ import { CSS } from '@dnd-kit/utilities';
 import * as XLSX from 'xlsx';
 import './App.css';
 import {
+  AllCardsPage,
+  BoardLayout,
+  IncompletePage,
+} from './components/BoardViews';
+import {
+  columnMeta,
+  formatCardAge,
+  formatChecklistTimeline,
+  formatContextHistoryTimeline,
+  getPileHeight,
+  getPileLayout,
+  getStackLimit,
+  getVisibleTodoColumnId,
+  isValidDropLane,
+  parseDropTarget,
+} from './boardConfig';
+import Header from './components/Header';
+import {
+  fetchSession,
+  loginRequest,
+  registerRequest,
+  saveBoardRequest,
+} from './lib/apiClient';
+import {
   getCardZone,
   isCardComplete,
   getMissingFields,
   useBoardStore,
 } from './store/useBoardStore';
 
-const STACK_LIMIT = 5;
 const DATE_MATCHER =
   /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?)\b/gi;
+const AUTH_TOKEN_KEY = 'sml-tracker-auth-token';
+
+const readStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
+};
 const EXPORT_FIELDS = [
-  { key: 'taskName', label: 'Project name' },
-  { key: 'jobName', label: 'Client name' },
-  { key: 'lane', label: 'Lane' },
-  { key: 'priority', label: 'Priority' },
-  { key: 'assignedPerson', label: 'Assigned person' },
-  { key: 'startDate', label: 'Start date' },
-  { key: 'checklistText', label: 'Checklist item' },
-  { key: 'checklistChecked', label: 'Checked' },
-  { key: 'checklistCompletedAt', label: 'Completed at' },
-  { key: 'checklistContext', label: 'Checklist context' },
-  { key: 'checkedBy', label: 'Checked by' },
-  { key: 'createdBy', label: 'Created by' },
+  { key: 'taskName', label: 'project name' },
+  { key: 'jobName', label: 'client name' },
+  { key: 'lane', label: 'lane' },
+  { key: 'priority', label: 'priority' },
+  { key: 'assignedPerson', label: 'assigned person' },
+  { key: 'startDate', label: 'start date' },
+  { key: 'checklistText', label: 'checklist item' },
+  { key: 'checklistChecked', label: 'checked' },
+  { key: 'checklistCompletedAt', label: 'completed at' },
+  { key: 'checklistContext', label: 'checklist context' },
+  { key: 'checkedBy', label: 'checked by' },
+  { key: 'createdBy', label: 'created by' },
 ];
-
-const columnMeta = {
-  active: {
-    title: 'To Do',
-    subtitle: 'Ready to work',
-  },
-  done: {
-    title: 'Done List',
-    subtitle: 'Completed clients',
-  },
-  hold: {
-    title: 'On Hold',
-    subtitle: 'Paused for now',
-  },
-  incomplete: {
-    title: 'Project Needs More Information',
-    subtitle: 'Missing required project or client information',
-  },
+const IMPORT_HEADER_ALIASES = {
+  taskName: ['project name', 'project', 'task name', 'task', 'job', 'job name'],
+  jobName: ['client name', 'client', 'customer', 'company'],
+  assignedPerson: ['assigned person', 'assigned', 'person', 'owner'],
+  startDate: ['start date', 'date', 'created date'],
+  lane: ['lane', 'status', 'column'],
+  priority: ['priority'],
+  checklistText: ['checklist item', 'checklist', 'todo', 'to do', 'item'],
+  checklistChecked: ['checked', 'complete', 'completed', 'done'],
+  checklistCompletedAt: ['completed at', 'checklist completed at'],
+  checklistContext: ['checklist context', 'context', 'note', 'notes'],
+  checkedBy: ['checked by'],
+  createdBy: ['created by'],
 };
 
-const formatDate = (value) => {
+const normalizeImportHeader = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+
+const getImportValue = (row, field) => {
+  const aliases = IMPORT_HEADER_ALIASES[field] || [field];
+  const foundKey = Object.keys(row).find((key) =>
+    aliases.includes(normalizeImportHeader(key))
+  );
+
+  return foundKey ? row[foundKey] : '';
+};
+
+const normalizeImportedDate = (value) => {
   if (!value) {
-    return 'No date';
-  }
-
-  return new Intl.DateTimeFormat('en-CA', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
-};
-
-const formatCompletedDate = (value) => {
-  if (!value) {
     return '';
   }
 
-  return new Intl.DateTimeFormat('en-CA', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(new Date(value));
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === 'number') {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) {
+      return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+    }
+  }
+
+  const raw = String(value).trim();
+  const parsedDate = new Date(raw);
+
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString().slice(0, 10);
+  }
+
+  return raw;
 };
 
-const formatChecklistTimeline = (item) => {
-  const createdValue = item.createdAt || item.completedAt || '';
-  const completedValue = item.completedAt || '';
+const normalizeImportedLane = (value) => {
+  const lane = normalizeImportHeader(value);
 
-  if (!createdValue) {
-    return '';
+  if (['finish', 'finished', 'done', 'completed'].includes(lane)) {
+    return 'done';
   }
 
-  const createdDate = new Date(createdValue);
-  const completedDate = completedValue ? new Date(completedValue) : null;
-
-  const createdShort = new Intl.DateTimeFormat('en-CA', {
-    month: 'short',
-    day: 'numeric',
-  }).format(createdDate);
-
-  if (!completedDate) {
-    return new Intl.DateTimeFormat('en-CA', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(createdDate);
+  if (['hold', 'on hold', 'paused'].includes(lane)) {
+    return 'hold';
   }
 
-  const sameYear = createdDate.getFullYear() === completedDate.getFullYear();
-  const completedText = new Intl.DateTimeFormat('en-CA', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(completedDate);
-
-  if (sameYear) {
-    return `${createdShort} - ${completedText}`;
-  }
-
-  return `${formatCompletedDate(createdValue)} - ${completedText}`;
+  return 'active';
 };
 
-const formatContextHistoryTimeline = (entry) => {
-  if (!entry?.createdAt) {
-    return '';
-  }
+const normalizeImportedBoolean = (value) => {
+  const normalized = normalizeImportHeader(value);
+  return ['yes', 'true', '1', 'done', 'complete', 'completed', 'checked'].includes(normalized);
+};
 
-  const createdDate = new Date(entry.createdAt);
-  const completedDate = entry.completedAt ? new Date(entry.completedAt) : null;
+const buildCardsFromImportedRows = (rows) => {
+  const grouped = new Map();
 
-  const formatShortDateTime = (value, includeYear = false) =>
-    new Intl.DateTimeFormat('en-CA', {
-      month: 'short',
-      day: 'numeric',
-      ...(includeYear ? { year: 'numeric' } : {}),
-      hour: 'numeric',
-      minute: '2-digit',
-    }).format(value);
+  rows.forEach((row, index) => {
+    const taskName = String(getImportValue(row, 'taskName') || '').trim();
+    const jobName = String(getImportValue(row, 'jobName') || '').trim();
+    const assignedPerson = String(getImportValue(row, 'assignedPerson') || '').trim();
+    const startDate = normalizeImportedDate(getImportValue(row, 'startDate'));
+    const lane = normalizeImportedLane(getImportValue(row, 'lane'));
+    const priority = Number(getImportValue(row, 'priority')) || 0;
+    const checklistText = String(getImportValue(row, 'checklistText') || '').trim();
+    const checklistContext = String(getImportValue(row, 'checklistContext') || '').trim();
+    const key = [jobName, taskName, assignedPerson, startDate, lane, priority].join('|') || `row-${index}`;
 
-  if (!completedDate) {
-    return formatShortDateTime(createdDate, true);
-  }
+    if (!taskName && !jobName && !checklistText) {
+      return;
+    }
 
-  const sameYear = createdDate.getFullYear() === completedDate.getFullYear();
-  return `${formatShortDateTime(createdDate, !sameYear)} - ${formatShortDateTime(
-    completedDate,
-    true
-  )}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        taskName,
+        jobName,
+        assignedPerson,
+        startDate,
+        lane,
+        priority,
+        checklist: [],
+      });
+    }
+
+    if (checklistText) {
+      grouped.get(key).checklist.push({
+        text: checklistText,
+        context: checklistContext,
+        checked: normalizeImportedBoolean(getImportValue(row, 'checklistChecked')),
+        checkedBy: String(getImportValue(row, 'checkedBy') || '').trim(),
+        completedAt: normalizeImportedDate(getImportValue(row, 'checklistCompletedAt')),
+        createdBy: String(getImportValue(row, 'createdBy') || '').trim(),
+      });
+    }
+  });
+
+  return [...grouped.values()];
 };
 
 const buildDraftFromCard = (card) => ({
@@ -154,6 +197,9 @@ const buildDraftFromCard = (card) => ({
     ...item,
     createdAt: item.createdAt || item.completedAt || new Date().toISOString(),
     context: item.context || '',
+    contextCreatedAt:
+      item.contextCreatedAt || item.createdAt || item.completedAt || '',
+    contextCompletedAt: item.contextCompletedAt || '',
     contextHistory: item.contextHistory || [],
   })),
   priority: card.priority || 0,
@@ -166,6 +212,61 @@ const triggerActionOnEnter = (event, action) => {
 
   event.preventDefault();
   action();
+};
+
+const getChecklistContextHistory = (item = {}) =>
+  Array.isArray(item.contextHistory) ? item.contextHistory : [];
+
+const hasChecklistContext = (item = {}) =>
+  Boolean(item?.context?.trim()) || getChecklistContextHistory(item).length > 0;
+
+const addContextToChecklistItem = (item = {}, noteValue = '') => {
+  const note = String(noteValue || '').trim();
+
+  if (!note) {
+    return item;
+  }
+
+  const previousContext = item.context?.trim()
+    ? [
+        {
+          note: item.context,
+          createdAt:
+            item.contextCreatedAt ||
+            item.createdAt ||
+            new Date().toISOString(),
+          completedAt: item.contextCompletedAt || item.completedAt || '',
+        },
+      ]
+    : [];
+
+  return {
+    ...item,
+    context: note,
+    contextCreatedAt: new Date().toISOString(),
+    contextCompletedAt: '',
+    contextHistory: [
+      ...getChecklistContextHistory(item),
+      ...previousContext,
+    ],
+  };
+};
+
+const deleteCurrentChecklistContext = (item = {}) => ({
+  ...item,
+  context: '',
+  contextCreatedAt: '',
+  contextCompletedAt: '',
+});
+
+const deleteChecklistHistoryContext = (item = {}, historyIndexFromNewest) => {
+  const history = getChecklistContextHistory(item);
+  const actualIndex = history.length - 1 - historyIndexFromNewest;
+
+  return {
+    ...item,
+    contextHistory: history.filter((_, index) => index !== actualIndex),
+  };
 };
 
 function HighlightedText({ text = '' }) {
@@ -202,6 +303,113 @@ function HighlightedText({ text = '' }) {
   return parts;
 }
 
+function ContextActionButton({
+  open,
+  hasContext = false,
+  onClick,
+  className = '',
+  disabled = false,
+}) {
+  const label = open ? '− context' : hasContext ? '+ context' : '+ add context';
+
+  return (
+    <button
+      type="button"
+      className={`context-action-button ${className}`.trim()}
+      aria-label={hasContext ? 'context' : 'add context'}
+      title={hasContext ? 'context' : 'add context'}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ContextThreadEditor({
+  item,
+  inputValue,
+  onInputChange,
+  onAddContext,
+  onDeleteCurrentContext,
+  onDeleteHistoryContext,
+}) {
+  const historyEntries = getChecklistContextHistory(item);
+  const hasContext = hasChecklistContext(item);
+
+  return (
+    <div className="modal-check-context">
+      <div className="context-composer">
+        <label className="field field-full modal-check-context-field">
+          <span>new context</span>
+          <textarea
+            value={inputValue || ''}
+            onChange={(event) => onInputChange(event.target.value)}
+            rows={2}
+            placeholder="type a context note"
+          />
+        </label>
+        <button
+          type="button"
+          className="ghost-button"
+          onClick={onAddContext}
+        >
+          add context
+        </button>
+      </div>
+      <div className="check-context-body">
+        {item?.context?.trim() ? (
+          <div className="context-entry">
+            <div className="context-entry-head">
+              <span className="context-entry-date">latest context</span>
+              {onDeleteCurrentContext ? (
+                <button
+                  type="button"
+                  className="ghost-button muted context-delete-button"
+                  onClick={onDeleteCurrentContext}
+                >
+                  delete
+                </button>
+              ) : null}
+            </div>
+            <p className="context-entry-note">
+              <HighlightedText text={item.context} />
+            </p>
+          </div>
+        ) : null}
+        {historyEntries
+          .slice()
+          .reverse()
+          .map((entry, index) => (
+            <div
+              className="context-entry context-entry-history"
+              key={`${entry.createdAt}-${entry.completedAt}-${index}`}
+            >
+              <div className="context-entry-head">
+                <span className="context-entry-date">
+                  {formatContextHistoryTimeline(entry) || 'saved context'}
+                </span>
+                {onDeleteHistoryContext ? (
+                  <button
+                    type="button"
+                    className="ghost-button muted context-delete-button"
+                    onClick={() => onDeleteHistoryContext(index)}
+                  >
+                    delete
+                  </button>
+                ) : null}
+              </div>
+              <p className="context-entry-note">
+                <HighlightedText text={entry.note || ''} />
+              </p>
+            </div>
+          ))}
+        {!hasContext ? <p className="context-empty">no context yet</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function PriorityDots({ value = 0, onChange }) {
   const dotColors = ['#1fa34a', '#5aa93f', '#d0a11a', '#f26432', '#ff2b2b'];
 
@@ -221,7 +429,7 @@ function PriorityDots({ value = 0, onChange }) {
               event.stopPropagation();
               onChange(level);
             }}
-            aria-label={`Set priority ${level}`}
+            aria-label={`set priority ${level}`}
           />
         );
       })}
@@ -233,13 +441,23 @@ function ChecklistConfirmModal({
   open,
   nextChecked,
   itemText,
-  previousContextRecord,
-  context,
-  setContext,
-  onUsePreviousContext,
+  contextItem,
+  contextInput,
+  onContextInputChange,
+  onAddContext,
+  onDeleteCurrentContext,
+  onDeleteHistoryContext,
   onConfirm,
   onCancel,
 }) {
+  const [showContextField, setShowContextField] = useState(() =>
+    Boolean(
+      open &&
+        (contextItem?.context?.trim() ||
+          getChecklistContextHistory(contextItem).length > 0)
+    )
+  );
+
   if (!open) {
     return null;
   }
@@ -250,44 +468,29 @@ function ChecklistConfirmModal({
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">{nextChecked ? 'Confirm Check' : 'Confirm Uncheck'}</p>
-        <h2>{nextChecked ? 'Mark this item as complete?' : 'Remove this completed mark?'}</h2>
+        <p className="eyebrow">{nextChecked ? 'confirm check' : 'confirm uncheck'}</p>
+        <h2>{nextChecked ? 'mark this item as complete?' : 'remove this completed mark?'}</h2>
         <p className="confirm-item-text">
           <HighlightedText text={itemText || ''} />
         </p>
-        {!nextChecked && previousContextRecord ? (
-          <div className="confirm-context-history">
-            <div className="confirm-context-head">
-              <span>{formatContextHistoryTimeline(previousContextRecord)}</span>
-              <button
-                type="button"
-                className="ghost-button muted"
-                onClick={onUsePreviousContext}
-              >
-                Edit
-              </button>
-            </div>
-            <p className="confirm-context-note">
-              <HighlightedText text={previousContextRecord.note || ''} />
-            </p>
-          </div>
-        ) : null}
-        <label className="field field-full">
-          <span>Context</span>
-          <textarea
-            value={context}
-            onChange={(event) => setContext(event.target.value)}
-            placeholder="Add note, reason, or date context"
-            rows={5}
+        <ContextActionButton
+          open={showContextField}
+          hasContext={hasChecklistContext(contextItem)}
+          onClick={() => setShowContextField((current) => !current)}
+        />
+        {showContextField ? (
+          <ContextThreadEditor
+            item={contextItem}
+            inputValue={contextInput}
+            onInputChange={onContextInputChange}
+            onAddContext={onAddContext}
+            onDeleteCurrentContext={onDeleteCurrentContext}
+            onDeleteHistoryContext={onDeleteHistoryContext}
           />
-        </label>
+        ) : null}
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="ghost-button" onClick={onConfirm}>
-            Save
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
+          <button type="button" className="ghost-button" onClick={onConfirm}>SAVE</button>
         </div>
       </div>
     </div>
@@ -297,10 +500,12 @@ function ChecklistConfirmModal({
 function ExportConfigModal({
   open,
   columns,
+  importStatus,
   onToggleColumn,
   onMoveColumn,
   onClose,
   onExport,
+  onImportFile,
 }) {
   if (!open) {
     return null;
@@ -312,53 +517,83 @@ function ExportConfigModal({
         className="export-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">Export Excel</p>
-        <h2>Choose fields and column order</h2>
-        <div className="export-table">
-          <div className="export-table-head">
-            <span>Include</span>
-            <span>Column</span>
-            <span>Order</span>
-          </div>
-          {columns.map((column, index) => (
-            <div className="export-table-row" key={column.key}>
-              <label className="export-check">
-                <input
-                  type="checkbox"
-                  checked={column.enabled}
-                  onChange={() => onToggleColumn(column.key)}
-                />
-                <span />
-              </label>
-              <span className="export-column-label">{column.label}</span>
-              <div className="export-order-actions">
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={() => onMoveColumn(index, -1)}
-                  disabled={index === 0}
-                >
-                  Up
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={() => onMoveColumn(index, 1)}
-                  disabled={index === columns.length - 1}
-                >
-                  Down
-                </button>
+        <p className="eyebrow">excel tools</p>
+        <h2>export or create cards</h2>
+        <div className="excel-tools-grid">
+          <section className="excel-panel">
+            <div className="excel-panel-head">
+              <div>
+                <span className="eyebrow">export</span>
+                <p>choose columns and order for your spreadsheet</p>
+              </div>
+              <button type="button" className="ghost-button" onClick={onExport}>
+                export file
+              </button>
+            </div>
+            <div className="export-table">
+              <div className="export-table-head">
+                <span>use</span>
+                <span>column</span>
+                <span>move</span>
+              </div>
+              {columns.map((column, index) => (
+                <div className="export-table-row" key={column.key}>
+                  <label className="export-check">
+                    <input
+                      type="checkbox"
+                      checked={column.enabled}
+                      onChange={() => onToggleColumn(column.key)}
+                    />
+                    <span />
+                  </label>
+                  <span className="export-column-label">{column.label}</span>
+                  <div className="export-order-actions">
+                    <button
+                      type="button"
+                      className="ghost-button muted"
+                      onClick={() => onMoveColumn(index, -1)}
+                      disabled={index === 0}
+                    >
+                      up
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-button muted"
+                      onClick={() => onMoveColumn(index, 1)}
+                      disabled={index === columns.length - 1}
+                    >
+                      down
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="excel-panel import-panel">
+            <div className="excel-panel-head">
+              <div>
+                <span className="eyebrow">import</span>
+                <p>upload excel to create cards in to do</p>
               </div>
             </div>
-          ))}
+            <label className="excel-dropzone">
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={onImportFile}
+              />
+              <span>choose excel file</span>
+              <small>supports project name, client name, assigned person, start date, priority, lane, checklist item, context</small>
+            </label>
+            {importStatus ? (
+              <p className={`import-status ${importStatus.type || ''}`}>
+                {importStatus.message}
+              </p>
+            ) : null}
+          </section>
         </div>
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className="ghost-button" onClick={onExport}>
-            Export
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onClose}>CANCEL</button>
         </div>
       </div>
     </div>
@@ -376,17 +611,15 @@ function ReopenDoneCardModal({ open, onConfirm, onCancel }) {
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">Create New Checklist</p>
-        <h2>This card is already complete</h2>
+        <p className="eyebrow">create new checklist</p>
+        <h2>this card is already complete</h2>
         <p className="confirm-item-text">
-          To move it back to To Do, create a new checklist item first.
+          to move it back to to do, create a new checklist item first.
         </p>
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
           <button type="button" className="ghost-button" onClick={onConfirm}>
-            Add checklist item
+            add checklist item
           </button>
         </div>
       </div>
@@ -405,17 +638,15 @@ function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">Delete Checklist Item</p>
-        <h2>Do you want to delete this item?</h2>
+        <p className="eyebrow">delete checklist item</p>
+        <h2>do you want to delete this item?</h2>
         <p className="confirm-item-text">
           <HighlightedText text={itemText || ''} />
         </p>
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
           <button type="button" className="ghost-button" onClick={onConfirm}>
-            Delete
+            delete
           </button>
         </div>
       </div>
@@ -434,17 +665,15 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">Delete Card</p>
-        <h2>Do you want to delete this card?</h2>
+        <p className="eyebrow">delete card</p>
+        <h2>do you want to delete this card?</h2>
         <p className="confirm-item-text">
           <HighlightedText text={cardTitle || ''} />
         </p>
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
           <button type="button" className="ghost-button" onClick={onConfirm}>
-            Delete
+            delete
           </button>
         </div>
       </div>
@@ -452,51 +681,92 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
   );
 }
 
-function Header({ searchTerm, setSearchTerm }) {
-  const currentUser = useBoardStore((state) => state.currentUser);
-  const setRole = useBoardStore((state) => state.setRole);
-
+function LoginGate({
+  mode,
+  form,
+  status,
+  loading,
+  onModeChange,
+  onFormChange,
+  onSubmit,
+}) {
   return (
-    <header className="app-header">
-      <div className="brand">
-        <div className="brand-mark">F</div>
-        <div>
-          <strong>SML Project Note</strong>
-        </div>
-      </div>
-
-      <label className="search-bar">
-        <span>Search</span>
-        <input
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search projects, clients..."
-        />
-      </label>
-
-      <div className="header-actions">
-        <div className="role-toggle">
+    <div className="login-gate">
+      <form className="login-card" onSubmit={onSubmit}>
+        <p className="eyebrow">sml project note</p>
+        <h2>{mode === 'login' ? 'login' : 'create account'}</h2>
+        <p className="login-copy">
+          sign in to save the board on the server and use it from another browser.
+        </p>
+        <div className="auth-tabs">
           <button
             type="button"
-            className={currentUser.role === 'manager' ? 'active' : ''}
-            onClick={() => setRole('manager')}
+            className={mode === 'login' ? 'active' : ''}
+            onClick={() => onModeChange('login')}
           >
-            Manager
+            login
           </button>
           <button
             type="button"
-            className={currentUser.role === 'staff' ? 'active' : ''}
-            onClick={() => setRole('staff')}
+            className={mode === 'register' ? 'active' : ''}
+            onClick={() => onModeChange('register')}
           >
-            Staff
+            register
           </button>
         </div>
-        <div className="profile-chip">
-          <span>{currentUser.name}</span>
-          <small>{currentUser.role}</small>
+        {mode === 'register' ? (
+          <label className="field field-full">
+            <span>name</span>
+            <input
+              value={form.name}
+              onChange={(event) => onFormChange('name', event.target.value)}
+              autoComplete="name"
+              required
+            />
+          </label>
+        ) : null}
+        <label className="field field-full">
+          <span>email</span>
+          <input
+            type="text"
+            inputMode="email"
+            value={form.email}
+            onChange={(event) => onFormChange('email', event.target.value)}
+            autoComplete="email"
+            required
+          />
+        </label>
+        <label className="field field-full">
+          <span>password</span>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(event) => onFormChange('password', event.target.value)}
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            minLength={8}
+            required
+          />
+        </label>
+        {mode === 'register' ? (
+          <label className="field field-full">
+            <span>role</span>
+            <select
+              value={form.role}
+              onChange={(event) => onFormChange('role', event.target.value)}
+            >
+              <option value="manager">manager</option>
+              <option value="staff">staff</option>
+            </select>
+          </label>
+        ) : null}
+        {status ? <p className="auth-status">{status}</p> : null}
+        <div className="login-actions">
+          <button type="submit" className="ghost-button" disabled={loading}>
+            {loading ? 'working...' : mode === 'login' ? 'login' : 'create account'}
+          </button>
         </div>
-      </div>
-    </header>
+      </form>
+    </div>
   );
 }
 
@@ -525,7 +795,7 @@ function ChecklistItem({
           className="check-toggle"
           onClick={onToggle}
           disabled={disabled}
-          aria-label={item.checked ? 'Uncheck item' : 'Check item'}
+          aria-label={item.checked ? 'uncheck item' : 'check item'}
         >
           <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
         </button>
@@ -550,14 +820,11 @@ function ChecklistItem({
       </div>
       {hasContext ? (
         <div className="check-context-block">
-          <button
-            type="button"
-            className="check-context-toggle"
+          <ContextActionButton
+            open={expanded}
+            hasContext
             onClick={onToggleContext}
-          >
-            <span>Context</span>
-            <span>{expanded ? '−' : '+'}</span>
-          </button>
+          />
           {expanded ? (
             <div className="check-context-body">
               {item.context?.trim() ? (
@@ -572,7 +839,7 @@ function ChecklistItem({
                         className="ghost-button muted context-delete-button"
                         onClick={onDeleteCurrentContext}
                       >
-                        Delete
+                        delete
                       </button>
                     ) : null}
                   </div>
@@ -593,7 +860,7 @@ function ChecklistItem({
                         className="ghost-button muted context-delete-button"
                         onClick={() => onDeleteHistoryContext(index)}
                       >
-                        Delete
+                        delete
                       </button>
                     ) : null}
                   </div>
@@ -613,6 +880,7 @@ function ChecklistItem({
 function CardShell({
   card,
   isOverlay = false,
+  forceFull = false,
   onClick,
   onDoubleClick,
   onAddChecklistItem,
@@ -621,7 +889,9 @@ function CardShell({
   onEditChecklistItem,
 }) {
   const missingFields = getMissingFields(card);
-  const isOnHold = getCardZone(card) === 'hold';
+  const cardZone = getCardZone(card);
+  const isOnHold = cardZone === 'hold';
+  const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
   const [expandedContexts, setExpandedContexts] = useState({});
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
@@ -645,6 +915,25 @@ function CardShell({
     setShowAddChecklistComposer(false);
   };
 
+  if (isCompact) {
+    return (
+      <article
+        className={`job-card compact-card ${isOverlay ? 'overlay' : ''}`}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+      >
+        <div className="card-top">
+          <h3 title={card.jobName || 'client - (no client name)'}>
+            <HighlightedText text={card.jobName || 'client - (no client name)'} />
+          </h3>
+          <p>
+            <HighlightedText text={card.taskName || 'no project assigned yet'} />
+          </p>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article
       className={`job-card ${isOverlay ? 'overlay' : ''}`}
@@ -652,8 +941,8 @@ function CardShell({
       onDoubleClick={onDoubleClick}
     >
       <div className="card-top">
-        <h3 title={card.jobName || 'CLIENT - (No Client Name)'}>
-          <HighlightedText text={card.jobName || 'CLIENT - (No Client Name)'} />
+        <h3 title={card.jobName || 'client - (no client name)'}>
+          <HighlightedText text={card.jobName || 'client - (no client name)'} />
         </h3>
         <p>
           <HighlightedText text={card.taskName || 'no project assigned yet'} />
@@ -662,16 +951,16 @@ function CardShell({
 
       <div className="card-meta">
         <span className="meta-date">
-          <HighlightedText text={formatDate(card.startDate)} />
+          <HighlightedText text={formatCardAge(card.createdAt || card.startDate)} />
         </span>
         <span>
-          <HighlightedText text={card.assignedPerson || 'Unassigned'} />
+          <HighlightedText text={card.assignedPerson || 'unassigned'} />
         </span>
       </div>
 
       {missingFields.length > 0 ? (
         <div className="missing-box">
-          Missing: <strong>{missingFields.join(', ')}</strong>
+          missing: <strong>{missingFields.join(', ')}</strong>
         </div>
       ) : (
         <div className="checklist">
@@ -713,28 +1002,24 @@ function CardShell({
               <input
                 value={newChecklistText}
                 onChange={(event) => setNewChecklistText(event.target.value)}
-                placeholder="Checklist item"
+                placeholder="checklist item"
                 autoFocus
+              />
+              <ContextActionButton
+                open={showChecklistContextField}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setShowChecklistContextField((current) => !current);
+                }}
               />
               {showChecklistContextField ? (
                 <textarea
                   value={newChecklistContext}
                   onChange={(event) => setNewChecklistContext(event.target.value)}
-                  placeholder="Optional context"
+                  placeholder="type a context note"
                   rows={2}
                 />
-              ) : (
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setShowChecklistContextField(true);
-                  }}
-                >
-                  Add context
-                </button>
-              )}
+              ) : null}
               <div className="inline-checklist-actions">
                 <button
                   type="button"
@@ -746,15 +1031,13 @@ function CardShell({
                     setNewChecklistContext('');
                     setShowChecklistContextField(false);
                   }}
-                >
-                  Cancel
-                </button>
+                >CANCEL</button>
                 <button
                   type="button"
                   className="ghost-button"
                   onClick={submitChecklistItem}
                 >
-                  Add
+                  add
                 </button>
               </div>
             </div>
@@ -767,7 +1050,7 @@ function CardShell({
                 setShowAddChecklistComposer(true);
               }}
             >
-              {isOnHold ? '+ Add checklist item and move to to do' : '+ Add checklist item'}
+              {isOnHold ? '+ add checklist item and move to to do' : '+ add checklist item'}
             </button>
           )}
         </div>
@@ -784,16 +1067,21 @@ function ChecklistItemModal({
   open,
   item,
   onTextChange,
-  onContextChange,
+  contextInput,
+  onContextInputChange,
+  onAddContext,
+  onDeleteCurrentContext,
+  onDeleteHistoryContext,
   onSave,
   onDelete,
   onCancel,
 }) {
-  const [showContextField, setShowContextField] = useState(Boolean(item?.context));
-
-  useEffect(() => {
-    setShowContextField(Boolean(item?.context));
-  }, [item]);
+  const [showContextField, setShowContextField] = useState(() =>
+    Boolean(
+      open &&
+        (item?.context?.trim() || getChecklistContextHistory(item).length > 0)
+    )
+  );
 
   if (!open || !item) {
     return null;
@@ -805,44 +1093,38 @@ function ChecklistItemModal({
         className="confirm-modal checklist-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="eyebrow">Checklist Item</p>
-        <h2>Edit checklist item</h2>
+        <p className="eyebrow">checklist item</p>
+        <h2>edit checklist item</h2>
         <label className="field field-full">
-          <span>Item</span>
+          <span>item</span>
           <input
             value={item.text}
             onChange={(event) => onTextChange(event.target.value)}
             autoFocus
           />
         </label>
-        <button
-          type="button"
-          className="ghost-button muted checklist-context-trigger"
+        <ContextActionButton
+          open={showContextField}
+          hasContext={hasChecklistContext(item)}
+          className="checklist-context-trigger"
           onClick={() => setShowContextField((current) => !current)}
-        >
-          {showContextField ? 'Hide context' : 'Show context'}
-        </button>
+        />
         {showContextField ? (
-          <label className="field field-full checklist-modal-context">
-            <span>Context</span>
-            <textarea
-              value={item.context}
-              onChange={(event) => onContextChange(event.target.value)}
-              rows={2}
-              placeholder="Optional context"
-            />
-          </label>
+          <ContextThreadEditor
+            item={item}
+            inputValue={contextInput}
+            onInputChange={onContextInputChange}
+            onAddContext={onAddContext}
+            onDeleteCurrentContext={onDeleteCurrentContext}
+            onDeleteHistoryContext={onDeleteHistoryContext}
+          />
         ) : null}
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onDelete}>
-            Delete
+            delete
           </button>
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className="ghost-button" onClick={onSave}>
-            Save
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
+          <button type="button" className="ghost-button" onClick={onSave}>SAVE</button>
         </div>
       </div>
     </div>
@@ -850,7 +1132,6 @@ function ChecklistItemModal({
 }
 
 function DraggableCard(props) {
-  const bringToFront = useBoardStore((state) => state.bringToFront);
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: props.card.id,
@@ -872,7 +1153,6 @@ function DraggableCard(props) {
       className={`draggable-card ${isDragging ? 'dragging' : ''} ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
-      onMouseDown={() => bringToFront(props.card.id)}
       {...listeners}
       {...attributes}
     >
@@ -893,9 +1173,17 @@ function StaticCard(props) {
   );
 }
 
-function DropColumn({ lane, count, children, className = '' }) {
+function DropColumn({
+  lane,
+  dropId,
+  count,
+  children,
+  className = '',
+  title,
+  subtitle,
+}) {
   const { setNodeRef, isOver } = useDroppable({
-    id: lane,
+    id: dropId || lane,
   });
   const meta = columnMeta[lane];
 
@@ -906,8 +1194,8 @@ function DropColumn({ lane, count, children, className = '' }) {
     >
       <header className="column-header">
         <div>
-          <h2>{meta.title}</h2>
-          <p>{meta.subtitle}</p>
+          <h2>{title || meta.title}</h2>
+          <p>{subtitle || meta.subtitle}</p>
         </div>
         <span className={`count-pill lane-${lane}`}>{count}</span>
       </header>
@@ -918,94 +1206,130 @@ function DropColumn({ lane, count, children, className = '' }) {
 
 function CardSection({
   lane,
+  sectionId,
   cards,
   onCreateCard,
+  onDeleteSection,
   onOpenAllCards,
   onOpenCard,
   onAddChecklistItem,
   onRequestChecklistToggle,
   onEditChecklistItem,
+  title,
+  subtitle,
+  showHeader = true,
+  showCreateButton = false,
+  showSeeMore = true,
 }) {
-  const meta = columnMeta[lane];
-  const visibleCards = cards.slice(-STACK_LIMIT);
-  const hiddenCount = Math.max(cards.length - STACK_LIMIT, 0);
+  const stackLimit = getStackLimit(lane);
+  const visibleCards = cards.slice(-stackLimit);
+  const hiddenCount = Math.max(cards.length - stackLimit, 0);
+  const pileHeight = getPileHeight(lane, visibleCards.length);
 
   return (
-    <DropColumn lane={lane} count={cards.length} className="plain-section">
-      <div className="section-topline">
-        {lane === 'active' ? (
-          <button type="button" className="plus-button" onClick={onCreateCard}>
-            +
-          </button>
-        ) : null}
-        <div className="section-title-block">
-          <h2>{meta.title}</h2>
-          <span className="section-count">
-            {cards.length > 0 ? `${cards.length} cards` : 'No cards'}
-          </span>
-        </div>
-      </div>
-
-      <div className={`pile-area lane-${lane}`}>
-        {visibleCards.map((card, index) => (
-          <div
-            key={card.id}
-            className="pile-slot"
-            style={{
-              transform: `translate(${index * 34}px, ${index * 42}px)`,
-            }}
-          >
-            {lane === 'incomplete' ? (
-              <StaticCard
-                card={card}
-                isFrontCard={index === visibleCards.length - 1}
-                zIndex={10 + index}
-                onClick={() => onOpenCard(card)}
-                onDoubleClick={() => {}}
-                onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-                onRequestChecklistToggle={(item) =>
-                  onRequestChecklistToggle(card.id, item)
-                }
-                onEditChecklistItem={(item) =>
-                  onEditChecklistItem(card.id, item)
-                }
-                onPriorityChange={(priority) =>
-                  useBoardStore.getState().updateCard(card.id, { priority })
-                }
-              />
-            ) : (
-              <DraggableCard
-                card={card}
-                isFrontCard={index === visibleCards.length - 1}
-                zIndex={10 + index}
-                onClick={() => onOpenCard(card)}
-                onDoubleClick={() => {}}
-                onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-                onRequestChecklistToggle={(item) =>
-                  onRequestChecklistToggle(card.id, item)
-                }
-                onEditChecklistItem={(item) =>
-                  onEditChecklistItem(card.id, item)
-                }
-                onPriorityChange={(priority) =>
-                  useBoardStore.getState().updateCard(card.id, { priority })
-                }
-              />
-            )}
+    <DropColumn
+      lane={lane}
+      dropId={sectionId}
+      count={cards.length}
+      className="plain-section"
+      title={title}
+      subtitle={subtitle}
+    >
+      <div className={`section-topline ${showHeader ? '' : 'is-placeholder'}`}>
+        {showHeader ? (
+          <>
+          {showCreateButton ? (
+            <button type="button" className="plus-button" onClick={onCreateCard}>
+              +
+            </button>
+          ) : null}
+          <div className="section-title-block">
+            <div className="section-title-row">
+              <h2>{title || columnMeta[lane].title}</h2>
+              {onDeleteSection ? (
+                <button
+                  type="button"
+                  className="section-delete-button"
+                  onClick={onDeleteSection}
+                  aria-label={`delete ${title || columnMeta[lane].title}`}
+                  title={`delete ${title || columnMeta[lane].title}`}
+                >
+                  delete
+                </button>
+              ) : null}
+            </div>
+            <span className="section-count">
+              {cards.length > 0 ? `${cards.length} cards` : 'no cards'}
+            </span>
           </div>
-        ))}
+          </>
+        ) : null}
       </div>
 
-      {hiddenCount > 0 ? (
+      <div className={`pile-area lane-${lane}`} style={{ minHeight: pileHeight }}>
+        {visibleCards.map((card, index) => {
+          const layout = getPileLayout(lane, visibleCards.length, index);
+
+          return (
+            <div
+              key={card.id}
+              className="pile-slot"
+              style={{
+                transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
+              }}
+            >
+              {lane === 'incomplete' ? (
+                <StaticCard
+                  card={card}
+                  isFrontCard={index === visibleCards.length - 1}
+                  zIndex={10 + index}
+                  onClick={() => onOpenCard(card)}
+                  onDoubleClick={() => {}}
+                  onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
+                  onRequestChecklistToggle={(item) =>
+                    onRequestChecklistToggle(card.id, item)
+                  }
+                  onEditChecklistItem={(item) =>
+                    onEditChecklistItem(card.id, item)
+                  }
+                  onPriorityChange={(priority) =>
+                    useBoardStore.getState().updateCard(card.id, { priority })
+                  }
+                />
+              ) : (
+                <DraggableCard
+                  card={card}
+                  isFrontCard={index === visibleCards.length - 1}
+                  zIndex={10 + index}
+                  onClick={() => onOpenCard(card)}
+                  onDoubleClick={() => {}}
+                  onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
+                  onRequestChecklistToggle={(item) =>
+                    onRequestChecklistToggle(card.id, item)
+                  }
+                  onEditChecklistItem={(item) =>
+                    onEditChecklistItem(card.id, item)
+                  }
+                  onPriorityChange={(priority) =>
+                    useBoardStore.getState().updateCard(card.id, { priority })
+                  }
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {showSeeMore && hiddenCount > 0 ? (
         <button
           type="button"
           className="pile-more"
           onClick={(event) => {
             event.stopPropagation();
-            onOpenAllCards(lane);
+            onOpenAllCards(sectionId || lane);
           }}
         >
-          +{hiddenCount} more
+          See more
         </button>
       ) : null}
 
@@ -1034,7 +1358,7 @@ function CreateCardPopup({
       <form className="composer-popup" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="composer-grid">
           <label className="field">
-            <span>Project</span>
+            <span>project</span>
             <input
               value={composerDraft.taskName}
               onChange={(event) =>
@@ -1046,11 +1370,11 @@ function CreateCardPopup({
               onKeyDown={(event) =>
                 triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
-              placeholder="Project name"
+              placeholder="project name"
             />
           </label>
           <label className="field">
-            <span>Client</span>
+            <span>client</span>
             <select
               value={composerDraft.jobChoice || '__new__'}
               onChange={(event) =>
@@ -1070,12 +1394,12 @@ function CreateCardPopup({
                   {jobName}
                 </option>
               ))}
-              <option value="__new__">Add new client</option>
+              <option value="__new__">add new client</option>
             </select>
           </label>
           {(!composerDraft.jobChoice || composerDraft.jobChoice === '__new__') ? (
             <label className="field field-full">
-              <span>Add new client</span>
+              <span>add new client</span>
               <input
                 value={composerDraft.jobName}
                 onChange={(event) =>
@@ -1087,12 +1411,12 @@ function CreateCardPopup({
                 onKeyDown={(event) =>
                   triggerActionOnEnter(event, submitComposerFromKeyboard)
                 }
-                placeholder="New client name"
+                placeholder="new client name"
               />
             </label>
           ) : null}
           <label className="field">
-            <span>Assigned</span>
+            <span>assigned</span>
             <input
               value={composerDraft.assignedPerson}
               onChange={(event) =>
@@ -1104,11 +1428,11 @@ function CreateCardPopup({
               onKeyDown={(event) =>
                 triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
-              placeholder="Person"
+              placeholder="person"
             />
           </label>
           <label className="field">
-            <span>Date</span>
+            <span>date</span>
             <input
               type="date"
               value={composerDraft.startDate}
@@ -1126,170 +1450,21 @@ function CreateCardPopup({
         </div>
         <div className="composer-actions">
           <button type="submit" className="ghost-button">
-            Create
+            create
           </button>
-          <button type="button" className="ghost-button muted" onClick={onCancel}>
-            Cancel
-          </button>
+          <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
         </div>
       </form>
     </div>
   );
 }
 
-function BoardLayout({
-  lanes,
-  createCard,
-  onOpenAllCards,
-  setFocusCardId,
-  addChecklistItem,
-  onRequestChecklistToggle,
-  onEditChecklistItem,
-}) {
-  return (
-    <main className="board-row">
-      <div className="row-slot row-todo">
-        <CardSection
-          lane="active"
-          cards={lanes.active}
-          onCreateCard={createCard}
-          onOpenAllCards={onOpenAllCards}
-          onOpenCard={(card) => setFocusCardId(card.id)}
-          onAddChecklistItem={addChecklistItem}
-          onRequestChecklistToggle={onRequestChecklistToggle}
-          onEditChecklistItem={onEditChecklistItem}
-        />
-      </div>
-
-      <div className="row-slot row-done">
-        <CardSection
-          lane="done"
-          cards={lanes.done}
-          onCreateCard={createCard}
-          onOpenAllCards={onOpenAllCards}
-          showComposer={false}
-          onOpenCard={(card) => setFocusCardId(card.id)}
-          onAddChecklistItem={addChecklistItem}
-          onRequestChecklistToggle={onRequestChecklistToggle}
-          onEditChecklistItem={onEditChecklistItem}
-        />
-      </div>
-
-      <div className="row-slot row-hold">
-        <CardSection
-          lane="hold"
-          cards={lanes.hold}
-          onCreateCard={createCard}
-          onOpenAllCards={onOpenAllCards}
-          showComposer={false}
-          onOpenCard={(card) => setFocusCardId(card.id)}
-          onAddChecklistItem={addChecklistItem}
-          onRequestChecklistToggle={onRequestChecklistToggle}
-          onEditChecklistItem={onEditChecklistItem}
-        />
-      </div>
-    </main>
-  );
-}
-
-function IncompletePage({
-  lanes,
-  createCard,
-  onOpenAllCards,
-  setFocusCardId,
-  addChecklistItem,
-  onRequestChecklistToggle,
-  onEditChecklistItem,
-}) {
-  return (
-    <main className="incomplete-page">
-      <div className="incomplete-page-head">
-        <h2>Project Needs More Information</h2>
-        <p>These cards stay out of the main board until project name and client name are filled in.</p>
-      </div>
-
-      <div className="incomplete-page-body">
-        <CardSection
-          lane="incomplete"
-          cards={lanes.incomplete}
-          onCreateCard={createCard}
-          onOpenAllCards={onOpenAllCards}
-          showComposer={false}
-          onOpenCard={(card) => setFocusCardId(card.id)}
-          onAddChecklistItem={addChecklistItem}
-          onRequestChecklistToggle={onRequestChecklistToggle}
-          onEditChecklistItem={onEditChecklistItem}
-        />
-      </div>
-    </main>
-  );
-}
-
-function AllCardsPage({
-  lane,
-  cards,
-  onBack,
-  onOpenCard,
-  onAddChecklistItem,
-  onRequestChecklistToggle,
-  onEditChecklistItem,
-}) {
-  const meta = columnMeta[lane];
-
-  return (
-    <main className="all-cards-page">
-      <div className="all-cards-head">
-        <button type="button" className="ghost-button" onClick={onBack}>
-          Back
-        </button>
-        <div>
-          <h2>{meta.title}</h2>
-          <p>{cards.length} cards</p>
-        </div>
-      </div>
-      <div className="all-cards-grid">
-        {cards.map((card) => (
-          lane === 'incomplete' ? (
-            <StaticCard
-              key={card.id}
-              card={card}
-              isFrontCard={false}
-              zIndex={10}
-              onClick={() => onOpenCard(card)}
-              onDoubleClick={() => {}}
-              onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-              onRequestChecklistToggle={(item) => onRequestChecklistToggle(card.id, item)}
-              onEditChecklistItem={(item) => onEditChecklistItem(card.id, item)}
-              onPriorityChange={(priority) =>
-                useBoardStore.getState().updateCard(card.id, { priority })
-              }
-            />
-          ) : (
-            <DraggableCard
-              key={card.id}
-              card={card}
-              isFrontCard={false}
-              zIndex={10}
-              onClick={() => onOpenCard(card)}
-              onDoubleClick={() => {}}
-              onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-              onRequestChecklistToggle={(item) => onRequestChecklistToggle(card.id, item)}
-              onEditChecklistItem={(item) => onEditChecklistItem(card.id, item)}
-              onPriorityChange={(priority) =>
-                useBoardStore.getState().updateCard(card.id, { priority })
-              }
-            />
-          )
-        ))}
-      </div>
-    </main>
-  );
-}
-
 function FocusModal({ card, onClose }) {
   const cards = useBoardStore((state) => state.cards);
+  const todoColumns = useBoardStore((state) => state.todoColumns);
   const updateCard = useBoardStore((state) => state.updateCard);
   const deleteCard = useBoardStore((state) => state.deleteCard);
+  const moveCard = useBoardStore((state) => state.moveCard);
   const jobOptions = useMemo(
     () =>
       [...new Set(cards.map((item) => item.jobName.trim()).filter(Boolean))].sort(),
@@ -1303,6 +1478,8 @@ function FocusModal({ card, onClose }) {
   const [showAddDraftChecklistComposer, setShowAddDraftChecklistComposer] = useState(false);
   const [newDraftChecklistText, setNewDraftChecklistText] = useState('');
   const [newDraftChecklistContext, setNewDraftChecklistContext] = useState('');
+  const [showNewDraftChecklistContext, setShowNewDraftChecklistContext] = useState(false);
+  const [draftContextInputs, setDraftContextInputs] = useState({});
 
   useEffect(() => {
     if (!card) {
@@ -1314,6 +1491,8 @@ function FocusModal({ card, onClose }) {
       setShowAddDraftChecklistComposer(false);
       setNewDraftChecklistText('');
       setNewDraftChecklistContext('');
+      setShowNewDraftChecklistContext(false);
+      setDraftContextInputs({});
       return;
     }
 
@@ -1325,6 +1504,8 @@ function FocusModal({ card, onClose }) {
     setShowAddDraftChecklistComposer(false);
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
+    setShowNewDraftChecklistContext(false);
+    setDraftContextInputs({});
   }, [card]);
 
   if (!card || !draft) {
@@ -1350,13 +1531,33 @@ function FocusModal({ card, onClose }) {
       lane: nextLane,
       checklist: draft.checklist,
     });
-    onClose();
   };
 
   const saveChangesFromKeyboard = () => {
     if (isDirty) {
       saveChanges();
     }
+  };
+
+  const draftCard = { ...card, ...draft };
+  const canMoveToTodo = getCardZone(card) !== 'active' && getMissingFields(draftCard).length === 0;
+  const canMoveToHold = getCardZone(card) !== 'hold' && getMissingFields(draftCard).length === 0;
+  const canMoveToFinish =
+    getCardZone(card) !== 'done' &&
+    getMissingFields(draftCard).length === 0 &&
+    isCardComplete(draftCard);
+
+  const moveFocusedCard = (targetLane) => {
+    updateCard(card.id, {
+      taskName: draft.taskName,
+      jobName: draft.jobName,
+      assignedPerson: draft.assignedPerson,
+      startDate: draft.startDate,
+      priority: draft.priority,
+      checklist: draft.checklist,
+    });
+    moveCard(card.id, targetLane, todoColumns[0]?.id || '');
+    onClose();
   };
 
   const openDraftChecklistToggle = (item) => {
@@ -1368,16 +1569,42 @@ function FocusModal({ card, onClose }) {
       itemId: item.id,
       nextChecked: !item.checked,
       itemText: item.text,
-      previousContextRecord:
-        item.checked && item.context.trim()
-          ? {
-              note: item.context,
-              createdAt: item.createdAt || '',
-              completedAt: item.completedAt || '',
-            }
-          : null,
       context: item.context || '',
+      contextCreatedAt:
+        item.contextCreatedAt || item.createdAt || item.completedAt || '',
+      contextCompletedAt: item.contextCompletedAt || '',
+      contextHistory: getChecklistContextHistory(item),
+      contextInput: '',
     });
+  };
+
+  const updatePendingToggleContextInput = (value) => {
+    setPendingToggle((current) =>
+      current ? { ...current, contextInput: value } : current
+    );
+  };
+
+  const addPendingToggleContext = () => {
+    setPendingToggle((current) =>
+      current
+        ? {
+            ...addContextToChecklistItem(current, current.contextInput),
+            contextInput: '',
+          }
+        : current
+    );
+  };
+
+  const deletePendingToggleCurrentContext = () => {
+    setPendingToggle((current) =>
+      current ? deleteCurrentChecklistContext(current) : current
+    );
+  };
+
+  const deletePendingToggleHistoryContext = (index) => {
+    setPendingToggle((current) =>
+      current ? deleteChecklistHistoryContext(current, index) : current
+    );
   };
 
   const confirmDraftChecklistToggle = () => {
@@ -1391,29 +1618,46 @@ function FocusModal({ card, onClose }) {
       ...current,
       checklist: current.checklist.map((item) =>
         item.id === pendingToggle.itemId
-          ? {
-              ...item,
-              checked: pendingToggle.nextChecked,
-              checkedBy: pendingToggle.nextChecked ? currentUserRole : null,
-              createdAt:
-                item.createdAt || item.completedAt || new Date().toISOString(),
-              completedAt: pendingToggle.nextChecked
+          ? (() => {
+              const previousNote = item.context.trim();
+              const nextNote = pendingToggle.context.trim();
+              const shouldArchivePrevious =
+                previousNote &&
+                previousNote !== nextNote &&
+                pendingToggle.contextHistory === item.contextHistory;
+              const completedAt = pendingToggle.nextChecked
                 ? new Date().toISOString()
-                : '',
-              context: pendingToggle.context.trim(),
-              contextHistory:
-                item.context.trim() &&
-                item.context.trim() !== pendingToggle.context.trim()
+                : '';
+
+              return {
+                ...item,
+                checked: pendingToggle.nextChecked,
+                checkedBy: pendingToggle.nextChecked ? currentUserRole : null,
+                createdAt:
+                  item.createdAt || item.completedAt || new Date().toISOString(),
+                completedAt,
+                context: nextNote,
+                contextCreatedAt: nextNote
+                  ? pendingToggle.contextCreatedAt ||
+                    (shouldArchivePrevious
+                      ? new Date().toISOString()
+                      : item.contextCreatedAt || new Date().toISOString())
+                  : '',
+                contextCompletedAt: completedAt,
+                contextHistory: shouldArchivePrevious
                   ? [
                       ...(item.contextHistory || []),
                       {
                         note: item.context,
-                        createdAt: item.createdAt || '',
-                        completedAt: item.completedAt || '',
+                        createdAt:
+                          item.contextCreatedAt || item.createdAt || '',
+                        completedAt:
+                          item.contextCompletedAt || item.completedAt || '',
                       },
                     ]
-                  : item.contextHistory || [],
-            }
+                  : getChecklistContextHistory(pendingToggle),
+              };
+            })()
           : item
       ),
     }));
@@ -1429,12 +1673,33 @@ function FocusModal({ card, onClose }) {
     }));
   };
 
-  const updateDraftChecklistContext = (itemId, context) => {
+  const updateDraftContextInput = (itemId, context) => {
+    setDraftContextInputs((current) => ({
+      ...current,
+      [itemId]: context,
+    }));
+  };
+
+  const addDraftChecklistContext = (itemId) => {
+    const note = String(draftContextInputs[itemId] || '').trim();
+
+    if (!note) {
+      return;
+    }
+
     setDraft((current) => ({
       ...current,
-      checklist: current.checklist.map((item) =>
-        item.id === itemId ? { ...item, context } : item
-      ),
+      checklist: current.checklist.map((item) => {
+        if (item.id !== itemId) {
+          return item;
+        }
+
+        return addContextToChecklistItem(item, note);
+      }),
+    }));
+    setDraftContextInputs((current) => ({
+      ...current,
+      [itemId]: '',
     }));
   };
 
@@ -1442,7 +1707,9 @@ function FocusModal({ card, onClose }) {
     setDraft((current) => ({
       ...current,
       checklist: current.checklist.map((item) =>
-        item.id === itemId ? { ...item, context: '' } : item
+        item.id === itemId
+          ? deleteCurrentChecklistContext(item)
+          : item
       ),
     }));
   };
@@ -1455,15 +1722,7 @@ function FocusModal({ card, onClose }) {
           return item;
         }
 
-        const history = Array.isArray(item.contextHistory)
-          ? item.contextHistory
-          : [];
-        const actualIndex = history.length - 1 - historyIndexFromNewest;
-
-        return {
-          ...item,
-          contextHistory: history.filter((_, index) => index !== actualIndex),
-        };
+        return deleteChecklistHistoryContext(item, historyIndexFromNewest);
       }),
     }));
   };
@@ -1503,6 +1762,10 @@ function FocusModal({ card, onClose }) {
           createdAt: new Date().toISOString(),
           completedAt: '',
           context: newDraftChecklistContext.trim(),
+          contextCreatedAt: newDraftChecklistContext.trim()
+            ? new Date().toISOString()
+            : '',
+          contextCompletedAt: '',
           contextHistory: [],
           createdBy: useBoardStore.getState().currentUser.role,
         },
@@ -1511,6 +1774,7 @@ function FocusModal({ card, onClose }) {
     setShowAddDraftChecklistComposer(false);
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
+    setShowNewDraftChecklistContext(false);
   };
 
   const confirmDeleteCard = () => {
@@ -1524,19 +1788,17 @@ function FocusModal({ card, onClose }) {
       <div className="focus-modal" onClick={(event) => event.stopPropagation()}>
         <div className="focus-header">
           <div>
-            <p className="eyebrow">Focus Mode</p>
+            <p className="eyebrow">focus mode</p>
             <h2>
-              <HighlightedText text={card.jobName || 'Untitled client'} />
+              <HighlightedText text={card.jobName || 'untitled client'} />
             </h2>
           </div>
-          <button type="button" className="close-button" onClick={onClose}>
-            Close
-          </button>
+          <button type="button" className="close-button" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="focus-grid">
           <label className="field">
-            <span>Project name</span>
+            <span>project name</span>
             <input
               value={draft.taskName}
               onChange={(event) =>
@@ -1552,7 +1814,7 @@ function FocusModal({ card, onClose }) {
           </label>
 
           <label className="field">
-            <span>Client name</span>
+            <span>client name</span>
             <select
               value={jobOptions.includes(draft.jobName) ? draft.jobName : '__custom__'}
               onChange={(event) =>
@@ -1566,18 +1828,18 @@ function FocusModal({ card, onClose }) {
                 triggerActionOnEnter(event, saveChangesFromKeyboard)
               }
             >
-              <option value="">Select existing client</option>
+              <option value="">select existing client</option>
               {jobOptions.map((jobName) => (
                 <option key={jobName} value={jobName}>
                   {jobName}
                 </option>
               ))}
-              <option value="__custom__">Add new client</option>
+              <option value="__custom__">add new client</option>
             </select>
           </label>
           {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
             <label className="field field-full">
-              <span>Add new client</span>
+              <span>add new client</span>
               <input
                 value={draft.jobName}
                 onChange={(event) =>
@@ -1594,7 +1856,7 @@ function FocusModal({ card, onClose }) {
           ) : null}
 
           <label className="field">
-            <span>Assigned person</span>
+            <span>assigned person</span>
             <input
               value={draft.assignedPerson}
               onChange={(event) =>
@@ -1610,7 +1872,7 @@ function FocusModal({ card, onClose }) {
           </label>
 
           <label className="field">
-            <span>Start date</span>
+            <span>start date</span>
             <input
               type="date"
               value={draft.startDate}
@@ -1625,233 +1887,204 @@ function FocusModal({ card, onClose }) {
               }
             />
           </label>
-        </div>
 
-        <div className="modal-checklist">
-          <div className="modal-section-header">
-            <h3>Priority</h3>
-            <PriorityDots
-              value={draft.priority || 0}
-              onChange={(priority) =>
-                setDraft((current) => ({ ...current, priority }))
-              }
-            />
-          </div>
-        </div>
-
-        <div className="modal-checklist">
-          <div className="modal-section-header">
-            <h3>Checklist</h3>
-            <button
-              type="button"
-              onClick={() => setShowAddDraftChecklistComposer((current) => !current)}
-            >
-              + Add item
-            </button>
-          </div>
-          {showAddDraftChecklistComposer ? (
-            <div className="modal-check-composer">
-              <input
-                value={newDraftChecklistText}
-                onChange={(event) => setNewDraftChecklistText(event.target.value)}
-                placeholder="Checklist item"
-                autoFocus
-              />
-              <textarea
-                value={newDraftChecklistContext}
-                onChange={(event) =>
-                  setNewDraftChecklistContext(event.target.value)
+          <div className="modal-checklist focus-priority">
+            <div className="modal-section-header">
+              <h3>priority</h3>
+              <PriorityDots
+                value={draft.priority || 0}
+                onChange={(priority) =>
+                  setDraft((current) => ({ ...current, priority }))
                 }
-                placeholder="Optional context"
-                rows={3}
               />
-              <div className="modal-check-composer-actions">
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={() => {
-                    setShowAddDraftChecklistComposer(false);
-                    setNewDraftChecklistText('');
-                    setNewDraftChecklistContext('');
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={addDraftChecklistItem}
-                >
-                  Add
-                </button>
-              </div>
             </div>
-          ) : null}
-          {draft.checklist.map((item) => (
-            <div className="modal-check-editor" key={item.id}>
-              <div className="modal-check-main">
-                <button
-                  type="button"
-                  className="check-toggle"
-                  onClick={() => openDraftChecklistToggle(item)}
-                  disabled={card.lane === 'hold'}
-                  aria-label={item.checked ? 'Uncheck item' : 'Check item'}
-                >
-                  <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
-                </button>
-                <input
-                  value={item.text}
-                  onChange={(event) =>
-                    updateDraftChecklistItem(item.id, event.target.value)
-                  }
-                  className="modal-check-input"
-                />
-                {formatChecklistTimeline(item) ? (
-                  <span className="check-date">{formatChecklistTimeline(item)}</span>
-                ) : null}
-              </div>
-              <div className="modal-check-actions">
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={() =>
-                    setExpandedDraftContexts((current) => ({
-                      ...current,
-                      [item.id]: !current[item.id],
-                    }))
-                  }
-                >
-                  {expandedDraftContexts[item.id] ? 'Hide context' : 'Show context'}
-                </button>
-                <button
-                  type="button"
-                  className="ghost-button muted"
-                  onClick={() =>
-                    setPendingDeleteItem({ id: item.id, text: item.text })
-                  }
-                >
-                  Delete
-                </button>
-              </div>
-              {expandedDraftContexts[item.id] ? (
-                <label className="field field-full modal-check-context-field">
-                  <span>Context</span>
-                  <textarea
-                    value={item.context || ''}
-                    onChange={(event) =>
-                      updateDraftChecklistContext(item.id, event.target.value)
-                    }
-                    rows={2}
-                    placeholder="Optional context"
+          </div>
+
+          <div className="modal-checklist focus-checklist">
+            <div className="modal-section-header">
+              <h3>checklist</h3>
+              <button
+                type="button"
+                onClick={() => setShowAddDraftChecklistComposer((current) => !current)}
+              >
+                + add item
+              </button>
+            </div>
+            {showAddDraftChecklistComposer ? (
+              <div className="modal-check-composer">
+                <div className="modal-check-composer-row">
+                  <input
+                    value={newDraftChecklistText}
+                    onChange={(event) => setNewDraftChecklistText(event.target.value)}
+                    placeholder="checklist item"
+                    autoFocus
                   />
-                </label>
-              ) : null}
-              {Array.isArray(item.contextHistory) && item.contextHistory.length > 0 ? (
-                <div className="modal-check-context">
-                  <div className="check-context-body">
-                    {item.contextHistory
-                      .slice()
-                      .reverse()
-                      .map((entry, index) => (
-                        <div
-                          className="context-entry context-entry-history"
-                          key={`${entry.createdAt}-${entry.completedAt}-${index}`}
-                        >
-                          <div className="context-entry-head">
-                            <span className="context-entry-date">
-                              {formatContextHistoryTimeline(entry)}
-                            </span>
-                            <button
-                              type="button"
-                              className="ghost-button muted context-delete-button"
-                              onClick={() => deleteDraftHistoryContext(item.id, index)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                          <p className="context-entry-note">
-                            <HighlightedText text={entry.note || ''} />
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                  {item.context?.trim() ? (
-                    <div className="modal-check-context-clear">
-                      <button
-                        type="button"
-                        className="ghost-button muted"
-                        onClick={() => deleteDraftCurrentContext(item.id)}
-                      >
-                        Clear current context
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : item.context?.trim() ? (
-                <div className="modal-check-context-clear">
+                  <ContextActionButton
+                    open={showNewDraftChecklistContext}
+                    onClick={() =>
+                      setShowNewDraftChecklistContext((current) => !current)
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={addDraftChecklistItem}
+                  >
+                    add
+                  </button>
                   <button
                     type="button"
                     className="ghost-button muted"
-                    onClick={() => deleteDraftCurrentContext(item.id)}
+                    onClick={() => {
+                      setShowAddDraftChecklistComposer(false);
+                      setNewDraftChecklistText('');
+                      setNewDraftChecklistContext('');
+                      setShowNewDraftChecklistContext(false);
+                    }}
+                  >CANCEL</button>
+                </div>
+                {showNewDraftChecklistContext ? (
+                  <textarea
+                    value={newDraftChecklistContext}
+                    onChange={(event) =>
+                      setNewDraftChecklistContext(event.target.value)
+                    }
+                    placeholder="type a context note"
+                    rows={2}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            {draft.checklist.map((item) => (
+              <div className="modal-check-editor" key={item.id}>
+                <div className="modal-check-main">
+                  <button
+                    type="button"
+                    className="check-toggle"
+                    onClick={() => openDraftChecklistToggle(item)}
+                    disabled={card.lane === 'hold'}
+                    aria-label={item.checked ? 'uncheck item' : 'check item'}
                   >
-                    Clear current context
+                    <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
+                  </button>
+                  <input
+                    value={item.text}
+                    onChange={(event) =>
+                      updateDraftChecklistItem(item.id, event.target.value)
+                    }
+                    className="modal-check-input"
+                  />
+                  <ContextActionButton
+                    open={Boolean(expandedDraftContexts[item.id])}
+                    hasContext={hasChecklistContext(item)}
+                    onClick={() =>
+                      setExpandedDraftContexts((current) => ({
+                        ...current,
+                        [item.id]: !current[item.id],
+                      }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="ghost-button muted"
+                    onClick={() =>
+                      setPendingDeleteItem({ id: item.id, text: item.text })
+                    }
+                  >
+                    delete
                   </button>
                 </div>
+                {expandedDraftContexts[item.id] ? (
+                  <ContextThreadEditor
+                    item={item}
+                    inputValue={draftContextInputs[item.id] || ''}
+                    onInputChange={(context) =>
+                      updateDraftContextInput(item.id, context)
+                    }
+                    onAddContext={() => addDraftChecklistContext(item.id)}
+                    onDeleteCurrentContext={() =>
+                      deleteDraftCurrentContext(item.id)
+                    }
+                    onDeleteHistoryContext={(index) =>
+                      deleteDraftHistoryContext(item.id, index)
+                    }
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <div className="focus-command-row">
+            {canMoveToTodo || canMoveToHold || canMoveToFinish ? (
+              <div className="focus-move-actions">
+              {canMoveToTodo ? (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => moveFocusedCard('active')}
+                >
+                  move to to do
+                </button>
               ) : null}
+              {canMoveToHold ? (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => moveFocusedCard('hold')}
+                >
+                  move to on hold
+                </button>
+              ) : null}
+              {canMoveToFinish ? (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => moveFocusedCard('done')}
+                >
+                  move to finish
+                </button>
+              ) : null}
+              </div>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className="ghost-button muted"
+              onClick={() => setPendingDeleteCard(true)}
+            >
+              delete card
+            </button>
+          </div>
+          {isDirty ? (
+            <div className="focus-actions">
+              <button
+                type="button"
+                className="ghost-button muted"
+                onClick={() => {
+                  setDraft(buildDraftFromCard(card));
+                  onClose();
+                }}
+              >CANCEL</button>
+              <button type="button" className="ghost-button" onClick={saveChanges}>SAVE</button>
             </div>
-          ))}
+          ) : null}
         </div>
-        {isDirty ? (
-          <div className="focus-actions">
-            <button
-              type="button"
-              className="ghost-button muted"
-              onClick={() => setPendingDeleteCard(true)}
-            >
-              Delete card
-            </button>
-            <button
-              type="button"
-              className="ghost-button muted"
-              onClick={() => {
-                setDraft(buildDraftFromCard(card));
-                onClose();
-              }}
-            >
-              Cancel
-            </button>
-            <button type="button" className="ghost-button" onClick={saveChanges}>
-              Save
-            </button>
-          </div>
-        ) : (
-          <div className="focus-actions">
-            <button
-              type="button"
-              className="ghost-button muted"
-              onClick={() => setPendingDeleteCard(true)}
-            >
-              Delete card
-            </button>
-          </div>
-        )}
       </div>
       <ChecklistConfirmModal
+        key={
+          pendingToggle
+            ? `focus-toggle-${pendingToggle.itemId}-${pendingToggle.nextChecked ? 'check' : 'uncheck'}`
+            : 'focus-toggle-closed'
+        }
         open={Boolean(pendingToggle)}
         nextChecked={pendingToggle?.nextChecked}
         itemText={pendingToggle?.itemText}
-        previousContextRecord={pendingToggle?.previousContextRecord}
-        context={pendingToggle?.context || ''}
-        setContext={(value) =>
-          setPendingToggle((current) => (current ? { ...current, context: value } : current))
-        }
-        onUsePreviousContext={() =>
-          setPendingToggle((current) =>
-            current?.previousContextRecord
-              ? { ...current, context: current.previousContextRecord.note || '' }
-              : current
-          )
-        }
+        contextItem={pendingToggle}
+        contextInput={pendingToggle?.contextInput || ''}
+        onContextInputChange={updatePendingToggleContextInput}
+        onAddContext={addPendingToggleContext}
+        onDeleteCurrentContext={deletePendingToggleCurrentContext}
+        onDeleteHistoryContext={deletePendingToggleHistoryContext}
         onConfirm={confirmDraftChecklistToggle}
         onCancel={() => setPendingToggle(null)}
       />
@@ -1863,7 +2096,7 @@ function FocusModal({ card, onClose }) {
       />
       <DeleteCardModal
         open={pendingDeleteCard}
-        cardTitle={draft.jobName || draft.taskName || 'Untitled card'}
+        cardTitle={draft.jobName || draft.taskName || 'untitled card'}
         onConfirm={confirmDeleteCard}
         onCancel={() => setPendingDeleteCard(false)}
       />
@@ -1873,23 +2106,40 @@ function FocusModal({ card, onClose }) {
 
 function App() {
   const cards = useBoardStore((state) => state.cards);
+  const todoColumns = useBoardStore((state) => state.todoColumns);
   const createCard = useBoardStore((state) => state.createCard);
+  const importCards = useBoardStore((state) => state.importCards);
   const updateCard = useBoardStore((state) => state.updateCard);
   const deleteCard = useBoardStore((state) => state.deleteCard);
   const moveCard = useBoardStore((state) => state.moveCard);
   const bringToFront = useBoardStore((state) => state.bringToFront);
   const addChecklistItem = useBoardStore((state) => state.addChecklistItem);
   const toggleChecklistItem = useBoardStore((state) => state.toggleChecklistItem);
+  const hydrateBoard = useBoardStore((state) => state.hydrateBoard);
+  const logoutUser = useBoardStore((state) => state.logoutUser);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCardId, setActiveCardId] = useState(null);
   const [focusCardId, setFocusCardId] = useState(null);
   const [viewMode, setViewMode] = useState('board');
-  const [expandedLane, setExpandedLane] = useState(null);
+  const [expandedSection, setExpandedSection] = useState(null);
   const [showComposer, setShowComposer] = useState(false);
   const [showExportConfig, setShowExportConfig] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
   const [pendingToggle, setPendingToggle] = useState(null);
   const [pendingReopenCardId, setPendingReopenCardId] = useState(null);
   const [editingChecklistTarget, setEditingChecklistTarget] = useState(null);
+  const [authToken, setAuthToken] = useState(readStoredAuthToken);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authStatus, setAuthStatus] = useState('');
+  const [syncStatus, setSyncStatus] = useState('');
+  const [authForm, setAuthForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'manager',
+  });
   const [exportColumns, setExportColumns] = useState(() =>
     EXPORT_FIELDS.map((field) => ({ ...field, enabled: true }))
   );
@@ -1899,6 +2149,7 @@ function App() {
     jobChoice: '',
     assignedPerson: '',
     startDate: '',
+    todoColumnId: '',
   });
 
   const sensors = useSensors(
@@ -1908,6 +2159,97 @@ function App() {
       },
     })
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!authToken) {
+      setAuthReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAuthReady(false);
+    fetchSession(authToken)
+      .then((session) => {
+        if (cancelled) {
+          return;
+        }
+
+        hydrateBoard(session.board, session.user);
+        setAuthReady(true);
+        setAuthStatus('');
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        window.localStorage.removeItem(AUTH_TOKEN_KEY);
+        logoutUser();
+        setAuthToken('');
+        setAuthReady(true);
+        setAuthStatus(error.message || 'session expired. please login again.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authToken, hydrateBoard, logoutUser]);
+
+  useEffect(() => {
+    if (!authToken || !authReady) {
+      return undefined;
+    }
+
+    const syncTimer = window.setTimeout(() => {
+      setSyncStatus('saving...');
+      saveBoardRequest(authToken, { cards, todoColumns })
+        .then(() => setSyncStatus('saved'))
+        .catch(() => setSyncStatus('save failed'));
+    }, 700);
+
+    return () => window.clearTimeout(syncTimer);
+  }, [authToken, authReady, cards, todoColumns]);
+
+  const submitAuth = async (event) => {
+    event.preventDefault();
+    setAuthLoading(true);
+    setAuthStatus('');
+
+    try {
+      const request =
+        authMode === 'login'
+          ? loginRequest({
+              email: authForm.email,
+              password: authForm.password,
+            })
+          : registerRequest(authForm);
+      const session = await request;
+
+      window.localStorage.setItem(AUTH_TOKEN_KEY, session.token);
+      hydrateBoard(session.board, session.user);
+      setAuthToken(session.token);
+      setAuthReady(true);
+      setAuthForm((current) => ({
+        ...current,
+        password: '',
+      }));
+    } catch (error) {
+      setAuthStatus(error.message || 'could not login.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const logout = () => {
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    logoutUser();
+    setAuthToken('');
+    setAuthReady(true);
+    setSyncStatus('');
+  };
 
   const filteredCards = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -1925,20 +2267,39 @@ function App() {
 
   const lanes = useMemo(() => {
     const grouped = {
-      active: [],
+      activeByColumn: Object.fromEntries(
+        todoColumns.map((column) => [column.id, []])
+      ),
       done: [],
       hold: [],
       incomplete: [],
     };
+    const fallbackTodoColumnId = todoColumns[0]?.id || '';
 
     [...filteredCards]
       .sort((a, b) => a.order - b.order)
       .forEach((card) => {
-        grouped[getCardZone(card)].push(card);
+        const zone = getCardZone(card);
+
+        if (zone === 'active') {
+          const todoColumnId = getVisibleTodoColumnId(
+            todoColumns,
+            card.todoColumnId || fallbackTodoColumnId
+          );
+
+          if (!grouped.activeByColumn[todoColumnId]) {
+            grouped.activeByColumn[todoColumnId] = [];
+          }
+
+          grouped.activeByColumn[todoColumnId].push(card);
+          return;
+        }
+
+        grouped[zone].push(card);
       });
 
     return grouped;
-  }, [filteredCards]);
+  }, [filteredCards, todoColumns]);
 
   const focusCard = cards.find((card) => card.id === focusCardId) || null;
   const activeDragCard = cards.find((card) => card.id === activeCardId) || null;
@@ -1957,6 +2318,7 @@ function App() {
       assignedPerson: composerDraft.assignedPerson,
       startDate: composerDraft.startDate,
       lane: 'active',
+      todoColumnId: composerDraft.todoColumnId || todoColumns[0]?.id || '',
     });
     setComposerDraft({
       taskName: '',
@@ -1964,17 +2326,18 @@ function App() {
       jobChoice: '',
       assignedPerson: '',
       startDate: '',
+      todoColumnId: '',
     });
     setShowComposer(false);
   };
 
-  const openAllCards = (lane) => {
-    setExpandedLane(lane);
+  const openAllCards = (sectionId) => {
+    setExpandedSection(sectionId);
     setViewMode('all-cards');
   };
 
   const closeAllCards = () => {
-    setExpandedLane(null);
+    setExpandedSection(null);
     setViewMode('board');
   };
 
@@ -1984,16 +2347,42 @@ function App() {
       itemId: item.id,
       nextChecked: !item.checked,
       itemText: item.text,
-      previousContextRecord:
-        item.checked && item.context.trim()
-          ? {
-              note: item.context,
-              createdAt: item.createdAt || '',
-              completedAt: item.completedAt || '',
-            }
-          : null,
       context: item.context || '',
+      contextCreatedAt:
+        item.contextCreatedAt || item.createdAt || item.completedAt || '',
+      contextCompletedAt: item.contextCompletedAt || '',
+      contextHistory: getChecklistContextHistory(item),
+      contextInput: '',
     });
+  };
+
+  const updatePendingToggleContextInput = (value) => {
+    setPendingToggle((current) =>
+      current ? { ...current, contextInput: value } : current
+    );
+  };
+
+  const addPendingToggleContext = () => {
+    setPendingToggle((current) =>
+      current
+        ? {
+            ...addContextToChecklistItem(current, current.contextInput),
+            contextInput: '',
+          }
+        : current
+    );
+  };
+
+  const deletePendingToggleCurrentContext = () => {
+    setPendingToggle((current) =>
+      current ? deleteCurrentChecklistContext(current) : current
+    );
+  };
+
+  const deletePendingToggleHistoryContext = (index) => {
+    setPendingToggle((current) =>
+      current ? deleteChecklistHistoryContext(current, index) : current
+    );
   };
 
   const confirmChecklistToggle = () => {
@@ -2004,7 +2393,8 @@ function App() {
     toggleChecklistItem(
       pendingToggle.cardId,
       pendingToggle.itemId,
-      pendingToggle.context
+      pendingToggle.context,
+      pendingToggle
     );
     setPendingToggle(null);
   };
@@ -2024,7 +2414,41 @@ function App() {
       itemId: item.id,
       text: item.text || '',
       context: item.context || '',
+      contextCreatedAt:
+        item.contextCreatedAt || item.createdAt || item.completedAt || '',
+      contextCompletedAt: item.contextCompletedAt || '',
+      contextHistory: getChecklistContextHistory(item),
+      contextInput: '',
     });
+  };
+
+  const updateChecklistEditorContextInput = (value) => {
+    setEditingChecklistTarget((current) =>
+      current ? { ...current, contextInput: value } : current
+    );
+  };
+
+  const addChecklistEditorContext = () => {
+    setEditingChecklistTarget((current) =>
+      current
+        ? {
+            ...addContextToChecklistItem(current, current.contextInput),
+            contextInput: '',
+          }
+        : current
+    );
+  };
+
+  const deleteChecklistEditorCurrentContext = () => {
+    setEditingChecklistTarget((current) =>
+      current ? deleteCurrentChecklistContext(current) : current
+    );
+  };
+
+  const deleteChecklistEditorHistoryContext = (index) => {
+    setEditingChecklistTarget((current) =>
+      current ? deleteChecklistHistoryContext(current, index) : current
+    );
   };
 
   const saveChecklistEditor = () => {
@@ -2045,6 +2469,9 @@ function App() {
               ...item,
               text: editingChecklistTarget.text,
               context: editingChecklistTarget.context,
+              contextCreatedAt: editingChecklistTarget.contextCreatedAt || '',
+              contextCompletedAt: editingChecklistTarget.contextCompletedAt || '',
+              contextHistory: getChecklistContextHistory(editingChecklistTarget),
             }
           : item
       ),
@@ -2063,14 +2490,14 @@ function App() {
       return;
     }
 
-    const nextChecklist = targetCard.checklist.filter(
+    const nextchecklist = targetCard.checklist.filter(
       (item) => item.id !== editingChecklistTarget.itemId
     );
 
-    if (nextChecklist.length === 0) {
+    if (nextchecklist.length === 0) {
       deleteCard(targetCard.id);
     } else {
-      updateCard(targetCard.id, { checklist: nextChecklist });
+      updateCard(targetCard.id, { checklist: nextchecklist });
     }
 
     setEditingChecklistTarget(null);
@@ -2128,8 +2555,8 @@ function App() {
         assignedPerson: card.assignedPerson,
         startDate: card.startDate,
         checklistText: item.text,
-        checklistChecked: item.checked ? 'Yes' : 'No',
-        checklistCreatedAt: item.createdAt || '',
+        checklistChecked: item.checked ? 'yes' : 'no',
+        checklistcreatedAt: item.createdAt || '',
         checklistCompletedAt: item.completedAt || '',
         checklistContext: item.context || '',
         checkedBy: item.checkedBy || '',
@@ -2146,42 +2573,105 @@ function App() {
 
     const worksheet = XLSX.utils.json_to_sheet(orderedRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'ProjectBoard');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'projectBoard');
     XLSX.writeFile(workbook, 'noteboard-export.xlsx');
     setShowExportConfig(false);
   };
+
+  const importWorkbook = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, {
+        type: 'array',
+        cellDates: true,
+      });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, {
+        defval: '',
+        raw: false,
+      });
+      const imported = buildCardsFromImportedRows(rows);
+
+      if (imported.length === 0) {
+        setImportStatus({
+          type: 'error',
+          message: 'no cards found. check that the file has project name or client name columns.',
+        });
+        return;
+      }
+
+      importCards(imported);
+      setImportStatus({
+        type: 'success',
+        message: `${imported.length} card${imported.length === 1 ? '' : 's'} created from ${file.name}`,
+      });
+    } catch (error) {
+      setImportStatus({
+        type: 'error',
+        message: 'could not read this file. try exporting a template first, then edit that file.',
+      });
+    }
+  };
+
+  if (!authReady) {
+    return (
+      <div className="login-gate">
+        <div className="login-card">
+          <p className="eyebrow">sml project note</p>
+          <h2>loading board</h2>
+          <p className="login-copy">connecting to the server...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!authToken) {
+    return (
+      <LoginGate
+        mode={authMode}
+        form={authForm}
+        status={authStatus}
+        loading={authLoading}
+        onModeChange={(mode) => {
+          setAuthMode(mode);
+          setAuthStatus('');
+        }}
+        onFormChange={(field, value) =>
+          setAuthForm((current) => ({ ...current, [field]: value }))
+        }
+        onSubmit={submitAuth}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
       <Header
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        viewMode={viewMode}
+        onMainPage={() => {
+          setExpandedSection(null);
+          setViewMode('board');
+        }}
+        onIncompleteCards={() => {
+          setExpandedSection(null);
+          setViewMode('incomplete');
+        }}
+        onExportExcel={() => {
+          setImportStatus(null);
+          setShowExportConfig(true);
+        }}
+        onLogout={logout}
       />
-      <div className="view-switcher">
-        <button
-          type="button"
-          className={viewMode === 'board' ? 'active' : ''}
-          onClick={() => {
-            setExpandedLane(null);
-            setViewMode('board');
-          }}
-        >
-          Board
-        </button>
-        <button
-          type="button"
-          className={viewMode === 'incomplete' ? 'active' : ''}
-          onClick={() => {
-            setExpandedLane(null);
-            setViewMode('incomplete');
-          }}
-        >
-          Incomplete Info
-        </button>
-        <button type="button" onClick={() => setShowExportConfig(true)}>
-          Export Excel
-        </button>
-      </div>
 
       <DndContext
         sensors={sensors}
@@ -2192,7 +2682,8 @@ function App() {
         }}
         onDragEnd={(event) => {
           const cardId = event.active.id;
-          const targetLane = event.over?.id;
+          const dropTarget = parseDropTarget(event.over?.id);
+          const targetLane = isValidDropLane(dropTarget.lane) ? dropTarget.lane : '';
           const movingCard = cards.find((card) => card.id === cardId);
 
           if (
@@ -2203,17 +2694,30 @@ function App() {
           ) {
             setPendingReopenCardId(cardId);
           } else if (targetLane) {
-            moveCard(cardId, targetLane);
+            moveCard(cardId, targetLane, dropTarget.todoColumnId);
           }
 
           setActiveCardId(null);
         }}
         onDragCancel={() => setActiveCardId(null)}
       >
-        {viewMode === 'all-cards' && expandedLane ? (
+        {viewMode === 'all-cards' && expandedSection ? (
           <AllCardsPage
-            lane={expandedLane}
-            cards={lanes[expandedLane]}
+            StaticCardComponent={StaticCard}
+            lane={parseDropTarget(expandedSection).lane || expandedSection}
+            title={
+              expandedSection.startsWith('active:')
+                ? todoColumns.find(
+                    (column) =>
+                      column.id === parseDropTarget(expandedSection).todoColumnId
+                  )?.title || 'to do'
+                : undefined
+            }
+            cards={
+              expandedSection.startsWith('active:')
+                ? lanes.activeByColumn[parseDropTarget(expandedSection).todoColumnId] || []
+                : lanes[expandedSection]
+            }
             onBack={closeAllCards}
             onOpenCard={(card) => setFocusCardId(card.id)}
             onAddChecklistItem={addChecklistItem}
@@ -2223,8 +2727,16 @@ function App() {
         ) : viewMode === 'board' ? (
           (
             <BoardLayout
+              CardSectionComponent={CardSection}
               lanes={lanes}
-              createCard={() => setShowComposer(true)}
+              todoColumns={todoColumns}
+              createCard={(todoColumnId) => {
+                setComposerDraft((current) => ({
+                  ...current,
+                  todoColumnId,
+                }));
+                setShowComposer(true);
+              }}
               onOpenAllCards={openAllCards}
               setFocusCardId={setFocusCardId}
               addChecklistItem={addChecklistItem}
@@ -2234,8 +2746,8 @@ function App() {
           )
         ) : (
           <IncompletePage
+            CardSectionComponent={CardSection}
             lanes={lanes}
-            createCard={createCard}
             onOpenAllCards={openAllCards}
             setFocusCardId={setFocusCardId}
             addChecklistItem={addChecklistItem}
@@ -2262,9 +2774,10 @@ function App() {
       </DndContext>
 
       <footer className="board-legend">
-        <span>Checked by manager</span>
-        <span>Checked by staff</span>
-        <span>Click a card to edit details</span>
+        <span>checked by manager</span>
+        <span>checked by staff</span>
+        <span>click a card to edit details</span>
+        {syncStatus ? <span>{syncStatus}</span> : null}
       </footer>
 
       <CreateCardPopup
@@ -2278,6 +2791,11 @@ function App() {
 
       <FocusModal card={focusCard} onClose={() => setFocusCardId(null)} />
       <ChecklistItemModal
+        key={
+          editingChecklistTarget
+            ? `edit-checklist-${editingChecklistTarget.cardId}-${editingChecklistTarget.itemId}`
+            : 'edit-checklist-closed'
+        }
         open={Boolean(editingChecklistTarget)}
         item={editingChecklistTarget}
         onTextChange={(text) =>
@@ -2285,41 +2803,42 @@ function App() {
             current ? { ...current, text } : current
           )
         }
-        onContextChange={(context) =>
-          setEditingChecklistTarget((current) =>
-            current ? { ...current, context } : current
-          )
-        }
+        contextInput={editingChecklistTarget?.contextInput || ''}
+        onContextInputChange={updateChecklistEditorContextInput}
+        onAddContext={addChecklistEditorContext}
+        onDeleteCurrentContext={deleteChecklistEditorCurrentContext}
+        onDeleteHistoryContext={deleteChecklistEditorHistoryContext}
         onSave={saveChecklistEditor}
         onDelete={deleteChecklistEditorItem}
         onCancel={() => setEditingChecklistTarget(null)}
       />
       <ChecklistConfirmModal
+        key={
+          pendingToggle
+            ? `board-toggle-${pendingToggle.cardId}-${pendingToggle.itemId}-${pendingToggle.nextChecked ? 'check' : 'uncheck'}`
+            : 'board-toggle-closed'
+        }
         open={Boolean(pendingToggle)}
         nextChecked={pendingToggle?.nextChecked}
         itemText={pendingToggle?.itemText}
-        previousContextRecord={pendingToggle?.previousContextRecord}
-        context={pendingToggle?.context || ''}
-        setContext={(value) =>
-          setPendingToggle((current) => (current ? { ...current, context: value } : current))
-        }
-        onUsePreviousContext={() =>
-          setPendingToggle((current) =>
-            current?.previousContextRecord
-              ? { ...current, context: current.previousContextRecord.note || '' }
-              : current
-          )
-        }
+        contextItem={pendingToggle}
+        contextInput={pendingToggle?.contextInput || ''}
+        onContextInputChange={updatePendingToggleContextInput}
+        onAddContext={addPendingToggleContext}
+        onDeleteCurrentContext={deletePendingToggleCurrentContext}
+        onDeleteHistoryContext={deletePendingToggleHistoryContext}
         onConfirm={confirmChecklistToggle}
         onCancel={() => setPendingToggle(null)}
       />
       <ExportConfigModal
         open={showExportConfig}
         columns={exportColumns}
+        importStatus={importStatus}
         onToggleColumn={toggleExportColumn}
         onMoveColumn={moveExportColumn}
         onClose={() => setShowExportConfig(false)}
         onExport={exportWorkbook}
+        onImportFile={importWorkbook}
       />
       <ReopenDoneCardModal
         open={Boolean(pendingReopenCard)}

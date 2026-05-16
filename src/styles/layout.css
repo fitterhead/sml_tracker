@@ -1,0 +1,7 @@
+.app-shell {
+  height: 100vh;
+  padding: var(--space-8) var(--space-10) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

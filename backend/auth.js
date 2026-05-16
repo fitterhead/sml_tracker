@@ -64,7 +64,9 @@ const verifyToken = (token, secret) => {
   const [body, signature] = String(token || '').split('.');
 
   if (!body || !signature) {
-    throw new Error('Missing token.');
+    const error = new Error('Missing token.');
+    error.statusCode = 401;
+    throw error;
   }
 
   const expected = crypto
@@ -72,19 +74,37 @@ const verifyToken = (token, secret) => {
     .update(body)
     .digest('base64url');
 
+  if (Buffer.byteLength(signature) !== Buffer.byteLength(expected)) {
+    const error = new Error('Invalid token.');
+    error.statusCode = 401;
+    throw error;
+  }
+
   if (
     !crypto.timingSafeEqual(
       Buffer.from(signature),
       Buffer.from(expected)
     )
   ) {
-    throw new Error('Invalid token.');
+    const error = new Error('Invalid token.');
+    error.statusCode = 401;
+    throw error;
   }
 
-  const payload = decode(body);
+  let payload;
+
+  try {
+    payload = decode(body);
+  } catch (_error) {
+    const error = new Error('Invalid token.');
+    error.statusCode = 401;
+    throw error;
+  }
 
   if (payload.exp < Date.now()) {
-    throw new Error('Token expired.');
+    const error = new Error('Token expired.');
+    error.statusCode = 401;
+    throw error;
   }
 
   return payload;
