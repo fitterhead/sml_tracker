@@ -375,6 +375,22 @@ export const useBoardStore = create(
             }),
           }));
         },
+        renameClient(oldName, newName) {
+          const previousName = String(oldName || '').trim();
+          const nextName = String(newName || '').trim();
+
+          if (!previousName || !nextName) {
+            return;
+          }
+
+          set((state) => ({
+            cards: state.cards.map((card) =>
+              card.jobName.trim() === previousName
+                ? { ...card, jobName: nextName }
+                : card
+            ),
+          }));
+        },
         deleteCard(cardId) {
           set((state) => {
             const nextCards = state.cards.filter((card) => card.id !== cardId);

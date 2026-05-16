@@ -1552,6 +1552,7 @@ function FocusModal({ card, onClose }) {
   const updateCard = useBoardStore((state) => state.updateCard);
   const deleteCard = useBoardStore((state) => state.deleteCard);
   const moveCard = useBoardStore((state) => state.moveCard);
+  const renameClient = useBoardStore((state) => state.renameClient);
   const jobOptions = useMemo(
     () =>
       [...new Set(cards.map((item) => item.jobName.trim()).filter(Boolean))].sort(),
@@ -1567,6 +1568,7 @@ function FocusModal({ card, onClose }) {
   const [newDraftChecklistContext, setNewDraftChecklistContext] = useState('');
   const [showNewDraftChecklistContext, setShowNewDraftChecklistContext] = useState(false);
   const [draftContextInputs, setDraftContextInputs] = useState({});
+  const [clientRenameDraft, setClientRenameDraft] = useState('');
 
   useEffect(() => {
     if (!card) {
@@ -1580,6 +1582,7 @@ function FocusModal({ card, onClose }) {
       setNewDraftChecklistContext('');
       setShowNewDraftChecklistContext(false);
       setDraftContextInputs({});
+      setClientRenameDraft('');
       return;
     }
 
@@ -1593,6 +1596,7 @@ function FocusModal({ card, onClose }) {
     setNewDraftChecklistContext('');
     setShowNewDraftChecklistContext(false);
     setDraftContextInputs({});
+    setClientRenameDraft(card.jobName || '');
   }, [card]);
 
   if (!card || !draft) {
@@ -1624,6 +1628,25 @@ function FocusModal({ card, onClose }) {
     if (isDirty) {
       saveChanges();
     }
+  };
+
+  const selectedExistingClient = jobOptions.includes(draft.jobName)
+    ? draft.jobName
+    : '';
+
+  const renameSelectedClient = () => {
+    const nextName = clientRenameDraft.trim();
+
+    if (!selectedExistingClient || !nextName) {
+      return;
+    }
+
+    renameClient(selectedExistingClient, nextName);
+    setDraft((current) => ({
+      ...current,
+      jobName: nextName,
+    }));
+    setClientRenameDraft(nextName);
   };
 
   const draftCard = { ...card, ...draft };
@@ -1921,13 +1944,15 @@ function FocusModal({ card, onClose }) {
             <span>client name</span>
             <select
               value={jobOptions.includes(draft.jobName) ? draft.jobName : '__custom__'}
-              onChange={(event) =>
+              onChange={(event) => {
+                const nextJobName =
+                  event.target.value === '__custom__' ? '' : event.target.value;
                 setDraft((current) => ({
                   ...current,
-                  jobName:
-                    event.target.value === '__custom__' ? '' : event.target.value,
-                }))
-              }
+                  jobName: nextJobName,
+                }));
+                setClientRenameDraft(nextJobName);
+              }}
               onKeyDown={(event) =>
                 triggerActionOnEnter(event, saveChangesFromKeyboard)
               }
@@ -1957,7 +1982,28 @@ function FocusModal({ card, onClose }) {
                 }
               />
             </label>
-          ) : null}
+          ) : (
+            <div className="field field-full client-rename-field">
+              <span>rename selected client</span>
+              <div className="client-rename-row">
+                <input
+                  value={clientRenameDraft}
+                  onChange={(event) => setClientRenameDraft(event.target.value)}
+                  onKeyDown={(event) =>
+                    triggerActionOnEnter(event, renameSelectedClient)
+                  }
+                />
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={renameSelectedClient}
+                  disabled={!clientRenameDraft.trim()}
+                >
+                  rename
+                </button>
+              </div>
+            </div>
+          )}
 
           <label className="field">
             <span>assigned person</span>
