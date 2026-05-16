@@ -39,9 +39,12 @@ export const fetchSession = (token) =>
     token,
   });
 
-export const saveBoardRequest = (token, board) =>
+export const saveBoardRequest = (token, board, baseUpdatedAt = '') =>
   request('/board', {
     method: 'PUT',
     token,
-    body: Array.isArray(board) ? { cards: board } : { board },
+    body: {
+      ...(Array.isArray(board) ? { cards: board } : { board }),
+      baseUpdatedAt,
+    },
   });

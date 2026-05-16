@@ -50,6 +50,7 @@ const createChecklistItem = (text, createdBy, overrides = {}) => ({
   context: '',
   contextCreatedAt: '',
   contextCompletedAt: '',
+  contextCreatedBy: '',
   contextHistory: [],
   createdBy,
   ...overrides,
@@ -125,7 +126,15 @@ const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   context: item.context || '',
   contextCreatedAt: item.contextCreatedAt || item.createdAt || '',
   contextCompletedAt: item.contextCompletedAt || '',
-  contextHistory: Array.isArray(item.contextHistory) ? item.contextHistory : [],
+  contextCreatedBy: item.contextCreatedBy || item.contextUpdatedBy || '',
+  contextHistory: Array.isArray(item.contextHistory)
+    ? item.contextHistory.map((entry = {}) => ({
+        note: entry.note || '',
+        createdAt: entry.createdAt || '',
+        completedAt: entry.completedAt || '',
+        createdBy: entry.createdBy || entry.updatedBy || '',
+      }))
+    : [],
   createdBy: item.createdBy || createdBy,
 });
 
@@ -310,6 +319,9 @@ export const useBoardStore = create(
                               ? new Date().toISOString()
                               : '',
                             contextCompletedAt: '',
+                            contextCreatedBy: checkItem.context
+                              ? state.currentUser.name
+                              : '',
                             contextHistory: Array.isArray(checkItem.contextHistory)
                               ? checkItem.contextHistory
                               : [],
@@ -409,6 +421,9 @@ export const useBoardStore = create(
                               ? new Date().toISOString()
                               : '',
                             contextCompletedAt: '',
+                            contextCreatedBy: nextInput.context.trim()
+                              ? state.currentUser.name
+                              : '',
                           }
                         ),
                       ],
@@ -453,6 +468,7 @@ export const useBoardStore = create(
                         createdAt: item.contextCreatedAt || item.createdAt || '',
                         completedAt:
                           item.contextCompletedAt || item.completedAt || '',
+                        createdBy: item.contextCreatedBy || item.createdBy || '',
                       },
                     ]
                   : incomingHistory || previousHistory;
@@ -470,6 +486,12 @@ export const useBoardStore = create(
                         : item.contextCreatedAt || new Date().toISOString())
                     : '',
                   contextCompletedAt: nextChecked ? new Date().toISOString() : '',
+                  contextCreatedBy: nextNote
+                    ? contextData?.contextCreatedBy ||
+                      (shouldArchivePrevious
+                        ? state.currentUser.name
+                        : item.contextCreatedBy || state.currentUser.name)
+                    : '',
                   contextHistory: nextHistory,
                 };
               });

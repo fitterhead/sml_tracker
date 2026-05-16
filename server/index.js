@@ -32,6 +32,7 @@ const readToken = (request) => {
 const sendError = (response, error) => {
   response.status(error.statusCode || 500).json({
     error: error.message || 'Unexpected error.',
+    ...(error.meta ? { meta: error.meta } : {}),
   });
 };
 
@@ -76,11 +77,23 @@ app.get('/api/auth/session', async (request, response) => {
 
 app.put('/api/board', async (request, response) => {
   try {
-    const board = await service.saveBoard(
+    const result = await service.saveBoard(
       readToken(request),
-      request.body?.board || request.body?.cards
+      request.body?.board || request.body?.cards,
+      {
+        baseUpdatedAt: request.body?.baseUpdatedAt || '',
+      }
     );
-    response.json(board);
+    response.json(result);
+  } catch (error) {
+    sendError(response, error);
+  }
+});
+
+app.get('/api/debug', async (request, response) => {
+  try {
+    const debug = await service.getDebug(readToken(request));
+    response.json(debug);
   } catch (error) {
     sendError(response, error);
   }

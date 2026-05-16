@@ -3,6 +3,8 @@ const { randomUUID } = require('node:crypto');
 const ACTIVE = 'active';
 const TODO_COLUMN_LIMIT = 2;
 
+const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
 const createId = () => {
   if (typeof randomUUID === 'function') {
     return randomUUID();
@@ -21,6 +23,7 @@ const createChecklistItem = (text, createdBy, overrides = {}) => ({
   context: '',
   contextCreatedAt: '',
   contextCompletedAt: '',
+  contextCreatedBy: '',
   contextHistory: [],
   createdBy,
   ...overrides,
@@ -75,6 +78,10 @@ const createInitialState = () => {
 
   return {
     users: [],
+    audit: {
+      date: getTodayKey(),
+      changesToday: 0,
+    },
     board: {
       todoColumns,
       cards: createSeedCards(todoColumns),
@@ -93,7 +100,15 @@ const normalizeChecklistItem = (item = {}) => ({
   context: item.context || '',
   contextCreatedAt: item.contextCreatedAt || item.createdAt || '',
   contextCompletedAt: item.contextCompletedAt || '',
-  contextHistory: Array.isArray(item.contextHistory) ? item.contextHistory : [],
+  contextCreatedBy: item.contextCreatedBy || item.contextUpdatedBy || '',
+  contextHistory: Array.isArray(item.contextHistory)
+    ? item.contextHistory.map((entry = {}) => ({
+        note: entry.note || '',
+        createdAt: entry.createdAt || '',
+        completedAt: entry.completedAt || '',
+        createdBy: entry.createdBy || entry.updatedBy || '',
+      }))
+    : [],
   createdBy: item.createdBy || 'manager',
 });
 
@@ -131,8 +146,23 @@ const normalizeBoard = (board = {}) => {
   };
 };
 
+const normalizeUser = (user = {}) => ({
+  ...user,
+  lastLoginAt: user.lastLoginAt || '',
+});
+
+const normalizeAudit = (audit = {}) => {
+  const today = getTodayKey();
+
+  return {
+    date: audit.date === today ? audit.date : today,
+    changesToday: audit.date === today ? Number(audit.changesToday) || 0 : 0,
+  };
+};
+
 const normalizeState = (state = {}) => ({
-  users: Array.isArray(state.users) ? state.users : [],
+  users: Array.isArray(state.users) ? state.users.map(normalizeUser) : [],
+  audit: normalizeAudit(state.audit),
   board: normalizeBoard(state.board),
 });
 
@@ -140,6 +170,7 @@ module.exports = {
   createInitialState,
   createSeedCards,
   createSeedTodoColumns,
+  getTodayKey,
   normalizeBoard,
   normalizeState,
 };

@@ -251,6 +251,23 @@
   color: inherit;
 }
 
+.context-summary {
+  display: grid;
+  gap: 2px;
+  margin-top: calc(var(--space-2) * -1);
+  margin-bottom: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.36);
+}
+
+.context-summary p {
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
 .context-delete-button {
   flex: 0 0 auto;
   font-size: var(--font-sm);

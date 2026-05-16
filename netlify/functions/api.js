@@ -97,17 +97,26 @@ exports.handler = async (event) => {
 
     if (event.httpMethod === 'PUT' && path === '/api/board') {
       const body = parseBody(event.body);
-      const board = await service.saveBoard(
+      const result = await service.saveBoard(
         readToken(event.headers),
-        body.board || body.cards
+        body.board || body.cards,
+        {
+          baseUpdatedAt: body.baseUpdatedAt || '',
+        }
       );
-      return json(200, board);
+      return json(200, result);
+    }
+
+    if (event.httpMethod === 'GET' && path === '/api/debug') {
+      const debug = await service.getDebug(readToken(event.headers));
+      return json(200, debug);
     }
 
     return json(404, { error: 'Not found.' });
   } catch (error) {
     return json(error.statusCode || 500, {
       error: error.message || 'Unexpected error.',
+      ...(error.meta ? { meta: error.meta } : {}),
     });
   }
 };

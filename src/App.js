@@ -53,6 +53,34 @@ const readStoredAuthToken = () => {
 
   return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
 };
+
+const createEmptyServerMeta = () => ({
+  lastLoginAt: '',
+  cardsCreatedToday: 0,
+  changesToday: 0,
+  boardUpdatedAt: '',
+  usersCount: 0,
+  cardsCount: 0,
+});
+
+const formatFooterTime = (value) => {
+  if (!value) {
+    return 'never';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'unknown';
+  }
+
+  return new Intl.DateTimeFormat('en-CA', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+};
 const EXPORT_FIELDS = [
   { key: 'taskName', label: 'project name' },
   { key: 'jobName', label: 'client name' },
@@ -200,6 +228,7 @@ const buildDraftFromCard = (card) => ({
     contextCreatedAt:
       item.contextCreatedAt || item.createdAt || item.completedAt || '',
     contextCompletedAt: item.contextCompletedAt || '',
+    contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
     contextHistory: item.contextHistory || [],
   })),
   priority: card.priority || 0,
@@ -220,7 +249,10 @@ const getChecklistContextHistory = (item = {}) =>
 const hasChecklistContext = (item = {}) =>
   Boolean(item?.context?.trim()) || getChecklistContextHistory(item).length > 0;
 
-const addContextToChecklistItem = (item = {}, noteValue = '') => {
+const getContextActor = (user = {}) =>
+  user.name || user.email || user.role || 'unknown';
+
+const addContextToChecklistItem = (item = {}, noteValue = '', actor = '') => {
   const note = String(noteValue || '').trim();
 
   if (!note) {
@@ -236,6 +268,7 @@ const addContextToChecklistItem = (item = {}, noteValue = '') => {
             item.createdAt ||
             new Date().toISOString(),
           completedAt: item.contextCompletedAt || item.completedAt || '',
+          createdBy: item.contextCreatedBy || item.createdBy || actor,
         },
       ]
     : [];
@@ -245,6 +278,7 @@ const addContextToChecklistItem = (item = {}, noteValue = '') => {
     context: note,
     contextCreatedAt: new Date().toISOString(),
     contextCompletedAt: '',
+    contextCreatedBy: actor,
     contextHistory: [
       ...getChecklistContextHistory(item),
       ...previousContext,
@@ -257,6 +291,7 @@ const deleteCurrentChecklistContext = (item = {}) => ({
   context: '',
   contextCreatedAt: '',
   contextCompletedAt: '',
+  contextCreatedBy: '',
 });
 
 const deleteChecklistHistoryContext = (item = {}, historyIndexFromNewest) => {
@@ -301,6 +336,47 @@ function HighlightedText({ text = '' }) {
   }
 
   return parts;
+}
+
+function ContextMeta({ entry = {}, fallback = 'saved context' }) {
+  const timeline = formatContextHistoryTimeline(entry) || fallback;
+  const actor = entry.contextCreatedBy || entry.createdBy || entry.updatedBy || '';
+
+  return (
+    <span className="context-entry-date">
+      {timeline}
+      {actor ? ` by ${actor}` : ''}
+    </span>
+  );
+}
+
+function ContextSummary({ item }) {
+  if (!hasChecklistContext(item)) {
+    return null;
+  }
+
+  const history = getChecklistContextHistory(item);
+  const latest = item?.context?.trim()
+    ? {
+        note: item.context,
+        createdAt: item.contextCreatedAt || item.createdAt || '',
+        completedAt: item.contextCompletedAt || item.completedAt || '',
+        createdBy: item.contextCreatedBy || item.createdBy || '',
+      }
+    : history[history.length - 1];
+
+  if (!latest?.note?.trim()) {
+    return null;
+  }
+
+  return (
+    <div className="context-summary">
+      <ContextMeta entry={latest} fallback="latest context" />
+      <p>
+        <HighlightedText text={latest.note} />
+      </p>
+    </div>
+  );
 }
 
 function ContextActionButton({
@@ -361,7 +437,14 @@ function ContextThreadEditor({
         {item?.context?.trim() ? (
           <div className="context-entry">
             <div className="context-entry-head">
-              <span className="context-entry-date">latest context</span>
+              <ContextMeta
+                entry={{
+                  createdAt: item.contextCreatedAt || item.createdAt || '',
+                  completedAt: item.contextCompletedAt || item.completedAt || '',
+                  createdBy: item.contextCreatedBy || item.createdBy || '',
+                }}
+                fallback="latest context"
+              />
               {onDeleteCurrentContext ? (
                 <button
                   type="button"
@@ -386,9 +469,7 @@ function ContextThreadEditor({
               key={`${entry.createdAt}-${entry.completedAt}-${index}`}
             >
               <div className="context-entry-head">
-                <span className="context-entry-date">
-                  {formatContextHistoryTimeline(entry) || 'saved context'}
-                </span>
+                <ContextMeta entry={entry} fallback="saved context" />
                 {onDeleteHistoryContext ? (
                   <button
                     type="button"
@@ -830,9 +911,15 @@ function ChecklistItem({
               {item.context?.trim() ? (
                 <div className="context-entry">
                   <div className="context-entry-head">
-                    <span className="context-entry-date">
-                      {formatContextHistoryTimeline(item)}
-                    </span>
+                    <ContextMeta
+                      entry={{
+                        createdAt: item.contextCreatedAt || item.createdAt || '',
+                        completedAt:
+                          item.contextCompletedAt || item.completedAt || '',
+                        createdBy: item.contextCreatedBy || item.createdBy || '',
+                      }}
+                      fallback="latest context"
+                    />
                     {onDeleteCurrentContext ? (
                       <button
                         type="button"
@@ -851,9 +938,7 @@ function ChecklistItem({
               {historyEntries.map((entry, index) => (
                 <div className="context-entry context-entry-history" key={`${entry.createdAt}-${entry.completedAt}-${index}`}>
                   <div className="context-entry-head">
-                    <span className="context-entry-date">
-                      {formatContextHistoryTimeline(entry)}
-                    </span>
+                    <ContextMeta entry={entry} fallback="saved context" />
                     {onDeleteHistoryContext ? (
                       <button
                         type="button"
@@ -1103,6 +1188,7 @@ function ChecklistItemModal({
             autoFocus
           />
         </label>
+        <ContextSummary item={item} />
         <ContextActionButton
           open={showContextField}
           hasContext={hasChecklistContext(item)}
@@ -1462,6 +1548,7 @@ function CreateCardPopup({
 function FocusModal({ card, onClose }) {
   const cards = useBoardStore((state) => state.cards);
   const todoColumns = useBoardStore((state) => state.todoColumns);
+  const currentUser = useBoardStore((state) => state.currentUser);
   const updateCard = useBoardStore((state) => state.updateCard);
   const deleteCard = useBoardStore((state) => state.deleteCard);
   const moveCard = useBoardStore((state) => state.moveCard);
@@ -1573,6 +1660,7 @@ function FocusModal({ card, onClose }) {
       contextCreatedAt:
         item.contextCreatedAt || item.createdAt || item.completedAt || '',
       contextCompletedAt: item.contextCompletedAt || '',
+      contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
       contextHistory: getChecklistContextHistory(item),
       contextInput: '',
     });
@@ -1588,7 +1676,11 @@ function FocusModal({ card, onClose }) {
     setPendingToggle((current) =>
       current
         ? {
-            ...addContextToChecklistItem(current, current.contextInput),
+            ...addContextToChecklistItem(
+              current,
+              current.contextInput,
+              getContextActor(currentUser)
+            ),
             contextInput: '',
           }
         : current
@@ -1613,6 +1705,7 @@ function FocusModal({ card, onClose }) {
     }
 
     const currentUserRole = useBoardStore.getState().currentUser.role;
+    const currentUserName = getContextActor(useBoardStore.getState().currentUser);
 
     setDraft((current) => ({
       ...current,
@@ -1653,9 +1746,17 @@ function FocusModal({ card, onClose }) {
                           item.contextCreatedAt || item.createdAt || '',
                         completedAt:
                           item.contextCompletedAt || item.completedAt || '',
+                        createdBy:
+                          item.contextCreatedBy || item.createdBy || '',
                       },
                     ]
                   : getChecklistContextHistory(pendingToggle),
+                contextCreatedBy: nextNote
+                  ? pendingToggle.contextCreatedBy ||
+                    (shouldArchivePrevious
+                      ? currentUserName
+                      : item.contextCreatedBy || currentUserName)
+                  : '',
               };
             })()
           : item
@@ -1694,7 +1795,7 @@ function FocusModal({ card, onClose }) {
           return item;
         }
 
-        return addContextToChecklistItem(item, note);
+        return addContextToChecklistItem(item, note, getContextActor(currentUser));
       }),
     }));
     setDraftContextInputs((current) => ({
@@ -1766,6 +1867,9 @@ function FocusModal({ card, onClose }) {
             ? new Date().toISOString()
             : '',
           contextCompletedAt: '',
+          contextCreatedBy: newDraftChecklistContext.trim()
+            ? getContextActor(currentUser)
+            : '',
           contextHistory: [],
           createdBy: useBoardStore.getState().currentUser.role,
         },
@@ -2107,6 +2211,7 @@ function FocusModal({ card, onClose }) {
 function App() {
   const cards = useBoardStore((state) => state.cards);
   const todoColumns = useBoardStore((state) => state.todoColumns);
+  const currentUser = useBoardStore((state) => state.currentUser);
   const createCard = useBoardStore((state) => state.createCard);
   const importCards = useBoardStore((state) => state.importCards);
   const updateCard = useBoardStore((state) => state.updateCard);
@@ -2134,6 +2239,9 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState('');
   const [syncStatus, setSyncStatus] = useState('');
+  const [boardHydrated, setBoardHydrated] = useState(false);
+  const [serverBoardUpdatedAt, setServerBoardUpdatedAt] = useState('');
+  const [serverMeta, setServerMeta] = useState(createEmptyServerMeta);
   const [authForm, setAuthForm] = useState({
     name: '',
     email: '',
@@ -2164,6 +2272,9 @@ function App() {
     let cancelled = false;
 
     if (!authToken) {
+      setBoardHydrated(false);
+      setServerBoardUpdatedAt('');
+      setServerMeta(createEmptyServerMeta());
       setAuthReady(true);
       return () => {
         cancelled = true;
@@ -2178,6 +2289,12 @@ function App() {
         }
 
         hydrateBoard(session.board, session.user);
+        setServerBoardUpdatedAt(session.board?.updatedAt || '');
+        setServerMeta({
+          ...createEmptyServerMeta(),
+          ...(session.meta || {}),
+        });
+        setBoardHydrated(true);
         setAuthReady(true);
         setAuthStatus('');
       })
@@ -2189,6 +2306,9 @@ function App() {
         window.localStorage.removeItem(AUTH_TOKEN_KEY);
         logoutUser();
         setAuthToken('');
+        setBoardHydrated(false);
+        setServerBoardUpdatedAt('');
+        setServerMeta(createEmptyServerMeta());
         setAuthReady(true);
         setAuthStatus(error.message || 'session expired. please login again.');
       });
@@ -2199,19 +2319,51 @@ function App() {
   }, [authToken, hydrateBoard, logoutUser]);
 
   useEffect(() => {
-    if (!authToken || !authReady) {
+    if (!authToken || !authReady || !boardHydrated) {
       return undefined;
     }
 
     const syncTimer = window.setTimeout(() => {
       setSyncStatus('saving...');
-      saveBoardRequest(authToken, { cards, todoColumns })
-        .then(() => setSyncStatus('saved'))
-        .catch(() => setSyncStatus('save failed'));
+      saveBoardRequest(authToken, { cards, todoColumns }, serverBoardUpdatedAt)
+        .then((payload) => {
+          const savedBoard = payload.board || payload;
+          setServerBoardUpdatedAt(savedBoard.updatedAt || '');
+          setServerMeta((current) => ({
+            ...current,
+            ...(payload.meta || {}),
+          }));
+          setSyncStatus('saved');
+        })
+        .catch((error) => {
+          setSyncStatus(
+            error.message?.includes('server')
+              ? 'server changed, refresh'
+              : 'save failed'
+          );
+          fetchSession(authToken)
+            .then((session) => {
+              hydrateBoard(session.board, session.user);
+              setServerBoardUpdatedAt(session.board?.updatedAt || '');
+              setServerMeta({
+                ...createEmptyServerMeta(),
+                ...(session.meta || {}),
+              });
+            })
+            .catch(() => {});
+        });
     }, 700);
 
     return () => window.clearTimeout(syncTimer);
-  }, [authToken, authReady, cards, todoColumns]);
+  }, [
+    authToken,
+    authReady,
+    boardHydrated,
+    cards,
+    todoColumns,
+    serverBoardUpdatedAt,
+    hydrateBoard,
+  ]);
 
   const submitAuth = async (event) => {
     event.preventDefault();
@@ -2230,6 +2382,12 @@ function App() {
 
       window.localStorage.setItem(AUTH_TOKEN_KEY, session.token);
       hydrateBoard(session.board, session.user);
+      setServerBoardUpdatedAt(session.board?.updatedAt || '');
+      setServerMeta({
+        ...createEmptyServerMeta(),
+        ...(session.meta || {}),
+      });
+      setBoardHydrated(true);
       setAuthToken(session.token);
       setAuthReady(true);
       setAuthForm((current) => ({
@@ -2247,6 +2405,9 @@ function App() {
     window.localStorage.removeItem(AUTH_TOKEN_KEY);
     logoutUser();
     setAuthToken('');
+    setBoardHydrated(false);
+    setServerBoardUpdatedAt('');
+    setServerMeta(createEmptyServerMeta());
     setAuthReady(true);
     setSyncStatus('');
   };
@@ -2351,6 +2512,7 @@ function App() {
       contextCreatedAt:
         item.contextCreatedAt || item.createdAt || item.completedAt || '',
       contextCompletedAt: item.contextCompletedAt || '',
+      contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
       contextHistory: getChecklistContextHistory(item),
       contextInput: '',
     });
@@ -2366,7 +2528,11 @@ function App() {
     setPendingToggle((current) =>
       current
         ? {
-            ...addContextToChecklistItem(current, current.contextInput),
+            ...addContextToChecklistItem(
+              current,
+              current.contextInput,
+              getContextActor(currentUser)
+            ),
             contextInput: '',
           }
         : current
@@ -2417,6 +2583,7 @@ function App() {
       contextCreatedAt:
         item.contextCreatedAt || item.createdAt || item.completedAt || '',
       contextCompletedAt: item.contextCompletedAt || '',
+      contextCreatedBy: item.contextCreatedBy || item.createdBy || '',
       contextHistory: getChecklistContextHistory(item),
       contextInput: '',
     });
@@ -2432,7 +2599,11 @@ function App() {
     setEditingChecklistTarget((current) =>
       current
         ? {
-            ...addContextToChecklistItem(current, current.contextInput),
+            ...addContextToChecklistItem(
+              current,
+              current.contextInput,
+              getContextActor(currentUser)
+            ),
             contextInput: '',
           }
         : current
@@ -2471,6 +2642,7 @@ function App() {
               context: editingChecklistTarget.context,
               contextCreatedAt: editingChecklistTarget.contextCreatedAt || '',
               contextCompletedAt: editingChecklistTarget.contextCompletedAt || '',
+              contextCreatedBy: editingChecklistTarget.contextCreatedBy || '',
               contextHistory: getChecklistContextHistory(editingChecklistTarget),
             }
           : item
@@ -2776,6 +2948,9 @@ function App() {
       <footer className="board-legend">
         <span>checked by manager</span>
         <span>checked by staff</span>
+        <span>last login {formatFooterTime(serverMeta.lastLoginAt)}</span>
+        <span>today cards {serverMeta.cardsCreatedToday}</span>
+        <span>changes {serverMeta.changesToday}</span>
         <span>click a card to edit details</span>
         {syncStatus ? <span>{syncStatus}</span> : null}
       </footer>
