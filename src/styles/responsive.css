@@ -19,7 +19,7 @@
   .board-row {
     grid-template-columns: 1fr;
     gap: var(--space-9);
-    overflow: auto;
+    overflow: visible;
   }
 
   .side-status-column {

@@ -134,6 +134,89 @@ describe('useBoardStore', () => {
     expect(updatedItem.contextHistory[0].note).toBe('first note');
   });
 
+  test('checklist items require two clicks before a card is finished', () => {
+    useBoardStore.getState().createCard({
+      taskName: 'Review project',
+      jobName: 'Review client',
+    });
+
+    const card = useBoardStore
+      .getState()
+      .cards.find((item) => item.taskName === 'Review project');
+    const checklistItem = card.checklist[0];
+
+    useBoardStore.getState().toggleChecklistItem(card.id, checklistItem.id);
+    let updatedCard = useBoardStore
+      .getState()
+      .cards.find((item) => item.id === card.id);
+
+    expect(updatedCard.checklist[0].state).toBe('in_progress');
+    expect(updatedCard.lane).toBe('active');
+
+    useBoardStore.getState().toggleChecklistItem(card.id, checklistItem.id);
+    updatedCard = useBoardStore
+      .getState()
+      .cards.find((item) => item.id === card.id);
+
+    expect(updatedCard.checklist[0].state).toBe('completed');
+    expect(updatedCard.lane).toBe('done');
+  });
+
+  test('workspaces isolate cards and todo columns', () => {
+    const firstWorkspaceId = useBoardStore.getState().activeWorkspaceId;
+
+    useBoardStore.getState().createCard({
+      taskName: 'Terroni project',
+      jobName: 'Terroni',
+    });
+    useBoardStore.getState().createWorkspace('Prada');
+    useBoardStore.getState().createCard({
+      taskName: 'Prada project',
+      jobName: 'Prada',
+    });
+
+    expect(
+      useBoardStore.getState().cards.some((card) => card.jobName === 'Terroni')
+    ).toBe(false);
+    expect(
+      useBoardStore.getState().cards.some((card) => card.jobName === 'Prada')
+    ).toBe(true);
+
+    useBoardStore.getState().switchWorkspace(firstWorkspaceId);
+
+    expect(
+      useBoardStore.getState().cards.some((card) => card.jobName === 'Terroni')
+    ).toBe(true);
+    expect(
+      useBoardStore.getState().cards.some((card) => card.jobName === 'Prada')
+    ).toBe(false);
+  });
+
+  test('updateCard also moves cards when checklist states become completed', () => {
+    useBoardStore.getState().createCard({
+      taskName: 'Focus project',
+      jobName: 'Focus client',
+    });
+
+    const card = useBoardStore
+      .getState()
+      .cards.find((item) => item.taskName === 'Focus project');
+
+    useBoardStore.getState().updateCard(card.id, {
+      checklist: card.checklist.map((item) => ({
+        ...item,
+        state: 'completed',
+        checked: true,
+      })),
+    });
+
+    const updatedCard = useBoardStore
+      .getState()
+      .cards.find((item) => item.id === card.id);
+
+    expect(updatedCard.lane).toBe('done');
+  });
+
   test('toggleChecklistItem can use context history prepared by a popup', () => {
     useBoardStore.getState().createCard({
       taskName: 'Popup context project',

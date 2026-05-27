@@ -37,7 +37,7 @@ export function BoardLayout({
                 onHoverPreviewMove={onHoverPreviewMove}
                 onHoverPreviewEnd={onHoverPreviewEnd}
                 showCreateButton={index === 0}
-                showHeader={index === 0}
+                showHeader
               />
             </div>
           ))}

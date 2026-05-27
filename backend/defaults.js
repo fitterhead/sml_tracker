@@ -3,6 +3,11 @@ const { randomUUID } = require('node:crypto');
 const ACTIVE = 'active';
 const TODO_COLUMN_LIMIT = 2;
 const DEFAULT_PRIORITY = 1;
+const CHECKLIST_STATES = {
+  UNCHECKED: 'unchecked',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+};
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -17,6 +22,7 @@ const createId = () => {
 const createChecklistItem = (text, createdBy, overrides = {}) => ({
   id: createId(),
   text,
+  state: CHECKLIST_STATES.UNCHECKED,
   checked: false,
   checkedBy: null,
   createdAt: new Date().toISOString(),
@@ -76,6 +82,8 @@ const createSeedCards = (todoColumns = createSeedTodoColumns()) => [
 
 const createInitialState = () => {
   const todoColumns = createSeedTodoColumns();
+  const cards = createSeedCards(todoColumns);
+  const activeWorkspaceId = createId();
 
   return {
     users: [],
@@ -84,8 +92,17 @@ const createInitialState = () => {
       changesToday: 0,
     },
     board: {
+      activeWorkspaceId,
+      workspaces: [
+        {
+          id: activeWorkspaceId,
+          name: 'Main',
+          todoColumns,
+          cards,
+        },
+      ],
       todoColumns,
-      cards: createSeedCards(todoColumns),
+      cards,
       updatedAt: new Date().toISOString(),
     },
   };
@@ -94,7 +111,10 @@ const createInitialState = () => {
 const normalizeChecklistItem = (item = {}) => ({
   id: item.id || createId(),
   text: item.text || 'checklist item',
-  checked: Boolean(item.checked),
+  state: item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
+  checked: item.state
+    ? item.state === CHECKLIST_STATES.COMPLETED
+    : Boolean(item.checked),
   checkedBy: item.checkedBy || null,
   createdAt: item.createdAt || item.completedAt || new Date().toISOString(),
   completedAt: item.completedAt || '',
@@ -134,15 +154,47 @@ const normalizeCard = (card = {}, todoColumns = []) => ({
 });
 
 const normalizeBoard = (board = {}) => {
-  const todoColumns = normalizeTodoColumns(board.todoColumns);
-  const cards =
+  const legacyTodoColumns = normalizeTodoColumns(board.todoColumns);
+  const legacyCards =
     Array.isArray(board.cards) && board.cards.length > 0
-      ? board.cards.map((card) => normalizeCard(card, todoColumns))
-      : createSeedCards(todoColumns);
+      ? board.cards.map((card) => normalizeCard(card, legacyTodoColumns))
+      : createSeedCards(legacyTodoColumns);
+  const workspaces =
+    Array.isArray(board.workspaces) && board.workspaces.length > 0
+      ? board.workspaces.map((workspace, index) => {
+          const todoColumns = normalizeTodoColumns(workspace.todoColumns);
+          return {
+            id: workspace.id || createId(),
+            name: workspace.name || `Workspace ${index + 1}`,
+            todoColumns,
+            cards:
+              Array.isArray(workspace.cards) && workspace.cards.length > 0
+                ? workspace.cards.map((card) => normalizeCard(card, todoColumns))
+                : createSeedCards(todoColumns),
+          };
+        })
+      : [
+          {
+            id: board.activeWorkspaceId || createId(),
+            name: board.workspaceName || 'Main',
+            todoColumns: legacyTodoColumns,
+            cards: legacyCards,
+          },
+        ];
+  const activeWorkspaceId = workspaces.some(
+    (workspace) => workspace.id === board.activeWorkspaceId
+  )
+    ? board.activeWorkspaceId
+    : workspaces[0].id;
+  const activeWorkspace =
+    workspaces.find((workspace) => workspace.id === activeWorkspaceId) ||
+    workspaces[0];
 
   return {
-    todoColumns,
-    cards,
+    activeWorkspaceId,
+    workspaces,
+    todoColumns: activeWorkspace.todoColumns,
+    cards: activeWorkspace.cards,
     updatedAt: board.updatedAt || new Date().toISOString(),
   };
 };

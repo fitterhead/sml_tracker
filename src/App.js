@@ -18,9 +18,10 @@ import {
 } from './components/BoardViews';
 import {
   columnMeta,
-  formatCardDisplayDate,
+  formatCardAge,
   formatChecklistTimeline,
   formatContextHistoryTimeline,
+  getCardAgeWarmth,
   getPileHeight,
   getPileLayout,
   getStackLimit,
@@ -42,9 +43,12 @@ import {
   useBoardStore,
 } from './store/useBoardStore';
 
-const DATE_MATCHER =
-  /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+\d{1,2}(?:,\s*\d{4})?)\b/gi;
 const AUTH_TOKEN_KEY = 'sml-tracker-auth-token';
+const CHECKLIST_STATES = {
+  UNCHECKED: 'unchecked',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+};
 
 const readStoredAuthToken = () => {
   if (typeof window === 'undefined') {
@@ -86,7 +90,6 @@ const EXPORT_FIELDS = [
   { key: 'jobName', label: 'client name' },
   { key: 'lane', label: 'lane' },
   { key: 'priority', label: 'priority' },
-  { key: 'assignedPerson', label: 'assigned person' },
   { key: 'startDate', label: 'start date' },
   { key: 'checklistText', label: 'checklist item' },
   { key: 'checklistChecked', label: 'checked' },
@@ -305,37 +308,7 @@ const deleteChecklistHistoryContext = (item = {}, historyIndexFromNewest) => {
 };
 
 function HighlightedText({ text = '' }) {
-  const value = String(text);
-  const matches = [...value.matchAll(DATE_MATCHER)];
-
-  if (matches.length === 0) {
-    return value;
-  }
-
-  const parts = [];
-  let cursor = 0;
-
-  matches.forEach((match, index) => {
-    const start = match.index ?? 0;
-    const matchText = match[0];
-
-    if (start > cursor) {
-      parts.push(value.slice(cursor, start));
-    }
-
-    parts.push(
-      <mark key={`${matchText}-${start}-${index}`} className="date-highlight">
-        {matchText}
-      </mark>
-    );
-    cursor = start + matchText.length;
-  });
-
-  if (cursor < value.length) {
-    parts.push(value.slice(cursor));
-  }
-
-  return parts;
+  return String(text);
 }
 
 function ContextMeta({ entry = {}, fallback = 'saved context' }) {
@@ -521,6 +494,7 @@ function PriorityDots({ value = 0, onChange }) {
 function ChecklistConfirmModal({
   open,
   nextChecked,
+  nextState,
   itemText,
   contextItem,
   contextInput,
@@ -543,6 +517,19 @@ function ChecklistConfirmModal({
     return null;
   }
 
+  const actionText =
+    nextState === CHECKLIST_STATES.IN_PROGRESS
+      ? 'mark this item as in progress?'
+      : nextState === CHECKLIST_STATES.COMPLETED || nextChecked
+        ? 'mark this item completed and reviewed?'
+        : 'reset this item to unchecked?';
+  const eyebrow =
+    nextState === CHECKLIST_STATES.IN_PROGRESS
+      ? 'confirm progress'
+      : nextState === CHECKLIST_STATES.COMPLETED || nextChecked
+        ? 'confirm review'
+        : 'confirm reset';
+
   return (
     <div className="focus-backdrop" onClick={onCancel}>
       <div
@@ -555,8 +542,8 @@ function ChecklistConfirmModal({
           }
         }}
       >
-        <p className="eyebrow">{nextChecked ? 'confirm check' : 'confirm uncheck'}</p>
-        <h2>{nextChecked ? 'mark this item as complete?' : 'remove this completed mark?'}</h2>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2>{actionText}</h2>
         <p className="confirm-item-text">
           <HighlightedText text={itemText || ''} />
         </p>
@@ -670,7 +657,7 @@ function ExportConfigModal({
                 onChange={onImportFile}
               />
               <span>choose excel file</span>
-              <small>supports project name, client name, assigned person, start date, priority, lane, checklist item, context</small>
+              <small>supports project name, client name, start date, priority, lane, checklist item, context</small>
             </label>
             {importStatus ? (
               <p className={`import-status ${importStatus.type || ''}`}>
@@ -899,7 +886,11 @@ function ChecklistItem({
   onDeleteHistoryContext,
   onEdit,
 }) {
-  const checkedClass = item.checkedBy ? `checked-${item.checkedBy}` : '';
+  const itemState =
+    item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
+  const checkedClass = itemState !== CHECKLIST_STATES.UNCHECKED && item.checkedBy
+    ? `checked-${item.checkedBy}`
+    : '';
   const historyEntries = Array.isArray(item.contextHistory)
     ? [...item.contextHistory].reverse()
     : [];
@@ -907,16 +898,22 @@ function ChecklistItem({
     Boolean(item.context?.trim()) || historyEntries.length > 0;
 
   return (
-    <div className={`check-entry ${item.checked ? checkedClass : ''}`}>
+    <div className={`check-entry check-state-${itemState} ${checkedClass}`}>
       <div className="check-item">
         <button
           type="button"
           className="check-toggle"
           onClick={onToggle}
           disabled={disabled}
-          aria-label={item.checked ? 'uncheck item' : 'check item'}
+          aria-label={
+            itemState === CHECKLIST_STATES.UNCHECKED
+              ? 'mark item in progress'
+              : itemState === CHECKLIST_STATES.IN_PROGRESS
+                ? 'mark item completed and reviewed'
+                : 'reset item'
+          }
         >
-          <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
+          <span className={`check-mark ${itemState}`} />
         </button>
         {onEdit ? (
           <button
@@ -1015,6 +1012,10 @@ function CardShell({
   const cardZone = getCardZone(card);
   const isOnHold = cardZone === 'hold';
   const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
+  const ageWarmth = getCardAgeWarmth(card.createdAt, cardZone);
+  const cardStyle = {
+    '--age-warmth': ageWarmth,
+  };
   const [expandedContexts, setExpandedContexts] = useState({});
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
@@ -1042,6 +1043,7 @@ function CardShell({
     return (
       <article
         className={`job-card compact-card ${isOverlay ? 'overlay' : ''}`}
+        style={cardStyle}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
       >
@@ -1060,6 +1062,7 @@ function CardShell({
   return (
     <article
       className={`job-card ${isOverlay ? 'overlay' : ''}`}
+      style={cardStyle}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -1073,13 +1076,8 @@ function CardShell({
       </div>
 
       <div className="card-meta">
-        <span className="meta-date">
-          <HighlightedText
-            text={formatCardDisplayDate(card.startDate, card.createdAt)}
-          />
-        </span>
-        <span>
-          <HighlightedText text={card.assignedPerson || 'unassigned'} />
+        <span className="task-age">
+          {formatCardAge(card.createdAt)}
         </span>
       </div>
 
@@ -1413,8 +1411,8 @@ function CardSection({
   showSeeMore = true,
 }) {
   const stackLimit = getStackLimit(lane);
-  const visibleCards = cards.slice(-stackLimit);
-  const hiddenCount = Math.max(cards.length - stackLimit, 0);
+  const visibleCards = lane === 'active' ? cards : cards.slice(-stackLimit);
+  const hiddenCount = lane === 'active' ? 0 : Math.max(cards.length - stackLimit, 0);
   const pileHeight = getPileHeight(lane, visibleCards.length);
 
   return (
@@ -1457,7 +1455,10 @@ function CardSection({
         ) : null}
       </div>
 
-      <div className={`pile-area lane-${lane}`} style={{ minHeight: pileHeight }}>
+      <div
+        className={`pile-area lane-${lane}`}
+        style={lane === 'active' ? undefined : { minHeight: pileHeight }}
+      >
         {visibleCards.map((card, index) => {
           const layout = getPileLayout(lane, visibleCards.length, index);
 
@@ -1465,9 +1466,13 @@ function CardSection({
             <div
               key={card.id}
               className="pile-slot"
-              style={{
-                transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
-              }}
+              style={
+                lane === 'active'
+                  ? undefined
+                  : {
+                      transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
+                    }
+              }
             >
               {lane === 'incomplete' ? (
                 <StaticCard
@@ -1614,22 +1619,6 @@ function CreateCardPopup({
             </label>
           ) : null}
           <label className="field">
-            <span>assigned</span>
-            <input
-              value={composerDraft.assignedPerson}
-              onChange={(event) =>
-                setComposerDraft((draft) => ({
-                  ...draft,
-                  assignedPerson: event.target.value,
-                }))
-              }
-              onKeyDown={(event) =>
-                triggerActionOnEnter(event, submitComposerFromKeyboard)
-              }
-              placeholder="person"
-            />
-          </label>
-          <label className="field">
             <span>date</span>
             <input
               type="date"
@@ -1734,7 +1723,6 @@ function FocusModal({ card, onClose }) {
     updateCard(card.id, {
       taskName: draft.taskName,
       jobName: draft.jobName,
-      assignedPerson: draft.assignedPerson,
       startDate: draft.startDate,
       priority: draft.priority,
       lane: nextLane,
@@ -1797,7 +1785,6 @@ function FocusModal({ card, onClose }) {
     updateCard(card.id, {
       taskName: draft.taskName,
       jobName: draft.jobName,
-      assignedPerson: draft.assignedPerson,
       startDate: draft.startDate,
       priority: draft.priority,
       checklist: draft.checklist,
@@ -1811,9 +1798,19 @@ function FocusModal({ card, onClose }) {
       return;
     }
 
+    const currentState =
+      item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
+    const nextState =
+      currentState === CHECKLIST_STATES.UNCHECKED
+        ? CHECKLIST_STATES.IN_PROGRESS
+        : currentState === CHECKLIST_STATES.IN_PROGRESS
+          ? CHECKLIST_STATES.COMPLETED
+          : CHECKLIST_STATES.UNCHECKED;
+
     setPendingToggle({
       itemId: item.id,
-      nextChecked: !item.checked,
+      nextState,
+      nextChecked: nextState === CHECKLIST_STATES.COMPLETED,
       itemText: item.text,
       context: item.context || '',
       contextCreatedAt:
@@ -1877,14 +1874,22 @@ function FocusModal({ card, onClose }) {
                 previousNote &&
                 previousNote !== nextNote &&
                 pendingToggle.contextHistory === item.contextHistory;
-              const completedAt = pendingToggle.nextChecked
+              const nextState = pendingToggle.nextState ||
+                (pendingToggle.nextChecked
+                  ? CHECKLIST_STATES.COMPLETED
+                  : CHECKLIST_STATES.UNCHECKED);
+              const completedAt = nextState === CHECKLIST_STATES.COMPLETED
                 ? new Date().toISOString()
                 : '';
 
               return {
                 ...item,
-                checked: pendingToggle.nextChecked,
-                checkedBy: pendingToggle.nextChecked ? currentUserRole : null,
+                state: nextState,
+                checked: nextState === CHECKLIST_STATES.COMPLETED,
+                checkedBy:
+                  nextState === CHECKLIST_STATES.UNCHECKED
+                    ? null
+                    : currentUserRole,
                 createdAt:
                   item.createdAt || item.completedAt || new Date().toISOString(),
                 completedAt,
@@ -2017,6 +2022,7 @@ function FocusModal({ card, onClose }) {
         {
           id: tempId,
           text: trimmedText,
+          state: CHECKLIST_STATES.UNCHECKED,
           checked: false,
           checkedBy: null,
           createdAt: new Date().toISOString(),
@@ -2142,22 +2148,6 @@ function FocusModal({ card, onClose }) {
           )}
 
           <label className="field">
-            <span>assigned person</span>
-            <input
-              value={draft.assignedPerson}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  assignedPerson: event.target.value,
-                }))
-              }
-              onKeyDown={(event) =>
-                triggerActionOnEnter(event, saveChangesFromKeyboard)
-              }
-            />
-          </label>
-
-          <label className="field">
             <span>start date</span>
             <input
               type="date"
@@ -2249,9 +2239,16 @@ function FocusModal({ card, onClose }) {
                     className="check-toggle"
                     onClick={() => openDraftChecklistToggle(item)}
                     disabled={card.lane === 'hold'}
-                    aria-label={item.checked ? 'uncheck item' : 'check item'}
+                    aria-label="change checklist state"
                   >
-                    <span className={`check-mark ${item.checked ? 'filled' : ''}`} />
+                    <span
+                      className={`check-mark ${
+                        item.state ||
+                        (item.checked
+                          ? CHECKLIST_STATES.COMPLETED
+                          : CHECKLIST_STATES.UNCHECKED)
+                      }`}
+                    />
                   </button>
                   {editingDraftChecklistId === item.id ? (
                     <input
@@ -2323,6 +2320,11 @@ function FocusModal({ card, onClose }) {
                     }
                   />
                 ) : null}
+                {item.context?.trim() ? (
+                  <p className="focus-context-inline">
+                    <HighlightedText text={item.context} />
+                  </p>
+                ) : null}
               </div>
             ))}
           </div>
@@ -2391,6 +2393,7 @@ function FocusModal({ card, onClose }) {
         }
         open={Boolean(pendingToggle)}
         nextChecked={pendingToggle?.nextChecked}
+        nextState={pendingToggle?.nextState}
         itemText={pendingToggle?.itemText}
         contextItem={pendingToggle}
         contextInput={pendingToggle?.contextInput || ''}
@@ -2426,11 +2429,93 @@ function FocusModal({ card, onClose }) {
   );
 }
 
+function WorkspaceTabs({
+  workspaces,
+  activeWorkspaceId,
+  onSwitch,
+  onCreate,
+  onRename,
+}) {
+  const [editingId, setEditingId] = useState(null);
+  const [draftName, setDraftName] = useState('');
+
+  const startRename = (workspace) => {
+    setEditingId(workspace.id);
+    setDraftName(workspace.name || '');
+  };
+
+  const commitRename = () => {
+    if (editingId && draftName.trim()) {
+      onRename(editingId, draftName);
+    }
+    setEditingId(null);
+    setDraftName('');
+  };
+
+  return (
+    <nav className="workspace-tabs" aria-label="client workspaces">
+      <div className="workspace-tab-list">
+        {workspaces.map((workspace) => (
+          <div
+            className={`workspace-tab ${workspace.id === activeWorkspaceId ? 'active' : ''}`}
+            key={workspace.id}
+          >
+            {editingId === workspace.id ? (
+              <input
+                value={draftName}
+                onChange={(event) => setDraftName(event.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    commitRename();
+                  }
+                  if (event.key === 'Escape') {
+                    setEditingId(null);
+                    setDraftName('');
+                  }
+                }}
+                autoFocus
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="workspace-tab-button"
+                  onClick={() => onSwitch(workspace.id)}
+                >
+                  {workspace.name || 'Workspace'}
+                </button>
+                <button
+                  type="button"
+                  className="workspace-tab-edit"
+                  onClick={() => startRename(workspace)}
+                  aria-label={`rename ${workspace.name || 'workspace'}`}
+                >
+                  rename
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" className="workspace-add" onClick={onCreate}>
+        + client
+      </button>
+    </nav>
+  );
+}
+
 function App() {
   const cards = useBoardStore((state) => state.cards);
   const todoColumns = useBoardStore((state) => state.todoColumns);
+  const workspaces = useBoardStore((state) => state.workspaces || []);
+  const activeWorkspaceId = useBoardStore((state) => state.activeWorkspaceId);
   const currentUser = useBoardStore((state) => state.currentUser);
   const createCard = useBoardStore((state) => state.createCard);
+  const createWorkspace = useBoardStore((state) => state.createWorkspace);
+  const renameWorkspace = useBoardStore((state) => state.renameWorkspace);
+  const switchWorkspace = useBoardStore((state) => state.switchWorkspace);
   const importCards = useBoardStore((state) => state.importCards);
   const updateCard = useBoardStore((state) => state.updateCard);
   const deleteCard = useBoardStore((state) => state.deleteCard);
@@ -2476,7 +2561,6 @@ function App() {
     taskName: '',
     jobName: '',
     jobChoice: '',
-    assignedPerson: '',
     startDate: '',
     todoColumnId: '',
   });
@@ -2488,6 +2572,16 @@ function App() {
       },
     })
   );
+
+  useEffect(() => {
+    setSearchTerm('');
+    setFocusCardId(null);
+    setExpandedSection(null);
+    setViewMode('board');
+    setPendingToggle(null);
+    setEditingChecklistTarget(null);
+    setHoverPreview(null);
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2546,7 +2640,11 @@ function App() {
 
     const syncTimer = window.setTimeout(() => {
       setSyncStatus('saving...');
-      saveBoardRequest(authToken, { cards, todoColumns }, serverBoardUpdatedAt)
+      saveBoardRequest(
+        authToken,
+        { cards, todoColumns, workspaces, activeWorkspaceId },
+        serverBoardUpdatedAt
+      )
         .then((payload) => {
           const savedBoard = payload.board || payload;
           setServerBoardUpdatedAt(savedBoard.updatedAt || '');
@@ -2582,6 +2680,8 @@ function App() {
     boardHydrated,
     cards,
     todoColumns,
+    workspaces,
+    activeWorkspaceId,
     serverBoardUpdatedAt,
     hydrateBoard,
   ]);
@@ -2633,6 +2733,13 @@ function App() {
     setSyncStatus('');
   };
 
+  const createClientWorkspace = () => {
+    const name = window.prompt('Client or workspace name');
+    if (name?.trim()) {
+      createWorkspace(name);
+    }
+  };
+
   const filteredCards = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (!query) {
@@ -2640,7 +2747,7 @@ function App() {
     }
 
     return cards.filter((card) =>
-      [card.taskName, card.jobName, card.assignedPerson]
+      [card.taskName, card.jobName]
         .join(' ')
         .toLowerCase()
         .includes(query)
@@ -2721,7 +2828,6 @@ function App() {
     createCard({
       taskName: composerDraft.taskName,
       jobName: composerDraft.jobName,
-      assignedPerson: composerDraft.assignedPerson,
       startDate: composerDraft.startDate,
       lane: 'active',
       todoColumnId: composerDraft.todoColumnId || todoColumns[0]?.id || '',
@@ -2730,7 +2836,6 @@ function App() {
       taskName: '',
       jobName: '',
       jobChoice: '',
-      assignedPerson: '',
       startDate: '',
       todoColumnId: '',
     });
@@ -2743,7 +2848,6 @@ function App() {
       taskName: '',
       jobName: '',
       jobChoice: '',
-      assignedPerson: '',
       startDate: '',
       todoColumnId: '',
     });
@@ -2753,7 +2857,6 @@ function App() {
     Boolean(
       composerDraft.taskName.trim() ||
         composerDraft.jobName.trim() ||
-        composerDraft.assignedPerson.trim() ||
         composerDraft.startDate
     );
 
@@ -2783,10 +2886,20 @@ function App() {
   };
 
   const openChecklistToggle = (cardId, item) => {
+    const currentState =
+      item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
+    const nextState =
+      currentState === CHECKLIST_STATES.UNCHECKED
+        ? CHECKLIST_STATES.IN_PROGRESS
+        : currentState === CHECKLIST_STATES.IN_PROGRESS
+          ? CHECKLIST_STATES.COMPLETED
+          : CHECKLIST_STATES.UNCHECKED;
+
     setPendingToggle({
       cardId,
       itemId: item.id,
-      nextChecked: !item.checked,
+      nextState,
+      nextChecked: nextState === CHECKLIST_STATES.COMPLETED,
       itemText: item.text,
       context: item.context || '',
       contextCreatedAt:
@@ -3044,7 +3157,8 @@ function App() {
         assignedPerson: card.assignedPerson,
         startDate: card.startDate,
         checklistText: item.text,
-        checklistChecked: item.checked ? 'yes' : 'no',
+        checklistChecked:
+          item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
         checklistcreatedAt: item.createdAt || '',
         checklistCompletedAt: item.completedAt || '',
         checklistContext: item.context || '',
@@ -3160,6 +3274,14 @@ function App() {
           setShowExportConfig(true);
         }}
         onLogout={logout}
+      />
+
+      <WorkspaceTabs
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onSwitch={switchWorkspace}
+        onCreate={createClientWorkspace}
+        onRename={renameWorkspace}
       />
 
       <DndContext
@@ -3359,6 +3481,7 @@ function App() {
         }
         open={Boolean(pendingToggle)}
         nextChecked={pendingToggle?.nextChecked}
+        nextState={pendingToggle?.nextState}
         itemText={pendingToggle?.itemText}
         contextItem={pendingToggle}
         contextInput={pendingToggle?.contextInput || ''}

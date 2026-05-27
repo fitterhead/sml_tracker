@@ -57,6 +57,8 @@ const getAuditForToday = (state) => {
 
 const getBoardFingerprint = (board = {}) =>
   JSON.stringify({
+    activeWorkspaceId: board.activeWorkspaceId || '',
+    workspaces: board.workspaces || [],
     todoColumns: board.todoColumns || [],
     cards: board.cards || [],
   });

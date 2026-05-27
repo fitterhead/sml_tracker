@@ -6,6 +6,11 @@ const DONE = 'done';
 const HOLD = 'hold';
 const TODO_COLUMN_LIMIT = 2;
 const DEFAULT_PRIORITY = 1;
+const CHECKLIST_STATES = {
+  UNCHECKED: 'unchecked',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+};
 
 const getPrimaryTodoColumnId = (todoColumns) => todoColumns[0]?.id || '';
 
@@ -20,6 +25,17 @@ const createTodoColumn = (title = 'To Do') => ({
 });
 
 const createSeedTodoColumns = () => [createTodoColumn('To Do'), createTodoColumn('To Do 2')];
+
+const createWorkspaceRecord = (name = 'Workspace', board = {}) => {
+  const todoColumns = normalizeTodoColumns(board.todoColumns);
+
+  return {
+    id: board.id || createId(),
+    name: name || board.name || 'Workspace',
+    todoColumns,
+    cards: normalizeCardsForTodoColumns(board.cards, todoColumns),
+  };
+};
 
 const normalizeTodoColumns = (todoColumns = []) => {
   const visibleColumns = Array.isArray(todoColumns)
@@ -44,6 +60,7 @@ const createId = () => {
 const createChecklistItem = (text, createdBy, overrides = {}) => ({
   id: createId(),
   text,
+  state: CHECKLIST_STATES.UNCHECKED,
   checked: false,
   checkedBy: null,
   createdAt: new Date().toISOString(),
@@ -95,7 +112,8 @@ export const getMissingFields = (card) => {
 };
 
 export const isCardComplete = (card) =>
-  card.checklist.length > 0 && card.checklist.every((item) => item.checked);
+  card.checklist.length > 0 &&
+  card.checklist.every((item) => item.state === CHECKLIST_STATES.COMPLETED);
 
 export const getCardZone = (card) => {
   if (isCardIncomplete(card)) {
@@ -120,7 +138,10 @@ const bumpCardOrder = (cards, cardId) => {
 const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   id: item.id || createId(),
   text: item.text || 'checklist item',
-  checked: Boolean(item.checked),
+  state: item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
+  checked: item.state
+    ? item.state === CHECKLIST_STATES.COMPLETED
+    : Boolean(item.checked),
   checkedBy: item.checkedBy || null,
   createdAt: item.createdAt || item.completedAt || new Date().toISOString(),
   completedAt: item.completedAt || '',
@@ -170,11 +191,80 @@ const normalizeCardsForTodoColumns = (cards = [], todoColumns = []) => {
 };
 
 const normalizeBoardPayload = (board = {}) => {
-  const todoColumns = normalizeTodoColumns(board.todoColumns);
+  const legacyTodoColumns = normalizeTodoColumns(board.todoColumns);
+  const legacyCards = normalizeCardsForTodoColumns(board.cards, legacyTodoColumns);
+  const workspaces =
+    Array.isArray(board.workspaces) && board.workspaces.length > 0
+      ? board.workspaces.map((workspace, index) =>
+          createWorkspaceRecord(workspace.name || `Workspace ${index + 1}`, workspace)
+        )
+      : [
+          {
+            id: board.activeWorkspaceId || createId(),
+            name: board.workspaceName || 'Main',
+            todoColumns: legacyTodoColumns,
+            cards: legacyCards,
+          },
+        ];
+  const activeWorkspaceId = workspaces.some(
+    (workspace) => workspace.id === board.activeWorkspaceId
+  )
+    ? board.activeWorkspaceId
+    : workspaces[0].id;
+  const activeWorkspace = workspaces.find(
+    (workspace) => workspace.id === activeWorkspaceId
+  ) || workspaces[0];
 
   return {
-    todoColumns,
-    cards: normalizeCardsForTodoColumns(board.cards, todoColumns),
+    workspaces,
+    activeWorkspaceId,
+    todoColumns: activeWorkspace.todoColumns,
+    cards: activeWorkspace.cards,
+  };
+};
+
+const updateActiveWorkspace = (state, updater) => {
+  const activeWorkspace =
+    state.workspaces?.find((workspace) => workspace.id === state.activeWorkspaceId) ||
+    createWorkspaceRecord('Main', {
+      todoColumns: state.todoColumns,
+      cards: state.cards,
+      id: state.activeWorkspaceId,
+    });
+  const nextWorkspace = {
+    ...activeWorkspace,
+    ...updater(activeWorkspace),
+  };
+  const nextWorkspaces = (state.workspaces || [activeWorkspace]).map((workspace) =>
+    workspace.id === nextWorkspace.id ? nextWorkspace : workspace
+  );
+
+  return {
+    workspaces: nextWorkspaces,
+    todoColumns: nextWorkspace.todoColumns,
+    cards: nextWorkspace.cards,
+  };
+};
+
+const syncActiveWorkspace = (state, activeWorkspaceId = state.activeWorkspaceId) => {
+  const activeWorkspace =
+    state.workspaces?.find((workspace) => workspace.id === activeWorkspaceId) ||
+    state.workspaces?.[0];
+
+  if (!activeWorkspace) {
+    const workspace = createWorkspaceRecord('Main');
+    return {
+      workspaces: [workspace],
+      activeWorkspaceId: workspace.id,
+      todoColumns: workspace.todoColumns,
+      cards: workspace.cards,
+    };
+  }
+
+  return {
+    activeWorkspaceId: activeWorkspace.id,
+    todoColumns: activeWorkspace.todoColumns,
+    cards: activeWorkspace.cards,
   };
 };
 
@@ -182,19 +272,30 @@ export const useBoardStore = create(
   persist(
     (set, get) => {
       const initialTodoColumns = createSeedTodoColumns();
+      const initialCards = createSeedCards(initialTodoColumns);
+      const initialWorkspace = {
+        id: createId(),
+        name: 'Main',
+        todoColumns: initialTodoColumns,
+        cards: initialCards,
+      };
 
       return {
+        workspaces: [initialWorkspace],
+        activeWorkspaceId: initialWorkspace.id,
         todoColumns: initialTodoColumns,
-        cards: createSeedCards(initialTodoColumns),
+        cards: initialCards,
         currentUser: {
           name: 'Andrew',
           role: 'manager',
           isAuthenticated: true,
         },
         addTodoColumn() {
-          set((state) => ({
-            todoColumns: normalizeTodoColumns(state.todoColumns),
-          }));
+          set((state) =>
+            updateActiveWorkspace(state, (workspace) => ({
+              todoColumns: normalizeTodoColumns(workspace.todoColumns),
+            }))
+          );
         },
         deleteTodoColumn(columnId) {
           set((state) => {
@@ -213,14 +314,14 @@ export const useBoardStore = create(
 
             const nextTodoColumns = normalizeTodoColumns(filteredTodoColumns);
 
-            return {
+            return updateActiveWorkspace(state, () => ({
               todoColumns: nextTodoColumns,
               cards: state.cards.map((card) =>
                 card.todoColumnId === columnId
                   ? { ...card, todoColumnId: fallbackTodoColumnId }
                   : card
               ),
-            };
+            }));
           });
         },
         setRole(role) {
@@ -245,6 +346,38 @@ export const useBoardStore = create(
               : state.currentUser,
           }));
         },
+        createWorkspace(name = '') {
+          set((state) => {
+            const workspace = createWorkspaceRecord(
+              String(name || '').trim() || `Workspace ${(state.workspaces || []).length + 1}`
+            );
+
+            return {
+              workspaces: [...(state.workspaces || []), workspace],
+              activeWorkspaceId: workspace.id,
+              todoColumns: workspace.todoColumns,
+              cards: workspace.cards,
+            };
+          });
+        },
+        renameWorkspace(workspaceId, name = '') {
+          const nextName = String(name || '').trim();
+
+          if (!nextName) {
+            return;
+          }
+
+          set((state) => ({
+            workspaces: (state.workspaces || []).map((workspace) =>
+              workspace.id === workspaceId
+                ? { ...workspace, name: nextName }
+                : workspace
+            ),
+          }));
+        },
+        switchWorkspace(workspaceId) {
+          set((state) => syncActiveWorkspace(state, workspaceId));
+        },
         logoutUser() {
           set((state) => ({
             currentUser: {
@@ -254,9 +387,11 @@ export const useBoardStore = create(
           }));
         },
         bringToFront(cardId) {
-          set((state) => ({
-            cards: bumpCardOrder(state.cards, cardId),
-          }));
+          set((state) =>
+            updateActiveWorkspace(state, (workspace) => ({
+              cards: bumpCardOrder(workspace.cards, cardId),
+            }))
+          );
         },
         createCard(initialValues = {}) {
           set((state) => {
@@ -270,7 +405,7 @@ export const useBoardStore = create(
             const jobName =
               initialValues.jobName?.trim() || `client ${nextNumber}`;
 
-            return {
+            return updateActiveWorkspace(state, () => ({
               cards: [
                 ...state.cards,
                 {
@@ -290,7 +425,7 @@ export const useBoardStore = create(
                   ],
                 },
               ],
-            };
+            }));
           });
         },
         importCards(importedCards = []) {
@@ -312,6 +447,10 @@ export const useBoardStore = create(
                           String(checkItem.text || '').trim() || 'imported checklist item',
                           checkItem.createdBy || userRole,
                           {
+                            state: checkItem.state ||
+                              (checkItem.checked
+                                ? CHECKLIST_STATES.COMPLETED
+                                : CHECKLIST_STATES.UNCHECKED),
                             checked: Boolean(checkItem.checked),
                             checkedBy: checkItem.checkedBy || null,
                             completedAt: checkItem.completedAt || '',
@@ -354,27 +493,41 @@ export const useBoardStore = create(
               return state;
             }
 
-            return {
+            return updateActiveWorkspace(state, () => ({
               cards: [...state.cards, ...nextCards],
-            };
+            }));
           });
         },
         updateCard(cardId, updates) {
-          set((state) => ({
-            cards: state.cards.map((card) => {
-              if (card.id !== cardId) {
-                return card;
-              }
+          set((state) =>
+            updateActiveWorkspace(state, () => ({
+              cards: state.cards.map((card) => {
+                if (card.id !== cardId) {
+                  return card;
+                }
 
-              const nextCard = { ...card, ...updates };
+                const nextCard = { ...card, ...updates };
 
-              if (isCardIncomplete(nextCard)) {
-                return { ...nextCard, lane: ACTIVE };
-              }
+                if (isCardIncomplete(nextCard)) {
+                  return { ...nextCard, lane: ACTIVE };
+                }
 
-              return nextCard;
-            }),
-          }));
+                if (isCardComplete(nextCard)) {
+                  return {
+                    ...nextCard,
+                    lane: DONE,
+                    completedAt: nextCard.completedAt || new Date().toISOString(),
+                  };
+                }
+
+                if (card.lane === DONE) {
+                  return { ...nextCard, lane: ACTIVE, completedAt: '' };
+                }
+
+                return nextCard;
+              }),
+            }))
+          );
         },
         renameClient(oldName, newName) {
           const previousName = String(oldName || '').trim();
@@ -384,31 +537,34 @@ export const useBoardStore = create(
             return;
           }
 
-          set((state) => ({
+          set((state) =>
+            updateActiveWorkspace(state, () => ({
             cards: state.cards.map((card) =>
               card.jobName.trim() === previousName
                 ? { ...card, jobName: nextName }
                 : card
             ),
-          }));
+          }))
+          );
         },
         deleteCard(cardId) {
           set((state) => {
             const nextCards = state.cards.filter((card) => card.id !== cardId);
 
-            return {
+            return updateActiveWorkspace(state, () => ({
               cards:
                 nextCards.length > 0
                   ? nextCards
                   : createSeedCards(state.todoColumns),
-            };
+            }));
           });
         },
         addChecklistItem(cardId, input = '') {
-          set((state) => ({
-            cards: state.cards.map((card) =>
-              card.id === cardId
-                ? (() => {
+          set((state) =>
+            updateActiveWorkspace(state, () => ({
+              cards: state.cards.map((card) =>
+                card.id === cardId
+                  ? (() => {
                     const nextInput =
                       typeof input === 'string'
                         ? { text: input, context: '' }
@@ -446,13 +602,15 @@ export const useBoardStore = create(
                       ],
                     };
                   })()
-                : card
-            ),
-          }));
+                  : card
+              ),
+            }))
+          );
         },
         toggleChecklistItem(cardId, itemId, context = '', contextData = null) {
-          set((state) => ({
-            cards: state.cards.map((card) => {
+          set((state) =>
+            updateActiveWorkspace(state, () => ({
+              cards: state.cards.map((card) => {
               if (card.id !== cardId) {
                 return card;
               }
@@ -466,7 +624,18 @@ export const useBoardStore = create(
                   return item;
                 }
 
-                const nextChecked = !item.checked;
+                const currentState =
+                  item.state ||
+                  (item.checked
+                    ? CHECKLIST_STATES.COMPLETED
+                    : CHECKLIST_STATES.UNCHECKED);
+                const nextState =
+                  currentState === CHECKLIST_STATES.UNCHECKED
+                    ? CHECKLIST_STATES.IN_PROGRESS
+                    : currentState === CHECKLIST_STATES.IN_PROGRESS
+                      ? CHECKLIST_STATES.COMPLETED
+                      : CHECKLIST_STATES.UNCHECKED;
+                const nextChecked = nextState === CHECKLIST_STATES.COMPLETED;
                 const previousHistory = Array.isArray(item.contextHistory)
                   ? item.contextHistory
                   : [];
@@ -492,8 +661,12 @@ export const useBoardStore = create(
 
                 return {
                   ...item,
+                  state: nextState,
                   checked: nextChecked,
-                  checkedBy: nextChecked ? state.currentUser.role : null,
+                  checkedBy:
+                    nextState === CHECKLIST_STATES.UNCHECKED
+                      ? null
+                      : state.currentUser.role,
                   completedAt: nextChecked ? new Date().toISOString() : '',
                   context: context.trim(),
                   contextCreatedAt: nextNote
@@ -526,12 +699,14 @@ export const useBoardStore = create(
               return card.lane === DONE
                 ? { ...nextCard, lane: ACTIVE, completedAt: '' }
                 : nextCard;
-            }),
-          }));
+              }),
+            }))
+          );
         },
         moveCard(cardId, targetLane, targetTodoColumnId = '') {
-          set((state) => ({
-            cards: state.cards.map((card) => {
+          set((state) =>
+            updateActiveWorkspace(state, () => ({
+              cards: state.cards.map((card) => {
               if (card.id !== cardId) {
                 return card;
               }
@@ -564,16 +739,26 @@ export const useBoardStore = create(
                         : card.todoColumnId,
                   }
                 : card;
-            }),
-          }));
+              }),
+            }))
+          );
         },
         resetBoard() {
           set(() => {
             const todoColumns = createSeedTodoColumns();
+            const cards = createSeedCards(todoColumns);
+            const workspace = {
+              id: createId(),
+              name: 'Main',
+              todoColumns,
+              cards,
+            };
 
             return {
+              workspaces: [workspace],
+              activeWorkspaceId: workspace.id,
               todoColumns,
-              cards: createSeedCards(todoColumns),
+              cards,
             };
           });
         },
@@ -581,7 +766,7 @@ export const useBoardStore = create(
     },
     {
       name: 'tracker-card-board',
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => localStorage),
       migrate: (persistedState) => {
         const normalizedBoard = normalizeBoardPayload(persistedState);
@@ -592,6 +777,8 @@ export const useBoardStore = create(
         };
       },
       partialize: (state) => ({
+        workspaces: state.workspaces,
+        activeWorkspaceId: state.activeWorkspaceId,
         todoColumns: state.todoColumns,
         cards: state.cards,
         currentUser: state.currentUser,

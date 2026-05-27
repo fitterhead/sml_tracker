@@ -44,13 +44,36 @@ export const formatCardAge = (value) => {
   }
 
   const monthCount = Math.floor(dayCount / 30);
+  const remainingDays = dayCount % 30;
 
   if (monthCount < 12) {
-    return `${monthCount} ${monthCount === 1 ? 'month' : 'months'}`;
+    return [
+      `${monthCount} ${monthCount === 1 ? 'month' : 'months'}`,
+      remainingDays
+        ? `${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
   }
 
   const yearCount = Math.floor(monthCount / 12);
   return `${yearCount} ${yearCount === 1 ? 'year' : 'years'}`;
+};
+
+export const getCardAgeWarmth = (value, lane = 'active') => {
+  if (lane === 'done') {
+    return 0;
+  }
+
+  const createdDate = new Date(value || Date.now());
+  if (Number.isNaN(createdDate.getTime())) {
+    return 0;
+  }
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  const dayCount = Math.max(0, Math.floor((Date.now() - createdDate.getTime()) / dayMs));
+  return Math.min(dayCount / 100, 1);
 };
 
 export const formatCardDisplayDate = (startDate, createdAt) => {
@@ -164,6 +187,14 @@ export const getStackLimit = (lane) => {
 };
 
 export const getPileLayout = (lane, visibleCount, index) => {
+  if (lane === 'active') {
+    return {
+      x: 0,
+      y: 0,
+      scale: 1,
+    };
+  }
+
   const compression = Math.min(Math.max(visibleCount - 5, 0), 15);
   const isCompactStack = lane === 'done' || lane === 'hold';
   const shouldLimitSpread = lane === 'active' || lane === 'done' || lane === 'hold';
@@ -188,6 +219,10 @@ export const getPileLayout = (lane, visibleCount, index) => {
 };
 
 export const getPileHeight = (lane, visibleCount) => {
+  if (lane === 'active') {
+    return 0;
+  }
+
   if (visibleCount === 0) {
     return lane === 'done' || lane === 'hold' ? 24 : 420;
   }
