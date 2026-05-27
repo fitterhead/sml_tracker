@@ -52,6 +52,8 @@ APP_AUTH_SECRET=replace-with-a-long-random-secret
 7. Netlify provides Blobs context automatically during function execution. If you
    run the function outside Netlify, also set `NETLIFY_SITE_ID` and
    `NETLIFY_ACCESS_TOKEN`.
+   Do not set `NETLIFY_ACCESS_TOKEN` for the Netlify-only deployment; a stale
+   personal token can cause Blob requests to fail with 401 responses.
 8. Do not set `REACT_APP_API_BASE` for this option. The frontend will use `/api`,
    and `netlify.toml` redirects `/api/*` to the Netlify Function.
 9. Deploy, open the site, register the first account, and start using the board.

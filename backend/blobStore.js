@@ -3,7 +3,14 @@ const { getStore } = require('@netlify/blobs');
 const DEFAULT_STORE_NAME = 'sml-tracker';
 const DEFAULT_STATE_KEY = 'app-state';
 
+const hasNetlifyBlobRuntimeContext = () =>
+  Boolean(globalThis.netlifyBlobsContext || process.env.NETLIFY_BLOBS_CONTEXT);
+
 const getManualBlobConfig = () => {
+  if (hasNetlifyBlobRuntimeContext()) {
+    return undefined;
+  }
+
   if (!process.env.NETLIFY_SITE_ID || !process.env.NETLIFY_ACCESS_TOKEN) {
     return undefined;
   }
