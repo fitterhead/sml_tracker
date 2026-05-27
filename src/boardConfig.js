@@ -2,7 +2,7 @@ export const STACK_LIMIT = 5;
 export const TODO_STACK_LIMIT = 1000;
 export const COMPACT_STACK_LIMIT = 6;
 const TODO_CARD_HEIGHT = 316;
-const TODO_STACK_VISIBLE_STEP = 92;
+const TODO_STACK_VISIBLE_STEP = 42;
 const TODO_STACK_X_STEP = 4;
 const TODO_STACK_MAX_X = 40;
 
