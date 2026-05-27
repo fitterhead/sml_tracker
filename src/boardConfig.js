@@ -4,7 +4,7 @@ export const COMPACT_STACK_LIMIT = 6;
 const TODO_CARD_HEIGHT = 316;
 const TODO_STACK_VISIBLE_STEP = 42;
 const TODO_STACK_X_STEP = 4;
-const TODO_STACK_MAX_X = 40;
+const TODO_STACK_X_CYCLE = 14;
 
 export const columnMeta = {
   active: {
@@ -193,7 +193,7 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: Math.min(index * TODO_STACK_X_STEP, TODO_STACK_MAX_X),
+      x: (index % TODO_STACK_X_CYCLE) * TODO_STACK_X_STEP,
       y: index * TODO_STACK_VISIBLE_STEP,
       scale: 1,
     };

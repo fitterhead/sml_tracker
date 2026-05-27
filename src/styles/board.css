@@ -364,7 +364,7 @@
   align-items: center;
   width: 100%;
   max-width: 1840px;
-  margin: var(--space-6) auto var(--space-8);
+  margin: var(--space-4) auto var(--space-7);
   padding: 0;
 }
 
@@ -374,33 +374,38 @@
   gap: 0;
   overflow-x: auto;
   min-width: 0;
-  padding: 0 var(--space-8);
-  border-bottom: 2px solid #111111;
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.22);
 }
 
 .workspace-tab {
-  height: 54px;
-  min-width: 132px;
-  max-width: 220px;
+  height: 34px;
+  min-width: 92px;
+  max-width: 168px;
   display: inline-grid;
   place-items: center;
-  padding: 0 var(--space-8);
-  border: 2px solid #111111;
-  border-bottom: 0;
-  border-radius: 36px 36px 0 0;
-  background: transparent;
+  padding: 0 var(--space-6);
+  border: 1px solid rgba(17, 17, 17, 0.18);
+  border-bottom-color: transparent;
+  border-radius: 10px 10px 0 0;
+  background: rgba(255, 253, 249, 0.24);
   color: var(--text);
   flex: 0 0 auto;
   cursor: pointer;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
+  margin-right: -1px;
   position: relative;
-  font-size: var(--font-lg);
+  font-size: var(--font-sm);
   text-transform: uppercase;
   letter-spacing: 0;
+  opacity: 0.62;
 }
 
 .workspace-tab.active {
-  background: rgba(255, 253, 249, 0.5);
+  background: rgba(255, 253, 249, 0.72);
+  border-color: rgba(17, 17, 17, 0.22);
+  border-bottom-color: rgba(255, 253, 249, 0.72);
+  opacity: 0.88;
   z-index: 2;
 }
 
@@ -412,8 +417,8 @@
 }
 
 .workspace-add {
-  width: 74px;
-  height: 54px;
+  width: 42px;
+  height: 34px;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -422,19 +427,19 @@
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  margin-bottom: -2px;
-  font-size: 2.8rem;
+  margin-bottom: -1px;
+  font-size: 1.8rem;
   line-height: 1;
   font-weight: 400;
 }
 
 .workspace-tab input {
-  width: min(150px, 100%);
+  width: min(112px, 100%);
   border: 0;
   background: transparent;
-  box-shadow: inset 0 -1px 0 #111111;
+  box-shadow: inset 0 -1px 0 rgba(17, 17, 17, 0.42);
   color: var(--text);
-  font-size: var(--font-lg);
+  font-size: var(--font-sm);
   text-align: center;
   text-transform: uppercase;
 }
