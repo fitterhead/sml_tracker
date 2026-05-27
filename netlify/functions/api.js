@@ -1,3 +1,4 @@
+const { connectLambda } = require('@netlify/blobs');
 const { createAppService } = require('../../backend/appService');
 const { createBlobStateStore } = require('../../backend/blobStore');
 const { loadEnv } = require('../../backend/loadEnv');
@@ -67,6 +68,10 @@ exports.handler = async (event) => {
         Allow: 'GET,POST,PUT,OPTIONS',
       },
     };
+  }
+
+  if (event.blobs) {
+    connectLambda(event);
   }
 
   const path = getApiPath(event.path);
