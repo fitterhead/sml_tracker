@@ -2,9 +2,23 @@ export const STACK_LIMIT = 5;
 export const TODO_STACK_LIMIT = 1000;
 export const COMPACT_STACK_LIMIT = 6;
 const TODO_CARD_HEIGHT = 316;
-const TODO_STACK_VISIBLE_STEP = 42;
-const TODO_STACK_X_STEP = 4;
-const TODO_STACK_X_CYCLE = 14;
+const TODO_STACK_BASE_VISIBLE_STEP = 42;
+const TODO_STACK_MIN_VISIBLE_STEP = 34;
+const TODO_STACK_BASE_X_SPREAD = 8;
+const TODO_STACK_MAX_X_SPREAD = 14;
+
+const getTodoStackTension = (visibleCount) =>
+  Math.min(Math.max(visibleCount - 3, 0), 60) / 60;
+
+const getTodoStackYStep = (visibleCount) =>
+  TODO_STACK_BASE_VISIBLE_STEP -
+  (TODO_STACK_BASE_VISIBLE_STEP - TODO_STACK_MIN_VISIBLE_STEP) *
+    getTodoStackTension(visibleCount);
+
+const getTodoStackXSpread = (visibleCount) =>
+  TODO_STACK_BASE_X_SPREAD +
+  (TODO_STACK_MAX_X_SPREAD - TODO_STACK_BASE_X_SPREAD) *
+    getTodoStackTension(visibleCount);
 
 export const columnMeta = {
   active: {
@@ -193,8 +207,8 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: (index % TODO_STACK_X_CYCLE) * TODO_STACK_X_STEP,
-      y: index * TODO_STACK_VISIBLE_STEP,
+      x: Math.log1p(index) * getTodoStackXSpread(visibleCount),
+      y: index * getTodoStackYStep(visibleCount),
       scale: 1,
     };
   }
@@ -228,9 +242,11 @@ export const getPileHeight = (lane, visibleCount) => {
   }
 
   if (lane === 'active') {
+    const { y } = getPileLayout(lane, visibleCount, visibleCount - 1);
+
     return Math.max(
       420,
-      (visibleCount - 1) * TODO_STACK_VISIBLE_STEP + TODO_CARD_HEIGHT + 18
+      y + TODO_CARD_HEIGHT + 18
     );
   }
 
