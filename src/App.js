@@ -888,6 +888,12 @@ function ChecklistItem({
 }) {
   const itemState =
     item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
+  const stateLabel =
+    itemState === CHECKLIST_STATES.IN_PROGRESS
+      ? 'in progress'
+      : itemState === CHECKLIST_STATES.COMPLETED
+        ? 'reviewed'
+        : 'not started';
   const checkedClass = itemState !== CHECKLIST_STATES.UNCHECKED && item.checkedBy
     ? `checked-${item.checkedBy}`
     : '';
@@ -933,6 +939,7 @@ function ChecklistItem({
         {formatChecklistTimeline(item) ? (
           <span className="check-date">{formatChecklistTimeline(item)}</span>
         ) : null}
+        <span className={`check-state-label ${itemState}`}>{stateLabel}</span>
       </div>
       {hasContext ? (
         <div className="check-context-block">
@@ -1411,8 +1418,8 @@ function CardSection({
   showSeeMore = true,
 }) {
   const stackLimit = getStackLimit(lane);
-  const visibleCards = lane === 'active' ? cards : cards.slice(-stackLimit);
-  const hiddenCount = lane === 'active' ? 0 : Math.max(cards.length - stackLimit, 0);
+  const visibleCards = cards.slice(-stackLimit);
+  const hiddenCount = Math.max(cards.length - stackLimit, 0);
   const pileHeight = getPileHeight(lane, visibleCards.length);
 
   return (
@@ -1457,7 +1464,7 @@ function CardSection({
 
       <div
         className={`pile-area lane-${lane}`}
-        style={lane === 'active' ? undefined : { minHeight: pileHeight }}
+        style={{ minHeight: pileHeight }}
       >
         {visibleCards.map((card, index) => {
           const layout = getPileLayout(lane, visibleCards.length, index);
@@ -1466,13 +1473,9 @@ function CardSection({
             <div
               key={card.id}
               className="pile-slot"
-              style={
-                lane === 'active'
-                  ? undefined
-                  : {
-                      transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
-                    }
-              }
+              style={{
+                transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
+              }}
             >
               {lane === 'incomplete' ? (
                 <StaticCard
@@ -2303,6 +2306,20 @@ function FocusModal({ card, onClose }) {
                   >
                     delete
                   </button>
+                  <span
+                    className={`check-state-label ${
+                      item.state ||
+                      (item.checked
+                        ? CHECKLIST_STATES.COMPLETED
+                        : CHECKLIST_STATES.UNCHECKED)
+                    }`}
+                  >
+                    {item.state === CHECKLIST_STATES.IN_PROGRESS
+                      ? 'in progress'
+                      : item.state === CHECKLIST_STATES.COMPLETED || item.checked
+                        ? 'reviewed'
+                        : 'not started'}
+                  </span>
                 </div>
                 {expandedDraftContexts[item.id] ? (
                   <ContextThreadEditor

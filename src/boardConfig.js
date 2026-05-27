@@ -1,6 +1,10 @@
 export const STACK_LIMIT = 5;
-export const TODO_STACK_LIMIT = 20;
+export const TODO_STACK_LIMIT = 1000;
 export const COMPACT_STACK_LIMIT = 6;
+const TODO_CARD_HEIGHT = 316;
+const TODO_STACK_VISIBLE_STEP = 92;
+const TODO_STACK_X_STEP = 4;
+const TODO_STACK_MAX_X = 40;
 
 export const columnMeta = {
   active: {
@@ -189,8 +193,8 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: 0,
-      y: 0,
+      x: Math.min(index * TODO_STACK_X_STEP, TODO_STACK_MAX_X),
+      y: index * TODO_STACK_VISIBLE_STEP,
       scale: 1,
     };
   }
@@ -219,17 +223,20 @@ export const getPileLayout = (lane, visibleCount, index) => {
 };
 
 export const getPileHeight = (lane, visibleCount) => {
-  if (lane === 'active') {
-    return 0;
-  }
-
   if (visibleCount === 0) {
     return lane === 'done' || lane === 'hold' ? 24 : 420;
   }
 
+  if (lane === 'active') {
+    return Math.max(
+      420,
+      (visibleCount - 1) * TODO_STACK_VISIBLE_STEP + TODO_CARD_HEIGHT + 18
+    );
+  }
+
   const { y, scale } = getPileLayout(lane, visibleCount, visibleCount - 1);
-  const cardHeight = lane === 'active' ? 316 : 86;
-  const breathingRoom = lane === 'active' ? 12 : 24;
+  const cardHeight = 86;
+  const breathingRoom = 24;
   const naturalHeight = Math.ceil(y + cardHeight * scale + breathingRoom);
 
   if (lane === 'done' || lane === 'hold') {

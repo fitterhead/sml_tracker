@@ -160,6 +160,14 @@ describe('useBoardStore', () => {
 
     expect(updatedCard.checklist[0].state).toBe('completed');
     expect(updatedCard.lane).toBe('done');
+
+    useBoardStore.getState().toggleChecklistItem(card.id, checklistItem.id);
+    updatedCard = useBoardStore
+      .getState()
+      .cards.find((item) => item.id === card.id);
+
+    expect(updatedCard.checklist[0].state).toBe('unchecked');
+    expect(updatedCard.lane).toBe('active');
   });
 
   test('workspaces isolate cards and todo columns', () => {

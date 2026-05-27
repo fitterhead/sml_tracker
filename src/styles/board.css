@@ -200,14 +200,6 @@
   overflow: visible;
 }
 
-.pile-area.lane-active {
-  position: static;
-  display: grid;
-  gap: var(--space-8);
-  min-height: 0;
-  overflow: visible;
-}
-
 .pile-slot {
   position: absolute;
   left: 0;
@@ -216,18 +208,8 @@
   transform-origin: top left;
 }
 
-.pile-area.lane-active .pile-slot {
-  position: static;
-  width: 100%;
-  transform: none;
-}
-
 .row-todo .pile-slot {
   width: calc(100% - var(--todo-pile-spread));
-}
-
-.row-todo .pile-area.lane-active .pile-slot {
-  width: 100%;
 }
 
 .pile-more,
