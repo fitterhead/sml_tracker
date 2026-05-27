@@ -4,8 +4,8 @@ export const COMPACT_STACK_LIMIT = 6;
 const TODO_CARD_HEIGHT = 316;
 const TODO_STACK_BASE_VISIBLE_STEP = 34;
 const TODO_STACK_MIN_VISIBLE_STEP = 28;
-const TODO_STACK_BASE_X_SPREAD = 8;
-const TODO_STACK_MAX_X_SPREAD = 14;
+const TODO_STACK_BASE_X_SPREAD = 12;
+const TODO_STACK_MAX_X_SPREAD = 24;
 
 const getTodoStackTension = (visibleCount) =>
   Math.min(Math.max(visibleCount - 3, 0), 60) / 60;

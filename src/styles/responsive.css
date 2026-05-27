@@ -84,7 +84,6 @@
     padding: 0 var(--space-7) var(--space-5);
   }
 
-  .board-column,
   .focus-modal,
   .login-card {
     padding: var(--space-8);
