@@ -890,10 +890,10 @@ function ChecklistItem({
     item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
   const stateLabel =
     itemState === CHECKLIST_STATES.IN_PROGRESS
-      ? 'in progress'
+      ? '1/2 in progress'
       : itemState === CHECKLIST_STATES.COMPLETED
-        ? 'reviewed'
-        : 'not started';
+        ? '2/2 reviewed'
+        : '0/2 not started';
   const checkedClass = itemState !== CHECKLIST_STATES.UNCHECKED && item.checkedBy
     ? `checked-${item.checkedBy}`
     : '';
@@ -2315,10 +2315,10 @@ function FocusModal({ card, onClose }) {
                     }`}
                   >
                     {item.state === CHECKLIST_STATES.IN_PROGRESS
-                      ? 'in progress'
+                      ? '1/2 in progress'
                       : item.state === CHECKLIST_STATES.COMPLETED || item.checked
-                        ? 'reviewed'
-                        : 'not started'}
+                        ? '2/2 reviewed'
+                        : '0/2 not started'}
                   </span>
                 </div>
                 {expandedDraftContexts[item.id] ? (
