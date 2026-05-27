@@ -36,7 +36,7 @@
       rgba(245, 204, 75, calc(var(--age-warmth, 0) * 0.28))
     ),
     var(--surface);
-  padding: var(--space-8) var(--space-8) var(--space-9);
+  padding: 8px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
   cursor: default;
   position: relative;
