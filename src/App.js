@@ -2473,14 +2473,20 @@ function WorkspaceTabs({
     <nav className="workspace-tabs" aria-label="client workspaces">
       <div className="workspace-tab-list">
         {workspaces.map((workspace) => (
-          <div
+          <button
+            type="button"
             className={`workspace-tab ${workspace.id === activeWorkspaceId ? 'active' : ''}`}
             key={workspace.id}
+            onClick={() => onSwitch(workspace.id)}
+            onDoubleClick={() => startRename(workspace)}
+            title="Double click to rename"
           >
             {editingId === workspace.id ? (
               <input
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
                 onBlur={commitRename}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -2495,30 +2501,22 @@ function WorkspaceTabs({
                 autoFocus
               />
             ) : (
-              <>
-                <button
-                  type="button"
-                  className="workspace-tab-button"
-                  onClick={() => onSwitch(workspace.id)}
-                >
-                  {workspace.name || 'Workspace'}
-                </button>
-                <button
-                  type="button"
-                  className="workspace-tab-edit"
-                  onClick={() => startRename(workspace)}
-                  aria-label={`rename ${workspace.name || 'workspace'}`}
-                >
-                  rename
-                </button>
-              </>
+              <span className="workspace-tab-name">
+                {workspace.name || 'Workspace'}
+              </span>
             )}
-          </div>
+          </button>
         ))}
+        <button
+          type="button"
+          className="workspace-add"
+          onClick={onCreate}
+          aria-label="add client tab"
+          title="Add client tab"
+        >
+          +
+        </button>
       </div>
-      <button type="button" className="workspace-add" onClick={onCreate}>
-        + client
-      </button>
     </nav>
   );
 }
