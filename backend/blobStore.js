@@ -24,9 +24,9 @@ const getManualBlobConfig = () => {
 const createBlobStateStore = ({
   storeName = process.env.NETLIFY_BLOBS_STORE_NAME || DEFAULT_STORE_NAME,
   stateKey = process.env.NETLIFY_BLOBS_STATE_KEY || DEFAULT_STATE_KEY,
-  config = getManualBlobConfig(),
+  config,
 } = {}) => {
-  const getBlobStore = () => getStore(storeName, config);
+  const getBlobStore = () => getStore(storeName, config || getManualBlobConfig());
 
   return {
     async loadState() {
