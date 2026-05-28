@@ -46,9 +46,10 @@
 }
 
 .focus-project-info {
+  position: relative;
   display: grid;
-  gap: var(--space-5);
-  padding: var(--space-2) 0 var(--space-5);
+  gap: var(--space-3);
+  padding: 0 0 var(--space-4);
   border-bottom: 1px solid rgba(95, 76, 49, 0.1);
   opacity: 1;
 }
@@ -89,6 +90,9 @@
 }
 
 .focus-rename-trigger {
+  position: absolute;
+  top: 0;
+  right: 0;
   opacity: 0;
   transition: opacity 120ms ease;
 }

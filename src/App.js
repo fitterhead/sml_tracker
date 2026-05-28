@@ -2192,18 +2192,16 @@ function FocusModal({ card, onClose }) {
 
         <div className="focus-grid">
           <section className="focus-project-info" aria-label="project info">
-            <div className="modal-section-header">
-              {selectedExistingClient ? (
-                <button
-                  type="button"
-                  className="focus-rename-trigger"
-                  onClick={() => setShowClientRename((current) => !current)}
-                  title="Rename client"
-                >
-                  ...
-                </button>
-              ) : null}
-            </div>
+            {selectedExistingClient ? (
+              <button
+                type="button"
+                className="focus-rename-trigger"
+                onClick={() => setShowClientRename((current) => !current)}
+                title="Rename client"
+              >
+                ...
+              </button>
+            ) : null}
             <div className="focus-info-grid">
               <div className="focus-info-field">
                 <span>project name</span>
