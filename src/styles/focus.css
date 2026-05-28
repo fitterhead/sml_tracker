@@ -68,9 +68,9 @@
 
 .focus-info-field span {
   color: var(--muted);
-  font-size: var(--font-md);
-  text-transform: lowercase;
-  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .focus-info-field > button {
