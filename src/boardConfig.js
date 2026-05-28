@@ -214,10 +214,10 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: -Math.log1p(index) * getTodoStackXSpread(visibleCount),
+      x: Math.log1p(index) * getTodoStackXSpread(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
       scale: 1,
-      rotate: -index * getTodoStackRotationStep(visibleCount),
+      rotate: index * getTodoStackRotationStep(visibleCount),
     };
   }
 

@@ -313,14 +313,14 @@
 
 .check-date {
   margin-left: auto;
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: var(--muted);
   line-height: 1.2;
   white-space: nowrap;
-  flex: 0 1 auto;
-  max-width: 92px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: 0 0 auto;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .check-mark {
