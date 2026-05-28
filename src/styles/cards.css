@@ -179,8 +179,8 @@
 
 .check-item {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-4);
+  align-items: flex-start;
+  gap: var(--space-3);
   padding: 0;
   text-align: left;
   color: inherit;
@@ -208,7 +208,7 @@
 .dual-checks {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 0 0 auto;
 }
 
@@ -313,9 +313,14 @@
 
 .check-date {
   margin-left: auto;
-  font-size: var(--font-sm);
-  color: inherit;
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.2;
   white-space: nowrap;
+  flex: 0 1 auto;
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .check-mark {
@@ -329,8 +334,8 @@
 }
 
 .check-mark.started {
-  background: #fff;
-  border-color: currentColor;
+  background: #22a65a;
+  border-color: #22a65a;
 }
 
 .check-mark.started::after {
@@ -340,14 +345,14 @@
   top: 2px;
   width: 5px;
   height: 9px;
-  border: solid currentColor;
+  border: solid #ffffff;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
 .check-mark.completed {
-  background: currentColor;
-  border-color: currentColor;
+  background: #168c46;
+  border-color: #168c46;
 }
 
 .check-mark.completed::before,

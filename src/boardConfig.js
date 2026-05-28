@@ -3,9 +3,9 @@ export const TODO_STACK_LIMIT = 1000;
 export const COMPACT_STACK_LIMIT = 6;
 const TODO_CARD_HEIGHT = 316;
 const TODO_STACK_BASE_VISIBLE_STEP = 34;
-const TODO_STACK_MIN_VISIBLE_STEP = 28;
-const TODO_STACK_BASE_X_SPREAD = 12;
-const TODO_STACK_MAX_X_SPREAD = 24;
+const TODO_STACK_MIN_VISIBLE_STEP = 24;
+const TODO_STACK_BASE_X_SPREAD = 14;
+const TODO_STACK_MAX_X_SPREAD = 34;
 const TODO_STACK_BASE_ROTATION_STEP = 0.01;
 const TODO_STACK_MAX_ROTATION_STEP = 0.028;
 
@@ -214,10 +214,10 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: Math.log1p(index) * getTodoStackXSpread(visibleCount),
+      x: -Math.log1p(index) * getTodoStackXSpread(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
       scale: 1,
-      rotate: index * getTodoStackRotationStep(visibleCount),
+      rotate: -index * getTodoStackRotationStep(visibleCount),
     };
   }
 
