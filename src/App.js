@@ -19,6 +19,7 @@ import {
 import {
   columnMeta,
   formatCardAge,
+  formatCardDisplayDate,
   formatChecklistTimeline,
   formatContextHistoryTimeline,
   getCardAgeWarmth,
@@ -298,6 +299,16 @@ const getChecklistContextHistory = (item = {}) =>
 
 const hasChecklistContext = (item = {}) =>
   Boolean(item?.context?.trim()) || getChecklistContextHistory(item).length > 0;
+
+const getChecklistContextPreview = (item = {}) => {
+  const currentContext = item?.context?.trim();
+  if (currentContext) {
+    return currentContext;
+  }
+
+  const history = getChecklistContextHistory(item);
+  return history[history.length - 1]?.note || '';
+};
 
 const getContextActor = (user = {}) =>
   user.name || user.email || user.role || 'unknown';
@@ -1748,6 +1759,8 @@ function FocusModal({ card, onClose }) {
   const [draftContextInputs, setDraftContextInputs] = useState({});
   const [clientRenameDraft, setClientRenameDraft] = useState('');
   const [editingDraftChecklistId, setEditingDraftChecklistId] = useState(null);
+  const [editingFocusField, setEditingFocusField] = useState('');
+  const [showClientRename, setShowClientRename] = useState(false);
   const [showUnsavedExit, setShowUnsavedExit] = useState(false);
 
   useEffect(() => {
@@ -1764,6 +1777,8 @@ function FocusModal({ card, onClose }) {
       setDraftContextInputs({});
       setClientRenameDraft('');
       setEditingDraftChecklistId(null);
+      setEditingFocusField('');
+      setShowClientRename(false);
       setShowUnsavedExit(false);
       return;
     }
@@ -1780,6 +1795,8 @@ function FocusModal({ card, onClose }) {
     setDraftContextInputs({});
     setClientRenameDraft(card.jobName || '');
     setEditingDraftChecklistId(null);
+    setEditingFocusField('');
+    setShowClientRename(false);
     setShowUnsavedExit(false);
   }, [card]);
 
@@ -1848,6 +1865,7 @@ function FocusModal({ card, onClose }) {
       jobName: nextName,
     }));
     setClientRenameDraft(nextName);
+    setShowClientRename(false);
   };
 
   const draftCard = { ...card, ...draft };
@@ -2158,81 +2176,152 @@ function FocusModal({ card, onClose }) {
     onClose();
   };
 
+  const displayStartDate = draft.startDate
+    ? formatCardDisplayDate(draft.startDate)
+    : 'no date';
+
   return (
     <div className="focus-backdrop" onClick={closeFocusModal}>
       <div className="focus-modal" onClick={(event) => event.stopPropagation()}>
         <div className="focus-header">
-          <div>
-            <p className="eyebrow">focus mode</p>
-            <h2>
-              <HighlightedText text={card.jobName || 'untitled client'} />
-            </h2>
+          <div className="focus-title-line">
+            <span>focus mode</span>
+            <strong>{draft.jobName || 'untitled client'}</strong>
           </div>
           <button type="button" className="close-button" onClick={closeFocusModal}>CLOSE</button>
         </div>
 
         <div className="focus-grid">
-          <label className="field">
-            <span>project name</span>
-            <input
-              value={draft.taskName}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  taskName: event.target.value,
-                }))
-              }
-              onKeyDown={(event) =>
-                triggerActionOnEnter(event, saveChangesFromKeyboard)
-              }
-            />
-          </label>
-
-          <label className="field">
-            <span>client name</span>
-            <select
-              value={jobOptions.includes(draft.jobName) ? draft.jobName : '__custom__'}
-              onChange={(event) => {
-                const nextJobName =
-                  event.target.value === '__custom__' ? '' : event.target.value;
-                setDraft((current) => ({
-                  ...current,
-                  jobName: nextJobName,
-                }));
-                setClientRenameDraft(nextJobName);
-              }}
-              onKeyDown={(event) =>
-                triggerActionOnEnter(event, saveChangesFromKeyboard)
-              }
-            >
-              <option value="">select existing client</option>
-              {jobOptions.map((jobName) => (
-                <option key={jobName} value={jobName}>
-                  {jobName}
-                </option>
-              ))}
-              <option value="__custom__">add new client</option>
-            </select>
-          </label>
-          {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
-            <label className="field field-full">
-              <span>add new client</span>
-              <input
-                value={draft.jobName}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    jobName: event.target.value,
-                  }))
-                }
-                onKeyDown={(event) =>
-                  triggerActionOnEnter(event, saveChangesFromKeyboard)
-                }
-              />
-            </label>
-          ) : (
-            <div className="field field-full client-rename-field">
-              <span>rename selected client</span>
+          <section className="focus-project-info" aria-label="project info">
+            <div className="modal-section-header">
+              <h3>project info</h3>
+              {selectedExistingClient ? (
+                <button
+                  type="button"
+                  onClick={() => setShowClientRename((current) => !current)}
+                >
+                  rename client
+                </button>
+              ) : null}
+            </div>
+            <div className="focus-info-grid">
+              <div className="focus-info-field">
+                <span>project name</span>
+                {editingFocusField === 'taskName' ? (
+                  <input
+                    value={draft.taskName}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        taskName: event.target.value,
+                      }))
+                    }
+                    onBlur={() => setEditingFocusField('')}
+                    onKeyDown={(event) => {
+                      triggerActionOnEnter(event, saveChangesFromKeyboard);
+                      if (event.key === 'Enter') {
+                        setEditingFocusField('');
+                      }
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <button type="button" onClick={() => setEditingFocusField('taskName')}>
+                    <HighlightedText text={draft.taskName || 'untitled project'} />
+                  </button>
+                )}
+              </div>
+              <div className="focus-info-field">
+                <span>client</span>
+                {editingFocusField === 'jobName' ? (
+                  <>
+                    <select
+                      value={jobOptions.includes(draft.jobName) ? draft.jobName : '__custom__'}
+                      onChange={(event) => {
+                        const nextJobName =
+                          event.target.value === '__custom__' ? '' : event.target.value;
+                        setDraft((current) => ({
+                          ...current,
+                          jobName: nextJobName,
+                        }));
+                        setClientRenameDraft(nextJobName);
+                      }}
+                      onKeyDown={(event) =>
+                        triggerActionOnEnter(event, saveChangesFromKeyboard)
+                      }
+                      autoFocus
+                    >
+                      <option value="">select existing client</option>
+                      {jobOptions.map((jobName) => (
+                        <option key={jobName} value={jobName}>
+                          {jobName}
+                        </option>
+                      ))}
+                      <option value="__custom__">add new client</option>
+                    </select>
+                    {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
+                      <input
+                        value={draft.jobName}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            jobName: event.target.value,
+                          }))
+                        }
+                        onBlur={() => setEditingFocusField('')}
+                        onKeyDown={(event) => {
+                          triggerActionOnEnter(event, saveChangesFromKeyboard);
+                          if (event.key === 'Enter') {
+                            setEditingFocusField('');
+                          }
+                        }}
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <button type="button" onClick={() => setEditingFocusField('jobName')}>
+                    <HighlightedText text={draft.jobName || 'no client'} />
+                  </button>
+                )}
+              </div>
+              <div className="focus-info-field">
+                <span>start date</span>
+                {editingFocusField === 'startDate' ? (
+                  <input
+                    type="date"
+                    value={draft.startDate}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        startDate: event.target.value,
+                      }))
+                    }
+                    onBlur={() => setEditingFocusField('')}
+                    onKeyDown={(event) => {
+                      triggerActionOnEnter(event, saveChangesFromKeyboard);
+                      if (event.key === 'Enter') {
+                        setEditingFocusField('');
+                      }
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <button type="button" onClick={() => setEditingFocusField('startDate')}>
+                    {displayStartDate}
+                  </button>
+                )}
+              </div>
+              <div className="focus-info-field focus-info-priority">
+                <span>priority</span>
+                <PriorityDots
+                  value={draft.priority || 1}
+                  onChange={(priority) =>
+                    setDraft((current) => ({ ...current, priority }))
+                  }
+                />
+              </div>
+            </div>
+            {showClientRename && selectedExistingClient ? (
               <div className="client-rename-row">
                 <input
                   value={clientRenameDraft}
@@ -2250,39 +2339,10 @@ function FocusModal({ card, onClose }) {
                   rename
                 </button>
               </div>
-            </div>
-          )}
+            ) : null}
+          </section>
 
-          <label className="field">
-            <span>start date</span>
-            <input
-              type="date"
-              value={draft.startDate}
-              onChange={(event) =>
-                setDraft((current) => ({
-                  ...current,
-                  startDate: event.target.value,
-                }))
-              }
-              onKeyDown={(event) =>
-                triggerActionOnEnter(event, saveChangesFromKeyboard)
-              }
-            />
-          </label>
-
-          <div className="modal-checklist focus-priority">
-            <div className="modal-section-header">
-              <h3>priority</h3>
-              <PriorityDots
-                value={draft.priority || 1}
-                onChange={(priority) =>
-                  setDraft((current) => ({ ...current, priority }))
-                }
-              />
-            </div>
-          </div>
-
-          <div className="modal-checklist focus-checklist">
+          <section className="modal-checklist focus-checklist">
             <div className="modal-section-header">
               <h3>checklist</h3>
               <button
@@ -2396,59 +2456,68 @@ function FocusModal({ card, onClose }) {
                       />
                     </button>
                   </div>
-                  {editingDraftChecklistId === item.id ? (
-                    <input
-                      value={item.text}
-                      onChange={(event) =>
-                        updateDraftChecklistItem(item.id, event.target.value)
-                      }
-                      onBlur={() => setEditingDraftChecklistId(null)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          setEditingDraftChecklistId(null);
+                  <div className="modal-check-copy">
+                    {editingDraftChecklistId === item.id ? (
+                      <input
+                        value={item.text}
+                        onChange={(event) =>
+                          updateDraftChecklistItem(item.id, event.target.value)
                         }
-                      }}
-                      className="modal-check-input"
-                      autoFocus
+                        onBlur={() => setEditingDraftChecklistId(null)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            setEditingDraftChecklistId(null);
+                          }
+                        }}
+                        className="modal-check-input"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="modal-check-label-button"
+                        onClick={() => setEditingDraftChecklistId(item.id)}
+                      >
+                        <HighlightedText text={item.text} />
+                      </button>
+                    )}
+                    {getChecklistContextPreview(item) ? (
+                      <p className="focus-context-inline">
+                        <HighlightedText text={getChecklistContextPreview(item)} />
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="modal-check-actions">
+                    <ContextActionButton
+                      open={Boolean(expandedDraftContexts[item.id])}
+                      hasContext={hasChecklistContext(item)}
+                      onClick={() =>
+                        setExpandedDraftContexts((current) => ({
+                          ...current,
+                          [item.id]: !current[item.id],
+                        }))
+                      }
                     />
-                  ) : (
-                    <button
-                      type="button"
-                      className="modal-check-label-button"
-                      onClick={() => setEditingDraftChecklistId(item.id)}
-                    >
-                      <HighlightedText text={item.text} />
-                    </button>
-                  )}
-                  <ContextActionButton
-                    open={Boolean(expandedDraftContexts[item.id])}
-                    hasContext={hasChecklistContext(item)}
-                    onClick={() =>
-                      setExpandedDraftContexts((current) => ({
-                        ...current,
-                        [item.id]: !current[item.id],
-                      }))
-                    }
-                  />
-                  {editingDraftChecklistId !== item.id ? (
+                    {editingDraftChecklistId !== item.id ? (
+                      <button
+                        type="button"
+                        className="ghost-button muted"
+                        onClick={() => setEditingDraftChecklistId(item.id)}
+                      >
+                        edit
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="ghost-button muted"
-                      onClick={() => setEditingDraftChecklistId(item.id)}
+                      onClick={() =>
+                        setPendingDeleteItem({ id: item.id, text: item.text })
+                      }
                     >
-                      edit
+                      delete
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="ghost-button muted"
-                    onClick={() =>
-                      setPendingDeleteItem({ id: item.id, text: item.text })
-                    }
-                  >
-                    delete
-                  </button>
+                  </div>
                 </div>
                 {expandedDraftContexts[item.id] ? (
                   <ContextThreadEditor
@@ -2466,14 +2535,9 @@ function FocusModal({ card, onClose }) {
                     }
                   />
                 ) : null}
-                {item.context?.trim() ? (
-                  <p className="focus-context-inline">
-                    <HighlightedText text={item.context} />
-                  </p>
-                ) : null}
               </div>
             ))}
-          </div>
+          </section>
           <div className="focus-command-row">
             {canMoveToTodo || canMoveToHold || canMoveToFinish ? (
               <div className="focus-move-actions">

@@ -5,7 +5,7 @@
 .focus-priority,
 .focus-checklist {
   margin-top: 0;
-  padding: var(--space-4) 0;
+  padding: var(--space-3) 0;
   background: transparent;
   box-shadow: none;
 }
@@ -13,6 +13,98 @@
 .focus-checklist {
   display: grid;
   gap: var(--space-4);
+}
+
+.focus-header {
+  min-height: 28px;
+  gap: var(--space-6);
+}
+
+.focus-title-line {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.focus-title-line span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.focus-title-line strong {
+  min-width: 0;
+  font-size: var(--font-lg);
+  line-height: 1.2;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-project-info {
+  display: grid;
+  gap: var(--space-4);
+  padding: 0 0 var(--space-4);
+  border-bottom: 1px solid rgba(95, 76, 49, 0.1);
+}
+
+.focus-info-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+  gap: var(--space-6);
+  align-items: end;
+}
+
+.focus-info-field {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.focus-info-field span {
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+}
+
+.focus-info-field > button {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--font-md);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-info-field > button:hover {
+  color: var(--accent);
+}
+
+.focus-info-field input,
+.focus-info-field select,
+.client-rename-row input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: var(--field-surface);
+  box-shadow: inset 0 0 0 1px rgba(90, 72, 48, 0.12);
+  font-size: var(--font-sm);
+  font-family: inherit;
+}
+
+.focus-info-priority {
+  align-self: end;
 }
 
 .focus-modal :is(.ghost-button, .context-action-button, .modal-section-header button, .close-button) {
@@ -47,16 +139,16 @@
 
 .modal-check-editor {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-top: 0;
-  padding: var(--space-4) 0 0;
+  padding: var(--space-3) 0;
   border: 1px solid var(--line-soft);
   border-width: 1px 0 0;
   background: transparent;
 }
 
 .focus-context-inline {
-  margin: 0 0 0 32px;
+  margin: 0;
   color: var(--muted);
   font-size: var(--font-sm);
   line-height: 1.45;
@@ -64,9 +156,30 @@
 
 .modal-check-main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-4);
+  align-items: start;
+}
+
+.modal-check-copy {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.modal-check-actions {
+  display: flex;
   align-items: center;
+  gap: var(--space-4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.modal-check-editor:hover .modal-check-actions,
+.modal-check-editor:focus-within .modal-check-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .modal-check-input {
@@ -75,7 +188,7 @@
 
 .modal-check-label-button {
   min-width: 0;
-  padding: var(--space-3) 0;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -156,6 +269,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: center;
+  max-width: 420px;
 }
 
 .context-empty {
@@ -178,12 +292,14 @@
   align-items: center;
   gap: var(--space-6);
   flex-wrap: wrap;
+  padding-top: var(--space-3);
+  border-top: 1px solid rgba(95, 76, 49, 0.1);
 }
 
 .focus-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-6);
+  gap: var(--space-5);
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
@@ -193,10 +309,15 @@
   display: flex;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: var(--space-5);
+  gap: var(--space-4);
   margin-top: 0;
   padding-top: 0;
   border-top: 0;
+}
+
+.focus-command-row .ghost-button,
+.focus-actions .ghost-button {
+  font-size: var(--font-sm);
 }
 
 .login-actions {
