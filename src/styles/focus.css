@@ -55,7 +55,7 @@
 
 .focus-info-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
   gap: var(--space-5);
   align-items: end;
 }
@@ -115,7 +115,10 @@
 }
 
 .focus-info-priority {
+  grid-column: 1 / -1;
   align-self: end;
+  width: fit-content;
+  margin-top: var(--space-1);
 }
 
 .focus-modal :is(.ghost-button, .context-action-button, .modal-section-header button, .close-button) {

@@ -2186,7 +2186,6 @@ function FocusModal({ card, onClose }) {
         <div className="focus-header">
           <div className="focus-title-line">
             <span>focus mode</span>
-            <strong>{draft.jobName || 'untitled client'}</strong>
           </div>
           <button type="button" className="close-button" onClick={closeFocusModal}>CLOSE</button>
         </div>
