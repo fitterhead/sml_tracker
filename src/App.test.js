@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import App from './App';
 
 beforeEach(() => {
@@ -33,4 +33,18 @@ test('renders board view', async () => {
     name: /SML Project Note/i,
   });
   expect(titleElement).toBeInTheDocument();
+});
+
+test('opens workspace filter menu', async () => {
+  render(<App />);
+  const filterButton = await screen.findByRole('button', { name: /filter/i });
+
+  fireEvent.click(filterButton);
+
+  expect(
+    screen.getByRole('menuitem', { name: /sort by client name a -> z/i })
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole('menuitem', { name: /sort by created date newest -> oldest/i })
+  ).toBeInTheDocument();
 });

@@ -432,6 +432,60 @@
   font-weight: 400;
 }
 
+.workspace-filter {
+  position: relative;
+  flex: 0 0 auto;
+  margin-left: var(--space-4);
+  margin-bottom: -1px;
+}
+
+.workspace-filter-button {
+  height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0 var(--space-4);
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0;
+  opacity: 0.62;
+}
+
+.workspace-filter-button:hover,
+.workspace-filter-button[aria-expanded="true"] {
+  opacity: 0.92;
+}
+
+.workspace-filter-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 30;
+  width: 238px;
+  display: grid;
+  padding: var(--space-2) 0;
+  border: 1px solid rgba(95, 76, 49, 0.14);
+  background: var(--surface);
+  box-shadow: 0 14px 30px rgba(40, 31, 18, 0.12);
+}
+
+.workspace-filter-menu button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: var(--space-3) var(--space-5);
+  text-align: left;
+  font-size: var(--font-sm);
+  line-height: 1.25;
+}
+
+.workspace-filter-menu button:hover,
+.workspace-filter-menu button.active {
+  background: rgba(95, 76, 49, 0.07);
+}
+
 .workspace-tab input {
   width: min(112px, 100%);
   border: 0;

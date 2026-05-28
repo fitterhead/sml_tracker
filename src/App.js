@@ -49,6 +49,12 @@ const CHECKLIST_STATES = {
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
 };
+const SORT_OPTIONS = [
+  { value: 'client-az', label: 'Sort by client name A -> Z' },
+  { value: 'client-za', label: 'Sort by client name Z -> A' },
+  { value: 'created-newest', label: 'Sort by created date newest -> oldest' },
+  { value: 'created-oldest', label: 'Sort by created date oldest -> newest' },
+];
 
 const readStoredAuthToken = () => {
   if (typeof window === 'undefined') {
@@ -56,6 +62,47 @@ const readStoredAuthToken = () => {
   }
 
   return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
+};
+
+const getSortableClientName = (card) => (card.jobName || '').trim().toLowerCase();
+
+const getSortableCreatedTime = (card) => {
+  const value = card.createdAt || card.startDate || '';
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const createCardSorter = (sortMode) => (a, b) => {
+  if (sortMode === 'client-az' || sortMode === 'client-za') {
+    const direction = sortMode === 'client-az' ? 1 : -1;
+    const nameCompare = getSortableClientName(a).localeCompare(getSortableClientName(b));
+    return nameCompare ? nameCompare * direction : a.order - b.order;
+  }
+
+  if (sortMode === 'created-newest' || sortMode === 'created-oldest') {
+    const direction = sortMode === 'created-newest' ? -1 : 1;
+    const timeCompare = getSortableCreatedTime(a) - getSortableCreatedTime(b);
+    return timeCompare ? timeCompare * direction : a.order - b.order;
+  }
+
+  return a.order - b.order;
+};
+
+const sortGroupedLanes = (grouped, sortMode) => {
+  const sorter = createCardSorter(sortMode);
+  const sortedActiveByColumn = Object.fromEntries(
+    Object.entries(grouped.activeByColumn).map(([columnId, columnCards]) => [
+      columnId,
+      [...columnCards].sort(sorter),
+    ])
+  );
+
+  return {
+    activeByColumn: sortedActiveByColumn,
+    done: [...grouped.done].sort(sorter),
+    hold: [...grouped.hold].sort(sorter),
+    incomplete: [...grouped.incomplete].sort(sorter),
+  };
 };
 
 const createEmptyServerMeta = () => ({
@@ -2534,9 +2581,12 @@ function WorkspaceTabs({
   onSwitch,
   onCreate,
   onRename,
+  sortMode,
+  onSortChange,
 }) {
   const [editingId, setEditingId] = useState(null);
   const [draftName, setDraftName] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const startRename = (workspace) => {
     setEditingId(workspace.id);
@@ -2598,6 +2648,35 @@ function WorkspaceTabs({
         >
           +
         </button>
+        <div className="workspace-filter">
+          <button
+            type="button"
+            className="workspace-filter-button"
+            onClick={() => setFilterOpen((current) => !current)}
+            aria-expanded={filterOpen}
+            aria-haspopup="menu"
+          >
+            Filter
+          </button>
+          {filterOpen ? (
+            <div className="workspace-filter-menu" role="menu">
+              {SORT_OPTIONS.map((option) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={sortMode === option.value ? 'active' : ''}
+                  key={option.value}
+                  onClick={() => {
+                    onSortChange(option.value);
+                    setFilterOpen(false);
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </nav>
   );
@@ -2623,6 +2702,7 @@ function App() {
   const hydrateBoard = useBoardStore((state) => state.hydrateBoard);
   const logoutUser = useBoardStore((state) => state.logoutUser);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('');
   const [activeCardId, setActiveCardId] = useState(null);
   const [focusCardId, setFocusCardId] = useState(null);
   const [viewMode, setViewMode] = useState('board');
@@ -2884,8 +2964,8 @@ function App() {
         grouped[zone].push(card);
       });
 
-    return grouped;
-  }, [filteredCards, todoColumns]);
+    return sortMode ? sortGroupedLanes(grouped, sortMode) : grouped;
+  }, [filteredCards, todoColumns, sortMode]);
 
   const focusCard = cards.find((card) => card.id === focusCardId) || null;
   const activeDragCard = cards.find((card) => card.id === activeCardId) || null;
@@ -3389,6 +3469,8 @@ function App() {
         onSwitch={switchWorkspace}
         onCreate={createClientWorkspace}
         onRename={renameWorkspace}
+        sortMode={sortMode}
+        onSortChange={setSortMode}
       />
 
       <DndContext
