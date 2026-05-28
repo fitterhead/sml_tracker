@@ -89,20 +89,36 @@ const createCardSorter = (sortMode) => (a, b) => {
   return a.order - b.order;
 };
 
-const sortGroupedLanes = (grouped, sortMode) => {
+const moveCardToVisualFront = (cards, frontCardId) => {
+  if (!frontCardId) {
+    return cards;
+  }
+
+  const frontCard = cards.find((card) => card.id === frontCardId);
+  if (!frontCard) {
+    return cards;
+  }
+
+  return [
+    ...cards.filter((card) => card.id !== frontCardId),
+    frontCard,
+  ];
+};
+
+const sortGroupedLanes = (grouped, sortMode, frontCardId = '') => {
   const sorter = createCardSorter(sortMode);
   const sortedActiveByColumn = Object.fromEntries(
     Object.entries(grouped.activeByColumn).map(([columnId, columnCards]) => [
       columnId,
-      [...columnCards].sort(sorter),
+      moveCardToVisualFront([...columnCards].sort(sorter), frontCardId),
     ])
   );
 
   return {
     activeByColumn: sortedActiveByColumn,
-    done: [...grouped.done].sort(sorter),
-    hold: [...grouped.hold].sort(sorter),
-    incomplete: [...grouped.incomplete].sort(sorter),
+    done: moveCardToVisualFront([...grouped.done].sort(sorter), frontCardId),
+    hold: moveCardToVisualFront([...grouped.hold].sort(sorter), frontCardId),
+    incomplete: moveCardToVisualFront([...grouped.incomplete].sort(sorter), frontCardId),
   };
 };
 
@@ -2733,6 +2749,7 @@ function App() {
   const logoutUser = useBoardStore((state) => state.logoutUser);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('');
+  const [frontCardId, setFrontCardId] = useState('');
   const [activeCardId, setActiveCardId] = useState(null);
   const [focusCardId, setFocusCardId] = useState(null);
   const [viewMode, setViewMode] = useState('board');
@@ -2788,6 +2805,7 @@ function App() {
     setPendingToggle(null);
     setEditingChecklistTarget(null);
     setHoverPreview(null);
+    setFrontCardId('');
   }, [activeWorkspaceId]);
 
   useEffect(() => {
@@ -2994,8 +3012,8 @@ function App() {
         grouped[zone].push(card);
       });
 
-    return sortMode ? sortGroupedLanes(grouped, sortMode) : grouped;
-  }, [filteredCards, todoColumns, sortMode]);
+    return sortMode ? sortGroupedLanes(grouped, sortMode, frontCardId) : grouped;
+  }, [filteredCards, todoColumns, sortMode, frontCardId]);
 
   const focusCard = cards.find((card) => card.id === focusCardId) || null;
   const activeDragCard = cards.find((card) => card.id === activeCardId) || null;
@@ -3509,6 +3527,7 @@ function App() {
         onDragStart={(event) => {
           const cardId = event.active.id;
           setActiveCardId(cardId);
+          setFrontCardId(cardId);
           bringToFront(cardId);
         }}
         onDragEnd={(event) => {
