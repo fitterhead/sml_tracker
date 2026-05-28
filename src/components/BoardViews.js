@@ -160,7 +160,9 @@ export function AllCardsPage({
             onClick={() => onOpenCard(card)}
             onDoubleClick={() => {}}
             onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-            onRequestChecklistToggle={(item) => onRequestChecklistToggle(card.id, item)}
+            onRequestChecklistToggle={(item, nextState) =>
+              onRequestChecklistToggle(card.id, item, nextState)
+            }
             onEditChecklistItem={(item) => onEditChecklistItem(card.id, item)}
             onPriorityChange={(priority) =>
               useBoardStore.getState().updateCard(card.id, { priority })

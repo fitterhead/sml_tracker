@@ -878,7 +878,8 @@ function LoginGate({
 
 function ChecklistItem({
   item,
-  onToggle,
+  onToggleStarted,
+  onToggleReviewed,
   disabled = false,
   expanded = false,
   onToggleContext,
@@ -888,15 +889,11 @@ function ChecklistItem({
 }) {
   const itemState =
     item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
-  const stateLabel =
-    itemState === CHECKLIST_STATES.IN_PROGRESS
-      ? '1/2 in progress'
-      : itemState === CHECKLIST_STATES.COMPLETED
-        ? '2/2 reviewed'
-        : '0/2 not started';
   const checkedClass = itemState !== CHECKLIST_STATES.UNCHECKED && item.checkedBy
     ? `checked-${item.checkedBy}`
     : '';
+  const isStarted = itemState !== CHECKLIST_STATES.UNCHECKED;
+  const isReviewed = itemState === CHECKLIST_STATES.COMPLETED;
   const historyEntries = Array.isArray(item.contextHistory)
     ? [...item.contextHistory].reverse()
     : [];
@@ -906,21 +903,26 @@ function ChecklistItem({
   return (
     <div className={`check-entry check-state-${itemState} ${checkedClass}`}>
       <div className="check-item">
-        <button
-          type="button"
-          className="check-toggle"
-          onClick={onToggle}
-          disabled={disabled}
-          aria-label={
-            itemState === CHECKLIST_STATES.UNCHECKED
-              ? 'mark item in progress'
-              : itemState === CHECKLIST_STATES.IN_PROGRESS
-                ? 'mark item completed and reviewed'
-                : 'reset item'
-          }
-        >
-          <span className={`check-mark ${itemState}`} />
-        </button>
+        <div className="dual-checks" aria-label="checklist progress">
+          <button
+            type="button"
+            className="check-toggle"
+            onClick={onToggleStarted}
+            disabled={disabled}
+            aria-label={isStarted ? 'mark item not started' : 'mark item started'}
+          >
+            <span className={`check-mark ${isStarted ? 'started' : ''}`} />
+          </button>
+          <button
+            type="button"
+            className="check-toggle"
+            onClick={onToggleReviewed}
+            disabled={disabled}
+            aria-label={isReviewed ? 'remove reviewed mark' : 'mark item reviewed'}
+          >
+            <span className={`check-mark ${isReviewed ? 'completed' : ''}`} />
+          </button>
+        </div>
         {onEdit ? (
           <button
             type="button"
@@ -939,7 +941,6 @@ function ChecklistItem({
         {formatChecklistTimeline(item) ? (
           <span className="check-date">{formatChecklistTimeline(item)}</span>
         ) : null}
-        <span className={`check-state-label ${itemState}`}>{stateLabel}</span>
       </div>
       {hasContext ? (
         <div className="check-context-block">
@@ -1107,10 +1108,36 @@ function CardShell({
                   [item.id]: !current[item.id],
                 }));
               }}
-              onToggle={(event) => {
+              onToggleStarted={(event) => {
                 event.stopPropagation();
                 if (!isOnHold) {
-                  onRequestChecklistToggle(item);
+                  const itemState =
+                    item.state ||
+                    (item.checked
+                      ? CHECKLIST_STATES.COMPLETED
+                      : CHECKLIST_STATES.UNCHECKED);
+                  onRequestChecklistToggle(
+                    item,
+                    itemState === CHECKLIST_STATES.UNCHECKED
+                      ? CHECKLIST_STATES.IN_PROGRESS
+                      : CHECKLIST_STATES.UNCHECKED
+                  );
+                }
+              }}
+              onToggleReviewed={(event) => {
+                event.stopPropagation();
+                if (!isOnHold) {
+                  const itemState =
+                    item.state ||
+                    (item.checked
+                      ? CHECKLIST_STATES.COMPLETED
+                      : CHECKLIST_STATES.UNCHECKED);
+                  onRequestChecklistToggle(
+                    item,
+                    itemState === CHECKLIST_STATES.COMPLETED
+                      ? CHECKLIST_STATES.IN_PROGRESS
+                      : CHECKLIST_STATES.COMPLETED
+                  );
                 }
               }}
               onEdit={(event) => {
@@ -1474,7 +1501,7 @@ function CardSection({
               key={card.id}
               className="pile-slot"
               style={{
-                transform: `translate(${layout.x}px, ${layout.y}px) scale(${layout.scale})`,
+                transform: `translate(${layout.x}px, ${layout.y}px) rotate(${layout.rotate || 0}deg) scale(${layout.scale})`,
               }}
             >
               {lane === 'incomplete' ? (
@@ -1485,8 +1512,8 @@ function CardSection({
                   onClick={() => onOpenCard(card)}
                   onDoubleClick={() => {}}
                   onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-                  onRequestChecklistToggle={(item) =>
-                    onRequestChecklistToggle(card.id, item)
+                  onRequestChecklistToggle={(item, nextState) =>
+                    onRequestChecklistToggle(card.id, item, nextState)
                   }
                   onEditChecklistItem={(item) =>
                     onEditChecklistItem(card.id, item)
@@ -1506,8 +1533,8 @@ function CardSection({
                   onClick={() => onOpenCard(card)}
                   onDoubleClick={() => {}}
                   onAddChecklistItem={(text) => onAddChecklistItem(card.id, text)}
-                  onRequestChecklistToggle={(item) =>
-                    onRequestChecklistToggle(card.id, item)
+                  onRequestChecklistToggle={(item, nextState) =>
+                    onRequestChecklistToggle(card.id, item, nextState)
                   }
                   onEditChecklistItem={(item) =>
                     onEditChecklistItem(card.id, item)
@@ -1796,8 +1823,37 @@ function FocusModal({ card, onClose }) {
     onClose();
   };
 
-  const openDraftChecklistToggle = (item) => {
+  const setDraftChecklistState = (itemId, nextState) => {
+    const completedAt =
+      nextState === CHECKLIST_STATES.COMPLETED ? new Date().toISOString() : '';
+
+    setDraft((current) => ({
+      ...current,
+      checklist: current.checklist.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              state: nextState,
+              checked: nextState === CHECKLIST_STATES.COMPLETED,
+              checkedBy:
+                nextState === CHECKLIST_STATES.COMPLETED
+                  ? useBoardStore.getState().currentUser.role
+                  : null,
+              completedAt,
+              contextCompletedAt: completedAt,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const openDraftChecklistToggle = (item, requestedState = '') => {
     if (card.lane === 'hold') {
+      return;
+    }
+
+    if (requestedState) {
+      setDraftChecklistState(item.id, requestedState);
       return;
     }
 
@@ -1890,9 +1946,9 @@ function FocusModal({ card, onClose }) {
                 state: nextState,
                 checked: nextState === CHECKLIST_STATES.COMPLETED,
                 checkedBy:
-                  nextState === CHECKLIST_STATES.UNCHECKED
-                    ? null
-                    : currentUserRole,
+                  nextState === CHECKLIST_STATES.COMPLETED
+                    ? currentUserRole
+                    : null,
                 createdAt:
                   item.createdAt || item.completedAt || new Date().toISOString(),
                 completedAt,
@@ -2237,22 +2293,62 @@ function FocusModal({ card, onClose }) {
             {draft.checklist.map((item) => (
               <div className="modal-check-editor" key={item.id}>
                 <div className="modal-check-main">
-                  <button
-                    type="button"
-                    className="check-toggle"
-                    onClick={() => openDraftChecklistToggle(item)}
-                    disabled={card.lane === 'hold'}
-                    aria-label="change checklist state"
-                  >
-                    <span
-                      className={`check-mark ${
-                        item.state ||
-                        (item.checked
-                          ? CHECKLIST_STATES.COMPLETED
-                          : CHECKLIST_STATES.UNCHECKED)
-                      }`}
-                    />
-                  </button>
+                  <div className="dual-checks" aria-label="checklist progress">
+                    <button
+                      type="button"
+                      className="check-toggle"
+                      onClick={() => {
+                        const itemState =
+                          item.state ||
+                          (item.checked
+                            ? CHECKLIST_STATES.COMPLETED
+                            : CHECKLIST_STATES.UNCHECKED);
+                        openDraftChecklistToggle(
+                          item,
+                          itemState === CHECKLIST_STATES.UNCHECKED
+                            ? CHECKLIST_STATES.IN_PROGRESS
+                            : CHECKLIST_STATES.UNCHECKED
+                        );
+                      }}
+                      disabled={card.lane === 'hold'}
+                      aria-label="toggle started"
+                    >
+                      <span
+                        className={`check-mark ${
+                          item.state !== CHECKLIST_STATES.UNCHECKED || item.checked
+                            ? 'started'
+                            : ''
+                        }`}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      className="check-toggle"
+                      onClick={() => {
+                        const itemState =
+                          item.state ||
+                          (item.checked
+                            ? CHECKLIST_STATES.COMPLETED
+                            : CHECKLIST_STATES.UNCHECKED);
+                        openDraftChecklistToggle(
+                          item,
+                          itemState === CHECKLIST_STATES.COMPLETED
+                            ? CHECKLIST_STATES.IN_PROGRESS
+                            : CHECKLIST_STATES.COMPLETED
+                        );
+                      }}
+                      disabled={card.lane === 'hold'}
+                      aria-label="toggle reviewed"
+                    >
+                      <span
+                        className={`check-mark ${
+                          item.state === CHECKLIST_STATES.COMPLETED || item.checked
+                            ? 'completed'
+                            : ''
+                        }`}
+                      />
+                    </button>
+                  </div>
                   {editingDraftChecklistId === item.id ? (
                     <input
                       value={item.text}
@@ -2306,20 +2402,6 @@ function FocusModal({ card, onClose }) {
                   >
                     delete
                   </button>
-                  <span
-                    className={`check-state-label ${
-                      item.state ||
-                      (item.checked
-                        ? CHECKLIST_STATES.COMPLETED
-                        : CHECKLIST_STATES.UNCHECKED)
-                    }`}
-                  >
-                    {item.state === CHECKLIST_STATES.IN_PROGRESS
-                      ? '1/2 in progress'
-                      : item.state === CHECKLIST_STATES.COMPLETED || item.checked
-                        ? '2/2 reviewed'
-                        : '0/2 not started'}
-                  </span>
                 </div>
                 {expandedDraftContexts[item.id] ? (
                   <ContextThreadEditor
@@ -2900,15 +2982,25 @@ function App() {
     setViewMode('board');
   };
 
-  const openChecklistToggle = (cardId, item) => {
+  const openChecklistToggle = (cardId, item, requestedState = '') => {
     const currentState =
       item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED);
     const nextState =
-      currentState === CHECKLIST_STATES.UNCHECKED
+      requestedState ||
+      (currentState === CHECKLIST_STATES.UNCHECKED
         ? CHECKLIST_STATES.IN_PROGRESS
         : currentState === CHECKLIST_STATES.IN_PROGRESS
           ? CHECKLIST_STATES.COMPLETED
-          : CHECKLIST_STATES.UNCHECKED;
+          : CHECKLIST_STATES.UNCHECKED);
+
+    if (requestedState) {
+      toggleChecklistItem(cardId, item.id, item.context || '', {
+        ...item,
+        nextState,
+        contextHistory: getChecklistContextHistory(item),
+      });
+      return;
+    }
 
     setPendingToggle({
       cardId,

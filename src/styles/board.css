@@ -3,9 +3,9 @@
 }
 
 .section-topline {
-  min-height: 42px;
-  margin-bottom: var(--space-4);
-  padding: 0 2px var(--space-4);
+  min-height: 32px;
+  margin-bottom: var(--space-2);
+  padding: 0 2px var(--space-2);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -364,7 +364,7 @@
   align-items: center;
   width: 100%;
   max-width: 1840px;
-  margin: var(--space-4) auto var(--space-7);
+  margin: var(--space-2) auto var(--space-5);
   padding: 0;
 }
 

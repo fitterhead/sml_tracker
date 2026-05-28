@@ -6,6 +6,8 @@ const TODO_STACK_BASE_VISIBLE_STEP = 34;
 const TODO_STACK_MIN_VISIBLE_STEP = 28;
 const TODO_STACK_BASE_X_SPREAD = 12;
 const TODO_STACK_MAX_X_SPREAD = 24;
+const TODO_STACK_BASE_ROTATION_STEP = 0.01;
+const TODO_STACK_MAX_ROTATION_STEP = 0.028;
 
 const getTodoStackTension = (visibleCount) =>
   Math.min(Math.max(visibleCount - 3, 0), 60) / 60;
@@ -18,6 +20,11 @@ const getTodoStackYStep = (visibleCount) =>
 const getTodoStackXSpread = (visibleCount) =>
   TODO_STACK_BASE_X_SPREAD +
   (TODO_STACK_MAX_X_SPREAD - TODO_STACK_BASE_X_SPREAD) *
+    getTodoStackTension(visibleCount);
+
+const getTodoStackRotationStep = (visibleCount) =>
+  TODO_STACK_BASE_ROTATION_STEP +
+  (TODO_STACK_MAX_ROTATION_STEP - TODO_STACK_BASE_ROTATION_STEP) *
     getTodoStackTension(visibleCount);
 
 export const columnMeta = {
@@ -210,6 +217,7 @@ export const getPileLayout = (lane, visibleCount, index) => {
       x: Math.log1p(index) * getTodoStackXSpread(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
       scale: 1,
+      rotate: index * getTodoStackRotationStep(visibleCount),
     };
   }
 
@@ -233,6 +241,7 @@ export const getPileLayout = (lane, visibleCount, index) => {
     x: index * xStep,
     y: index * yStep,
     scale,
+    rotate: 0,
   };
 };
 

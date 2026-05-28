@@ -115,7 +115,12 @@ const normalizeChecklistItem = (item = {}) => ({
   checked: item.state
     ? item.state === CHECKLIST_STATES.COMPLETED
     : Boolean(item.checked),
-  checkedBy: item.checkedBy || null,
+  checkedBy:
+    (item.state
+      ? item.state === CHECKLIST_STATES.COMPLETED
+      : Boolean(item.checked))
+      ? item.checkedBy || null
+      : null,
   createdAt: item.createdAt || item.completedAt || new Date().toISOString(),
   completedAt: item.completedAt || '',
   context: item.context || '',

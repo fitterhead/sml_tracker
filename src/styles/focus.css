@@ -64,7 +64,7 @@
 
 .modal-check-main {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   gap: var(--space-4);
   align-items: center;
 }

@@ -142,7 +142,12 @@ const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   checked: item.state
     ? item.state === CHECKLIST_STATES.COMPLETED
     : Boolean(item.checked),
-  checkedBy: item.checkedBy || null,
+  checkedBy:
+    (item.state
+      ? item.state === CHECKLIST_STATES.COMPLETED
+      : Boolean(item.checked))
+      ? item.checkedBy || null
+      : null,
   createdAt: item.createdAt || item.completedAt || new Date().toISOString(),
   completedAt: item.completedAt || '',
   context: item.context || '',
@@ -630,11 +635,12 @@ export const useBoardStore = create(
                     ? CHECKLIST_STATES.COMPLETED
                     : CHECKLIST_STATES.UNCHECKED);
                 const nextState =
-                  currentState === CHECKLIST_STATES.UNCHECKED
+                  contextData?.nextState ||
+                  (currentState === CHECKLIST_STATES.UNCHECKED
                     ? CHECKLIST_STATES.IN_PROGRESS
                     : currentState === CHECKLIST_STATES.IN_PROGRESS
                       ? CHECKLIST_STATES.COMPLETED
-                      : CHECKLIST_STATES.UNCHECKED;
+                      : CHECKLIST_STATES.UNCHECKED);
                 const nextChecked = nextState === CHECKLIST_STATES.COMPLETED;
                 const previousHistory = Array.isArray(item.contextHistory)
                   ? item.contextHistory
@@ -663,10 +669,7 @@ export const useBoardStore = create(
                   ...item,
                   state: nextState,
                   checked: nextChecked,
-                  checkedBy:
-                    nextState === CHECKLIST_STATES.UNCHECKED
-                      ? null
-                      : state.currentUser.role,
+                  checkedBy: nextChecked ? state.currentUser.role : null,
                   completedAt: nextChecked ? new Date().toISOString() : '',
                   context: context.trim(),
                   contextCreatedAt: nextNote
