@@ -31,7 +31,7 @@
 .focus-modal {
   width: min(50vw, 720px);
   max-height: min(86vh, 760px);
-  padding: var(--space-8) var(--space-10);
+  padding: var(--space-6) var(--space-8);
 }
 
 .login-card {
@@ -67,9 +67,9 @@
 .focus-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-5);
-  margin-top: var(--space-4);
-  padding: var(--space-4) 0;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding: var(--space-3) 0;
   border-top: 1px solid rgba(95, 76, 49, 0.1);
   border-bottom: 1px solid rgba(95, 76, 49, 0.1);
 }

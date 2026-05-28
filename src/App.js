@@ -2198,9 +2198,11 @@ function FocusModal({ card, onClose }) {
               {selectedExistingClient ? (
                 <button
                   type="button"
+                  className="focus-rename-trigger"
                   onClick={() => setShowClientRename((current) => !current)}
+                  title="Rename client"
                 >
-                  rename client
+                  ...
                 </button>
               ) : null}
             </div>
