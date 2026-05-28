@@ -360,22 +360,27 @@
 }
 
 .workspace-tabs {
-  display: block;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
   width: 100%;
   max-width: 1840px;
   margin: var(--space-2) auto var(--space-5);
-  padding: 0;
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid rgba(95, 76, 49, 0.1);
 }
 
 .workspace-tab-list {
   display: flex;
   align-items: flex-end;
   gap: 0;
-  overflow-x: auto;
+  overflow: visible;
   min-width: 0;
-  padding: 0 var(--space-6);
-  border-bottom: 1px solid rgba(95, 76, 49, 0.1);
+  padding: 0;
+  border-bottom: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
 }
 
 .workspace-tab {
@@ -435,8 +440,8 @@
 .workspace-filter {
   position: relative;
   flex: 0 0 auto;
-  margin-left: var(--space-4);
   margin-bottom: -1px;
+  margin-left: auto;
 }
 
 .workspace-filter-button {
@@ -460,7 +465,7 @@
 .workspace-filter-menu {
   position: absolute;
   top: calc(100% + var(--space-2));
-  left: 0;
+  right: 0;
   z-index: 30;
   width: 238px;
   display: grid;

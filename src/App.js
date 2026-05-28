@@ -2648,35 +2648,35 @@ function WorkspaceTabs({
         >
           +
         </button>
-        <div className="workspace-filter">
-          <button
-            type="button"
-            className="workspace-filter-button"
-            onClick={() => setFilterOpen((current) => !current)}
-            aria-expanded={filterOpen}
-            aria-haspopup="menu"
-          >
-            Filter
-          </button>
-          {filterOpen ? (
-            <div className="workspace-filter-menu" role="menu">
-              {SORT_OPTIONS.map((option) => (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={sortMode === option.value ? 'active' : ''}
-                  key={option.value}
-                  onClick={() => {
-                    onSortChange(option.value);
-                    setFilterOpen(false);
-                  }}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
+      </div>
+      <div className="workspace-filter">
+        <button
+          type="button"
+          className="workspace-filter-button"
+          onClick={() => setFilterOpen((current) => !current)}
+          aria-expanded={filterOpen}
+          aria-haspopup="menu"
+        >
+          Filter
+        </button>
+        {filterOpen ? (
+          <div className="workspace-filter-menu" role="menu">
+            {SORT_OPTIONS.map((option) => (
+              <button
+                type="button"
+                role="menuitem"
+                className={sortMode === option.value ? 'active' : ''}
+                key={option.value}
+                onClick={() => {
+                  onSortChange(option.value);
+                  setFilterOpen(false);
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
     </nav>
   );
