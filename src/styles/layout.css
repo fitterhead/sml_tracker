@@ -1,6 +1,6 @@
 .app-shell {
   min-height: 100vh;
-  padding: var(--space-5) var(--space-10) var(--space-5);
+  padding: var(--space-3) var(--space-10) var(--space-5);
   display: flex;
   flex-direction: column;
   overflow: visible;

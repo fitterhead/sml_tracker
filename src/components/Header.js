@@ -1,15 +1,20 @@
+import { useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 
 export default function Header({
   searchTerm,
   setSearchTerm,
   viewMode,
+  sortMode,
+  sortOptions,
   onMainPage,
   onIncompleteCards,
   onExportExcel,
+  onSortChange,
   onLogout,
 }) {
   const currentUser = useBoardStore((state) => state.currentUser);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   return (
     <header className="app-header">
@@ -44,6 +49,35 @@ export default function Header({
       </div>
 
       <div className="header-actions">
+        <div className="workspace-filter header-filter">
+          <button
+            type="button"
+            className="workspace-filter-button"
+            onClick={() => setFilterOpen((current) => !current)}
+            aria-expanded={filterOpen}
+            aria-haspopup="menu"
+          >
+            Filter
+          </button>
+          {filterOpen ? (
+            <div className="workspace-filter-menu" role="menu">
+              {sortOptions.map((option) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={sortMode === option.value ? 'active' : ''}
+                  key={option.value}
+                  onClick={() => {
+                    onSortChange(option.value);
+                    setFilterOpen(false);
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <div className="profile-chip">
           <span>{currentUser.name}</span>
           <small>{currentUser.role}</small>

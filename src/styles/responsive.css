@@ -1,5 +1,4 @@
 @media (max-width: 1120px) {
-  .app-header,
   .focus-grid,
   .focus-info-grid,
   .excel-tools-grid,
@@ -15,6 +14,16 @@
   .header-actions {
     justify-content: flex-start;
     flex-wrap: nowrap;
+    margin-left: 0;
+  }
+
+  .app-header {
+    flex-wrap: wrap;
+    gap: var(--space-6);
+  }
+
+  .search-bar {
+    flex: 1 1 520px;
   }
 
   .board-row {
@@ -76,8 +85,14 @@
   }
 
   .search-bar {
-    grid-template-columns: 1fr;
-    gap: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    flex-basis: 100%;
+  }
+
+  .search-field {
+    width: 100%;
   }
 
   .search-actions {
