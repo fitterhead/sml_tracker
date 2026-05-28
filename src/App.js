@@ -2193,7 +2193,6 @@ function FocusModal({ card, onClose }) {
         <div className="focus-grid">
           <section className="focus-project-info" aria-label="project info">
             <div className="modal-section-header">
-              <h3>project info</h3>
               {selectedExistingClient ? (
                 <button
                   type="button"
