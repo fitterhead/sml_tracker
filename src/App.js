@@ -53,9 +53,13 @@ const CHECKLIST_STATES = {
 const SORT_OPTIONS = [
   { value: 'client-az', label: 'Sort by client name A -> Z' },
   { value: 'client-za', label: 'Sort by client name Z -> A' },
+  { value: 'priority-high', label: 'Sort by priority high -> low' },
+  { value: 'priority-low', label: 'Sort by priority low -> high' },
   { value: 'created-newest', label: 'Sort by created date newest -> oldest' },
   { value: 'created-oldest', label: 'Sort by created date oldest -> newest' },
 ];
+const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+const TORONTO_TIME_ZONE = 'America/Toronto';
 
 const readStoredAuthToken = () => {
   if (typeof window === 'undefined') {
@@ -73,11 +77,19 @@ const getSortableCreatedTime = (card) => {
   return Number.isNaN(time) ? 0 : time;
 };
 
+const getSortablePriority = (card) => Number(card.priority) || 1;
+
 const createCardSorter = (sortMode) => (a, b) => {
   if (sortMode === 'client-az' || sortMode === 'client-za') {
     const direction = sortMode === 'client-az' ? 1 : -1;
     const nameCompare = getSortableClientName(a).localeCompare(getSortableClientName(b));
     return nameCompare ? nameCompare * direction : a.order - b.order;
+  }
+
+  if (sortMode === 'priority-high' || sortMode === 'priority-low') {
+    const direction = sortMode === 'priority-high' ? -1 : 1;
+    const priorityCompare = getSortablePriority(a) - getSortablePriority(b);
+    return priorityCompare ? priorityCompare * direction : a.order - b.order;
   }
 
   if (sortMode === 'created-newest' || sortMode === 'created-oldest') {
@@ -131,23 +143,76 @@ const createEmptyServerMeta = () => ({
   cardsCount: 0,
 });
 
-const formatFooterTime = (value) => {
-  if (!value) {
-    return 'never';
+const getTimeZoneOffsetMinutes = (date, timeZone) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    timeZoneName: 'shortOffset',
+  }).formatToParts(date);
+  const offsetName = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT';
+  const match = offsetName.match(/^GMT([+-])?(\d{1,2})?(?::(\d{2}))?$/);
+
+  if (!match || !match[1]) {
+    return 0;
   }
 
-  const date = new Date(value);
+  const sign = match[1] === '-' ? -1 : 1;
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+  return sign * (hours * 60 + minutes);
+};
 
-  if (Number.isNaN(date.getTime())) {
-    return 'unknown';
+const getVietnamDayPeriod = (date) => {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: VIETNAM_TIME_ZONE,
+      hour: 'numeric',
+      hourCycle: 'h23',
+    }).format(date)
+  );
+
+  if (hour >= 5 && hour < 11) {
+    return 'buoi sang';
   }
 
-  return new Intl.DateTimeFormat('en-CA', {
+  if (hour >= 11 && hour < 14) {
+    return 'buoi trua';
+  }
+
+  if (hour >= 14 && hour < 18) {
+    return 'buoi chieu';
+  }
+
+  if (hour >= 18 && hour < 23) {
+    return 'buoi toi';
+  }
+
+  return 'buoi khuya';
+};
+
+const formatVietnamTime = (date) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: VIETNAM_TIME_ZONE,
+    weekday: 'short',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: false,
+    hourCycle: 'h23',
   }).format(date);
+
+const formatTorontoDifference = (date) => {
+  const vietnamOffset = getTimeZoneOffsetMinutes(date, VIETNAM_TIME_ZONE);
+  const torontoOffset = getTimeZoneOffsetMinutes(date, TORONTO_TIME_ZONE);
+  const differenceHours = (vietnamOffset - torontoOffset) / 60;
+  const absoluteHours = Math.abs(differenceHours);
+  const formattedHours = Number.isInteger(absoluteHours)
+    ? absoluteHours
+    : absoluteHours.toFixed(1);
+  const direction = differenceHours >= 0 ? 'ahead of' : 'behind';
+
+  return `${formattedHours}h ${direction} toronto`;
 };
 const EXPORT_FIELDS = [
   { key: 'taskName', label: 'project name' },
@@ -2767,6 +2832,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState('');
   const [syncStatus, setSyncStatus] = useState('');
+  const [footerNow, setFooterNow] = useState(() => new Date());
   const [boardHydrated, setBoardHydrated] = useState(false);
   const [serverBoardUpdatedAt, setServerBoardUpdatedAt] = useState('');
   const [serverMeta, setServerMeta] = useState(createEmptyServerMeta);
@@ -2807,6 +2873,14 @@ function App() {
     setHoverPreview(null);
     setFrontCardId('');
   }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setFooterNow(new Date());
+    }, 60 * 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -3655,9 +3729,9 @@ function App() {
       ) : null}
 
       <footer className="board-legend">
-        <span>checked by manager</span>
-        <span>checked by staff</span>
-        <span>last login {formatFooterTime(serverMeta.lastLoginAt)}</span>
+        <span>vietnam {formatVietnamTime(footerNow)}</span>
+        <span>{getVietnamDayPeriod(footerNow)}</span>
+        <span>{formatTorontoDifference(footerNow)}</span>
         <span>today cards {serverMeta.cardsCreatedToday}</span>
         <span>changes {serverMeta.changesToday}</span>
         <span>click a card to edit details</span>

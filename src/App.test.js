@@ -47,4 +47,7 @@ test('opens workspace filter menu', async () => {
   expect(
     screen.getByRole('menuitem', { name: /sort by created date newest -> oldest/i })
   ).toBeInTheDocument();
+  expect(
+    screen.getByRole('menuitem', { name: /sort by priority high -> low/i })
+  ).toBeInTheDocument();
 });

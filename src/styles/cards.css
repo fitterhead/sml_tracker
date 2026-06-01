@@ -32,8 +32,8 @@
   background:
     linear-gradient(
       0deg,
-      rgba(245, 204, 75, calc(var(--age-warmth, 0) * 0.28)),
-      rgba(245, 204, 75, calc(var(--age-warmth, 0) * 0.28))
+      rgba(238, 124, 45, calc(var(--age-warmth, 0) * 0.34)),
+      rgba(238, 124, 45, calc(var(--age-warmth, 0) * 0.34))
     ),
     var(--surface);
   padding: 12px;
