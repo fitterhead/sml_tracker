@@ -127,6 +127,33 @@
   margin: 0;
 }
 
+.job-card h3.priority-alert-title {
+  color: #b92817;
+  text-decoration: underline;
+  text-decoration-color: rgba(242, 100, 50, 0.55);
+  text-underline-offset: 3px;
+  animation: priority-title-flash 1.35s ease-in-out infinite;
+}
+
+.job-card h3.priority-alert-title:hover {
+  color: #f26432;
+  text-decoration-color: currentColor;
+  text-shadow: 0 0 12px rgba(242, 100, 50, 0.45);
+}
+
+@keyframes priority-title-flash {
+  0%,
+  100% {
+    background-color: rgba(242, 100, 50, 0.08);
+    box-shadow: 0 0 0 rgba(242, 100, 50, 0);
+  }
+
+  50% {
+    background-color: rgba(242, 100, 50, 0.24);
+    box-shadow: 0 0 14px rgba(242, 100, 50, 0.28);
+  }
+}
+
 .job-card p {
   font-size: var(--font-md);
   color: var(--text);

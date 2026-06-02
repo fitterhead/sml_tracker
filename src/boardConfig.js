@@ -22,6 +22,9 @@ const getTodoStackXSpread = (visibleCount) =>
   (TODO_STACK_MAX_X_SPREAD - TODO_STACK_BASE_X_SPREAD) *
     getTodoStackTension(visibleCount);
 
+const getTodoStackXStep = (visibleCount) =>
+  Math.log1p(1) * getTodoStackXSpread(visibleCount);
+
 const getTodoStackRotationStep = (visibleCount) =>
   TODO_STACK_BASE_ROTATION_STEP +
   (TODO_STACK_MAX_ROTATION_STEP - TODO_STACK_BASE_ROTATION_STEP) *
@@ -214,7 +217,7 @@ export const getStackLimit = (lane) => {
 export const getPileLayout = (lane, visibleCount, index) => {
   if (lane === 'active') {
     return {
-      x: Math.log1p(index) * getTodoStackXSpread(visibleCount),
+      x: index * getTodoStackXStep(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
       scale: 1,
       rotate: index * getTodoStackRotationStep(visibleCount),

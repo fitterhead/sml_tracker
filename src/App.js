@@ -53,8 +53,8 @@ const CHECKLIST_STATES = {
 const SORT_OPTIONS = [
   { value: 'client-az', label: 'Sort by client name A -> Z' },
   { value: 'client-za', label: 'Sort by client name Z -> A' },
-  { value: 'priority-high', label: 'Sort by priority high -> low' },
-  { value: 'priority-low', label: 'Sort by priority low -> high' },
+  { value: 'priority-high', label: 'Sort by priority high to front' },
+  { value: 'priority-low', label: 'Sort by priority low to front' },
   { value: 'created-newest', label: 'Sort by created date newest -> oldest' },
   { value: 'created-oldest', label: 'Sort by created date oldest -> newest' },
 ];
@@ -87,7 +87,7 @@ const createCardSorter = (sortMode) => (a, b) => {
   }
 
   if (sortMode === 'priority-high' || sortMode === 'priority-low') {
-    const direction = sortMode === 'priority-high' ? -1 : 1;
+    const direction = sortMode === 'priority-high' ? 1 : -1;
     const priorityCompare = getSortablePriority(a) - getSortablePriority(b);
     return priorityCompare ? priorityCompare * direction : a.order - b.order;
   }
@@ -171,22 +171,22 @@ const getVietnamDayPeriod = (date) => {
   );
 
   if (hour >= 5 && hour < 11) {
-    return 'buoi sang';
+    return 'morning';
   }
 
   if (hour >= 11 && hour < 14) {
-    return 'buoi trua';
+    return 'midday';
   }
 
   if (hour >= 14 && hour < 18) {
-    return 'buoi chieu';
+    return 'afternoon';
   }
 
   if (hour >= 18 && hour < 23) {
-    return 'buoi toi';
+    return 'evening';
   }
 
-  return 'buoi khuya';
+  return 'late night';
 };
 
 const formatVietnamTime = (date) =>
@@ -1159,6 +1159,7 @@ function CardShell({
   const cardZone = getCardZone(card);
   const isOnHold = cardZone === 'hold';
   const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
+  const isTopPriority = Number(card.priority) >= 5;
   const ageWarmth = getCardAgeWarmth(card.createdAt, cardZone);
   const cardStyle = {
     '--age-warmth': ageWarmth,
@@ -1195,7 +1196,10 @@ function CardShell({
         onDoubleClick={onDoubleClick}
       >
         <div className="card-top">
-          <h3 title={card.jobName || 'client - (no client name)'}>
+          <h3
+            className={isTopPriority ? 'priority-alert-title' : ''}
+            title={card.jobName || 'client - (no client name)'}
+          >
             <HighlightedText text={card.jobName || 'client - (no client name)'} />
           </h3>
           <p>
@@ -1214,7 +1218,10 @@ function CardShell({
       onDoubleClick={onDoubleClick}
     >
       <div className="card-top">
-        <h3 title={card.jobName || 'client - (no client name)'}>
+        <h3
+          className={isTopPriority ? 'priority-alert-title' : ''}
+          title={card.jobName || 'client - (no client name)'}
+        >
           <HighlightedText text={card.jobName || 'client - (no client name)'} />
         </h3>
         <p>
@@ -2831,11 +2838,11 @@ function App() {
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState('');
-  const [syncStatus, setSyncStatus] = useState('');
+  const [, setSyncStatus] = useState('');
   const [footerNow, setFooterNow] = useState(() => new Date());
   const [boardHydrated, setBoardHydrated] = useState(false);
   const [serverBoardUpdatedAt, setServerBoardUpdatedAt] = useState('');
-  const [serverMeta, setServerMeta] = useState(createEmptyServerMeta);
+  const [, setServerMeta] = useState(createEmptyServerMeta);
   const [showComposerUnsavedPrompt, setShowComposerUnsavedPrompt] = useState(false);
   const [showChecklistUnsavedPrompt, setShowChecklistUnsavedPrompt] = useState(false);
   const [authForm, setAuthForm] = useState({
@@ -3729,13 +3736,9 @@ function App() {
       ) : null}
 
       <footer className="board-legend">
-        <span>vietnam {formatVietnamTime(footerNow)}</span>
+        <span>Vietnam {formatVietnamTime(footerNow)}</span>
         <span>{getVietnamDayPeriod(footerNow)}</span>
         <span>{formatTorontoDifference(footerNow)}</span>
-        <span>today cards {serverMeta.cardsCreatedToday}</span>
-        <span>changes {serverMeta.changesToday}</span>
-        <span>click a card to edit details</span>
-        {syncStatus ? <span>{syncStatus}</span> : null}
       </footer>
 
       <CreateCardPopup
