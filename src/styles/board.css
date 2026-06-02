@@ -417,19 +417,19 @@
 }
 
 .workspace-add {
-  width: 28px;
-  height: 34px;
-  border: 1px solid rgba(95, 76, 49, 0.18);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 2px;
+  background: #111111;
+  color: #ffffff;
   cursor: pointer;
   padding: 0;
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  margin-bottom: 2px;
-  font-size: 1.15rem;
+  margin-bottom: 4px;
+  font-size: var(--font-lg);
   line-height: 1;
   font-weight: 400;
 }
