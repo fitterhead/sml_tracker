@@ -285,12 +285,13 @@
 }
 
 .card-top p {
-  flex: 0 0 auto;
-  max-width: 46%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 54%;
+  max-width: 58%;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .login-note {

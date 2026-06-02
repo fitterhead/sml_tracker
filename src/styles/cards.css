@@ -68,7 +68,7 @@
 
 .compact-card .card-top h3,
 .compact-card .card-top p {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .compact-card .card-top h3 {
@@ -76,9 +76,12 @@
 }
 
 .compact-card .card-top p {
-  flex: 0 1 46%;
-  max-width: 46%;
+  flex: 1 1 54%;
+  max-width: 58%;
   text-align: right;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 .drag-overlay .compact-card,
