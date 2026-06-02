@@ -87,15 +87,15 @@
 }
 
 .pile-area.lane-done .job-card {
-  background: #fffdf9;
+  background: var(--surface);
 }
 
 .pile-area.lane-hold .job-card {
-  background: #fffdf9;
+  background: var(--surface);
 }
 
 .pile-area.lane-incomplete .job-card {
-  background: #fffdf9;
+  background: var(--surface);
 }
 
 .job-card::before {
@@ -132,25 +132,30 @@
   text-decoration: underline;
   text-decoration-color: rgba(235, 178, 35, 0.62);
   text-underline-offset: 3px;
+  border-radius: 6px;
+  padding: 4px 12px;
+  margin: -4px -12px;
   animation: priority-job-flash 1.35s ease-in-out infinite;
 }
 
 .job-card .priority-alert-job:hover {
-  color: #d89a00;
+  color: #f0b900;
   text-decoration-color: currentColor;
-  text-shadow: 0 0 12px rgba(235, 178, 35, 0.58);
+  text-shadow: 0 0 16px rgba(235, 178, 35, 0.75);
 }
 
 @keyframes priority-job-flash {
   0%,
   100% {
-    background-color: rgba(235, 178, 35, 0.1);
+    background-color: rgba(235, 178, 35, 0.16);
     box-shadow: 0 0 0 rgba(235, 178, 35, 0);
   }
 
   50% {
-    background-color: rgba(235, 178, 35, 0.28);
-    box-shadow: 0 0 14px rgba(235, 178, 35, 0.34);
+    background-color: rgba(235, 178, 35, 0.42);
+    box-shadow:
+      0 0 0 4px rgba(235, 178, 35, 0.16),
+      0 0 22px rgba(235, 178, 35, 0.44);
   }
 }
 

@@ -120,6 +120,38 @@
   line-height: 1.1;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-menu-list {
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  right: 0;
+  z-index: 40;
+  width: 160px;
+  display: grid;
+  padding: var(--space-2) 0;
+  border: 1px solid rgba(95, 76, 49, 0.14);
+  background: var(--surface);
+  box-shadow: 0 14px 30px rgba(40, 31, 18, 0.12);
+}
+
+.account-menu-list button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  padding: var(--space-3) var(--space-5);
+  text-align: left;
+  font-size: var(--font-sm);
+  line-height: 1.25;
+}
+
+.account-menu-list button:hover {
+  background: rgba(95, 76, 49, 0.07);
+}
+
 .profile-chip span,
 .profile-chip small {
   display: block;

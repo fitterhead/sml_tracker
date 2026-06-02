@@ -64,13 +64,7 @@
 }
 
 .section-topline::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(117, 103, 82, 0.18), rgba(117, 103, 82, 0.05));
+  display: none;
 }
 
 .plus-button {
@@ -368,7 +362,7 @@
   max-width: 1840px;
   margin: 0 auto var(--space-4);
   padding: 0 var(--space-6);
-  border-bottom: 1px solid rgba(95, 76, 49, 0.1);
+  border-bottom: 0;
 }
 
 .workspace-tab-list {

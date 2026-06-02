@@ -6,6 +6,11 @@ const DONE = 'done';
 const HOLD = 'hold';
 const TODO_COLUMN_LIMIT = 2;
 const DEFAULT_PRIORITY = 1;
+const DEFAULT_USER_PREFERENCES = {
+  backgroundImage: '',
+  cardColor: '#fffdf9',
+  textColor: '#111111',
+};
 const CHECKLIST_STATES = {
   UNCHECKED: 'unchecked',
   IN_PROGRESS: 'in_progress',
@@ -56,6 +61,14 @@ const createId = () => {
 
   return `card-${Math.random().toString(36).slice(2, 11)}`;
 };
+
+const getUserPreferenceKey = (user = {}) =>
+  String(user.email || user.id || user.name || 'default').trim().toLowerCase() || 'default';
+
+const normalizeUserPreferences = (preferences = {}) => ({
+  ...DEFAULT_USER_PREFERENCES,
+  ...preferences,
+});
 
 const createChecklistItem = (text, createdBy, overrides = {}) => ({
   id: createId(),
@@ -292,9 +305,12 @@ export const useBoardStore = create(
         cards: initialCards,
         currentUser: {
           name: 'Andrew',
+          id: '',
+          email: '',
           role: 'manager',
           isAuthenticated: true,
         },
+        userPreferences: {},
         addTodoColumn() {
           set((state) =>
             updateActiveWorkspace(state, (workspace) => ({
@@ -344,7 +360,9 @@ export const useBoardStore = create(
             ...normalizedBoard,
             currentUser: user
               ? {
+                  id: user.id || state.currentUser.id || '',
                   name: user.name || state.currentUser.name,
+                  email: user.email || state.currentUser.email || '',
                   role: user.role || state.currentUser.role,
                   isAuthenticated: true,
                 }
@@ -390,6 +408,24 @@ export const useBoardStore = create(
               isAuthenticated: false,
             },
           }));
+        },
+        updateUserPreferences(updates = {}) {
+          set((state) => {
+            const key = getUserPreferenceKey(state.currentUser);
+            const currentPreferences = normalizeUserPreferences(
+              state.userPreferences?.[key]
+            );
+
+            return {
+              userPreferences: {
+                ...(state.userPreferences || {}),
+                [key]: normalizeUserPreferences({
+                  ...currentPreferences,
+                  ...updates,
+                }),
+              },
+            };
+          });
         },
         bringToFront(cardId) {
           set((state) =>
@@ -785,7 +821,12 @@ export const useBoardStore = create(
         todoColumns: state.todoColumns,
         cards: state.cards,
         currentUser: state.currentUser,
+        userPreferences: state.userPreferences,
       }),
     }
   )
 );
+
+export const getCurrentUserPreferenceKey = getUserPreferenceKey;
+export const getDefaultUserPreferences = () => ({ ...DEFAULT_USER_PREFERENCES });
+export const normalizePreferences = normalizeUserPreferences;

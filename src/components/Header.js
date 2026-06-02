@@ -11,10 +11,12 @@ export default function Header({
   onIncompleteCards,
   onExportExcel,
   onSortChange,
+  onSettings,
   onLogout,
 }) {
   const currentUser = useBoardStore((state) => state.currentUser);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   return (
     <header className="app-header">
@@ -45,11 +47,7 @@ export default function Header({
           <button type="button" className="header-link" onClick={onExportExcel}>
             export excel
           </button>
-        </div>
-      </div>
-
-      <div className="header-actions">
-        <div className="workspace-filter header-filter">
+          <div className="workspace-filter header-filter">
           <button
             type="button"
             className="workspace-filter-button"
@@ -77,14 +75,47 @@ export default function Header({
               ))}
             </div>
           ) : null}
+          </div>
         </div>
-        <div className="profile-chip">
+      </div>
+
+      <div className="header-actions">
+        <div className="account-menu">
+          <button
+            type="button"
+            className="profile-chip"
+            onClick={() => setAccountOpen((current) => !current)}
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+          >
           <span>{currentUser.name}</span>
           <small>{currentUser.role}</small>
+          </button>
+          {accountOpen ? (
+            <div className="account-menu-list" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setAccountOpen(false);
+                  onSettings();
+                }}
+              >
+                Settings
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setAccountOpen(false);
+                  onLogout();
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          ) : null}
         </div>
-        <button type="button" className="header-link" onClick={onLogout}>
-          logout
-        </button>
       </div>
     </header>
   );

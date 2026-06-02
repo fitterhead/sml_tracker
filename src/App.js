@@ -38,9 +38,12 @@ import {
   saveBoardRequest,
 } from './lib/apiClient';
 import {
+  getCurrentUserPreferenceKey,
+  getDefaultUserPreferences,
   getCardZone,
   isCardComplete,
   getMissingFields,
+  normalizePreferences,
   useBoardStore,
 } from './store/useBoardStore';
 
@@ -60,6 +63,28 @@ const SORT_OPTIONS = [
 ];
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const TORONTO_TIME_ZONE = 'America/Toronto';
+const STATUS_DROP_INTENT_LANES = new Set(['done', 'hold']);
+const DRAG_OVERLAY_MODIFIERS = [
+  ({ transform, activatorEvent, draggingNodeRect }) => {
+    if (!activatorEvent || !draggingNodeRect || !('clientX' in activatorEvent)) {
+      return transform;
+    }
+
+    return {
+      ...transform,
+      x:
+        transform.x +
+        activatorEvent.clientX -
+        draggingNodeRect.left -
+        draggingNodeRect.width / 2,
+      y:
+        transform.y +
+        activatorEvent.clientY -
+        draggingNodeRect.top -
+        Math.min(42, draggingNodeRect.height / 3),
+    };
+  },
+];
 
 const readStoredAuthToken = () => {
   if (typeof window === 'undefined') {
@@ -190,7 +215,7 @@ const getVietnamDayPeriod = (date) => {
 };
 
 const formatVietnamTime = (date) =>
-  new Intl.DateTimeFormat('en-CA', {
+  new Intl.DateTimeFormat('en-US', {
     timeZone: VIETNAM_TIME_ZONE,
     weekday: 'short',
     month: 'short',
@@ -198,8 +223,7 @@ const formatVietnamTime = (date) =>
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
-    hourCycle: 'h23',
+    hour12: true,
   }).format(date);
 
 const formatTorontoDifference = (date) => {
@@ -894,6 +918,98 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
   );
 }
 
+function ConfirmMoveToHoldModal({ open, cardTitle, onConfirm, onCancel }) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="focus-backdrop" onClick={onCancel}>
+      <div
+        className="confirm-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="eyebrow">on hold</p>
+        <h2>Move this card to On Hold?</h2>
+        <p className="confirm-item-text">
+          <HighlightedText text={cardTitle || 'untitled card'} />
+        </p>
+        <div className="focus-actions">
+          <button type="button" className="ghost-button muted" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="ghost-button" onClick={onConfirm}>
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsModal({
+  open,
+  preferences,
+  onChange,
+  onClose,
+}) {
+  if (!open) {
+    return null;
+  }
+
+  const resetPreferences = () => {
+    onChange(getDefaultUserPreferences());
+  };
+
+  return (
+    <div className="focus-backdrop" onClick={onClose}>
+      <div
+        className="settings-modal"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className="eyebrow">settings</p>
+        <h2>Customize appearance</h2>
+        <div className="settings-grid">
+          <label className="field field-full">
+            <span>page background image</span>
+            <input
+              value={preferences.backgroundImage}
+              onChange={(event) =>
+                onChange({ backgroundImage: event.target.value })
+              }
+              placeholder="https://..."
+            />
+          </label>
+          <label className="field">
+            <span>card color</span>
+            <input
+              type="color"
+              value={preferences.cardColor}
+              onChange={(event) => onChange({ cardColor: event.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>text color</span>
+            <input
+              type="color"
+              value={preferences.textColor}
+              onChange={(event) => onChange({ textColor: event.target.value })}
+            />
+          </label>
+        </div>
+        <div className="focus-actions">
+          <button type="button" className="ghost-button muted" onClick={resetPreferences}>
+            Reset
+          </button>
+          <button type="button" className="ghost-button" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function UnsavedChangesModal({ open, onSave, onExit, onCancel }) {
   if (!open) {
     return null;
@@ -1446,6 +1562,45 @@ const getHoverPreviewPosition = (event) => ({
   y: Math.min(event.clientY + 18, window.innerHeight - 360),
 });
 
+const getDragPoint = (event) => {
+  const initialRect = event.active?.rect?.current?.initial;
+
+  if (!initialRect || !event.delta) {
+    return null;
+  }
+
+  return {
+    x: initialRect.left + initialRect.width / 2 + event.delta.x,
+    y: initialRect.top + initialRect.height / 2 + event.delta.y,
+  };
+};
+
+const isIntentionalStatusDrop = (lane, point) => {
+  if (!STATUS_DROP_INTENT_LANES.has(lane)) {
+    return true;
+  }
+
+  if (!point || typeof document === 'undefined') {
+    return false;
+  }
+
+  const target = document.querySelector(`[data-drop-lane="${lane}"]`);
+  if (!target) {
+    return false;
+  }
+
+  const rect = target.getBoundingClientRect();
+  const insetX = Math.min(72, rect.width * 0.24);
+  const insetY = Math.min(56, rect.height * 0.2);
+
+  return (
+    point.x >= rect.left + insetX &&
+    point.x <= rect.right - insetX &&
+    point.y >= rect.top + insetY &&
+    point.y <= rect.bottom - insetY
+  );
+};
+
 const isCardHeaderTarget = (target) => Boolean(target?.closest?.('.card-top'));
 
 function DraggableCard(props) {
@@ -1557,6 +1712,8 @@ function DropColumn({
     <section
       ref={setNodeRef}
       className={`board-column ${className} ${isOver ? 'is-over' : ''}`}
+      data-drop-lane={lane}
+      data-drop-id={dropId || lane}
     >
       <header className="column-header">
         <div>
@@ -2806,6 +2963,7 @@ function App() {
   const workspaces = useBoardStore((state) => state.workspaces || []);
   const activeWorkspaceId = useBoardStore((state) => state.activeWorkspaceId);
   const currentUser = useBoardStore((state) => state.currentUser);
+  const userPreferences = useBoardStore((state) => state.userPreferences || {});
   const createCard = useBoardStore((state) => state.createCard);
   const createWorkspace = useBoardStore((state) => state.createWorkspace);
   const renameWorkspace = useBoardStore((state) => state.renameWorkspace);
@@ -2819,6 +2977,7 @@ function App() {
   const toggleChecklistItem = useBoardStore((state) => state.toggleChecklistItem);
   const hydrateBoard = useBoardStore((state) => state.hydrateBoard);
   const logoutUser = useBoardStore((state) => state.logoutUser);
+  const updateUserPreferences = useBoardStore((state) => state.updateUserPreferences);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('');
   const [frontCardId, setFrontCardId] = useState('');
@@ -2832,7 +2991,9 @@ function App() {
   const [importStatus, setImportStatus] = useState(null);
   const [pendingToggle, setPendingToggle] = useState(null);
   const [pendingReopenCardId, setPendingReopenCardId] = useState(null);
+  const [pendingHoldMove, setPendingHoldMove] = useState(null);
   const [editingChecklistTarget, setEditingChecklistTarget] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [authToken, setAuthToken] = useState(readStoredAuthToken);
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState('login');
@@ -2876,6 +3037,7 @@ function App() {
     setExpandedSection(null);
     setViewMode('board');
     setPendingToggle(null);
+    setPendingHoldMove(null);
     setEditingChecklistTarget(null);
     setHoverPreview(null);
     setFrontCardId('');
@@ -2966,16 +3128,6 @@ function App() {
               ? 'server changed, refresh'
               : 'save failed'
           );
-          fetchSession(authToken)
-            .then((session) => {
-              hydrateBoard(session.board, session.user);
-              setServerBoardUpdatedAt(session.board?.updatedAt || '');
-              setServerMeta({
-                ...createEmptyServerMeta(),
-                ...(session.meta || {}),
-              });
-            })
-            .catch(() => {});
         });
     }, 700);
 
@@ -3128,6 +3280,27 @@ function App() {
   const hoverPreviewCard = hoverPreview
     ? cards.find((card) => card.id === hoverPreview.cardId)
     : null;
+  const preferenceKey = useMemo(
+    () => getCurrentUserPreferenceKey(currentUser),
+    [currentUser]
+  );
+  const appearancePreferences = useMemo(
+    () => normalizePreferences(userPreferences[preferenceKey]),
+    [preferenceKey, userPreferences]
+  );
+  const appAppearanceStyle = {
+    '--surface': appearancePreferences.cardColor,
+    '--text': appearancePreferences.textColor,
+    '--muted': appearancePreferences.textColor,
+    ...(appearancePreferences.backgroundImage.trim()
+      ? {
+          backgroundImage: `linear-gradient(rgba(246, 240, 223, 0.78), rgba(246, 240, 223, 0.78)), url("${appearancePreferences.backgroundImage.trim()}")`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+        }
+      : {}),
+  };
 
   const submitComposer = (event) => {
     event.preventDefault();
@@ -3281,6 +3454,19 @@ function App() {
 
     addChecklistItem(pendingReopenCardId);
     setPendingReopenCardId(null);
+  };
+
+  const confirmHoldMove = () => {
+    if (!pendingHoldMove) {
+      return;
+    }
+
+    moveCard(
+      pendingHoldMove.cardId,
+      'hold',
+      pendingHoldMove.todoColumnId || ''
+    );
+    setPendingHoldMove(null);
   };
 
   const openChecklistEditor = (cardId, item) => {
@@ -3572,7 +3758,7 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={appAppearanceStyle}>
       <Header
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -3592,6 +3778,7 @@ function App() {
           setShowExportConfig(true);
         }}
         onSortChange={setSortMode}
+        onSettings={() => setShowSettings(true)}
         onLogout={logout}
       />
 
@@ -3616,6 +3803,8 @@ function App() {
           const dropTarget = parseDropTarget(event.over?.id);
           const targetLane = isValidDropLane(dropTarget.lane) ? dropTarget.lane : '';
           const movingCard = cards.find((card) => card.id === cardId);
+          const dragPoint = getDragPoint(event);
+          const hasStatusDropIntent = isIntentionalStatusDrop(targetLane, dragPoint);
 
           if (
             targetLane === 'active' &&
@@ -3624,7 +3813,17 @@ function App() {
             isCardComplete(movingCard)
           ) {
             setPendingReopenCardId(cardId);
-          } else if (targetLane) {
+          } else if (
+            targetLane === 'hold' &&
+            hasStatusDropIntent &&
+            movingCard &&
+            !getMissingFields(movingCard).length
+          ) {
+            setPendingHoldMove({
+              cardId,
+              todoColumnId: dropTarget.todoColumnId,
+            });
+          } else if (targetLane && hasStatusDropIntent) {
             moveCard(cardId, targetLane, dropTarget.todoColumnId);
           }
 
@@ -3696,7 +3895,7 @@ function App() {
           />
         )}
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={null} modifiers={DRAG_OVERLAY_MODIFIERS}>
           {activeDragCard ? (
             <div className="drag-overlay">
               <CardShell
@@ -3758,6 +3957,12 @@ function App() {
       />
 
       <FocusModal card={focusCard} onClose={() => setFocusCardId(null)} />
+      <SettingsModal
+        open={showSettings}
+        preferences={appearancePreferences}
+        onChange={updateUserPreferences}
+        onClose={() => setShowSettings(false)}
+      />
       <ChecklistItemModal
         key={
           editingChecklistTarget
@@ -3822,6 +4027,18 @@ function App() {
         open={Boolean(pendingReopenCard)}
         onConfirm={confirmReopenCard}
         onCancel={() => setPendingReopenCardId(null)}
+      />
+      <ConfirmMoveToHoldModal
+        open={Boolean(pendingHoldMove)}
+        cardTitle={
+          pendingHoldMove
+            ? cards.find((card) => card.id === pendingHoldMove.cardId)?.taskName ||
+              cards.find((card) => card.id === pendingHoldMove.cardId)?.jobName ||
+              ''
+            : ''
+        }
+        onConfirm={confirmHoldMove}
+        onCancel={() => setPendingHoldMove(null)}
       />
     </div>
   );

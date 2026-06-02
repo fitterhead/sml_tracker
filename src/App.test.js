@@ -52,6 +52,35 @@ test('opens workspace filter menu', async () => {
   ).toBeInTheDocument();
 });
 
+test('footer shows vietnam time with am or pm', async () => {
+  render(<App />);
+
+  expect(await screen.findByText(/^Vietnam /i)).toHaveTextContent(/\b(AM|PM)\b/);
+});
+
+test('account menu opens settings and logout options', async () => {
+  render(<App />);
+
+  const accountButton = await screen.findByRole('button', { name: /andrew manager/i });
+  fireEvent.click(accountButton);
+
+  expect(screen.getByRole('menuitem', { name: /settings/i })).toBeInTheDocument();
+  expect(screen.getByRole('menuitem', { name: /logout/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^logout$/i })).not.toBeInTheDocument();
+});
+
+test('settings can update account appearance preferences', async () => {
+  render(<App />);
+
+  fireEvent.click(await screen.findByRole('button', { name: /andrew manager/i }));
+  fireEvent.click(screen.getByRole('menuitem', { name: /settings/i }));
+
+  const textColorInput = screen.getByLabelText(/text color/i);
+  fireEvent.change(textColorInput, { target: { value: '#224466' } });
+
+  expect(document.querySelector('.app-shell')).toHaveStyle('--text: #224466');
+});
+
 test('priority high sorting moves high priority cards to the front of the stack', async () => {
   global.fetch = jest.fn().mockResolvedValue({
     ok: true,
