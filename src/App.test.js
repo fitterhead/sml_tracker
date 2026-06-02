@@ -161,6 +161,9 @@ test('priority five cards highlight the job name for attention', async () => {
 
   render(<App />);
 
-  const jobName = await screen.findByText('Flashing client');
-  expect(jobName.closest('h3')).toHaveClass('priority-alert-title');
+  const jobName = await screen.findByText('Urgent project');
+  const clientName = await screen.findByText('Flashing client');
+
+  expect(jobName.closest('p')).toHaveClass('priority-alert-job');
+  expect(clientName.closest('h3')).not.toHaveClass('priority-alert-job');
 });

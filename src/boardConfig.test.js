@@ -10,4 +10,16 @@ test('active card stack keeps horizontal spacing consistent for every adjacent c
     getPileLayout('active', visibleCount, 98).x;
 
   expect(lateDelta).toBeCloseTo(firstDelta, 6);
+  expect(firstDelta).toBeCloseTo(11.783503, 5);
+});
+
+test('active card stack uses half-strength diagonal rotation', () => {
+  const visibleCount = 100;
+  const firstRotation = getPileLayout('active', visibleCount, 1).rotate;
+  const lateRotation =
+    getPileLayout('active', visibleCount, 99).rotate -
+    getPileLayout('active', visibleCount, 98).rotate;
+
+  expect(lateRotation).toBeCloseTo(firstRotation, 6);
+  expect(firstRotation).toBeCloseTo(0.014, 6);
 });

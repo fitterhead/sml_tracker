@@ -23,7 +23,7 @@ const getTodoStackXSpread = (visibleCount) =>
     getTodoStackTension(visibleCount);
 
 const getTodoStackXStep = (visibleCount) =>
-  Math.log1p(1) * getTodoStackXSpread(visibleCount);
+  (Math.log1p(1) * getTodoStackXSpread(visibleCount)) / 2;
 
 const getTodoStackRotationStep = (visibleCount) =>
   TODO_STACK_BASE_ROTATION_STEP +
@@ -220,7 +220,7 @@ export const getPileLayout = (lane, visibleCount, index) => {
       x: index * getTodoStackXStep(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
       scale: 1,
-      rotate: index * getTodoStackRotationStep(visibleCount),
+      rotate: (index * getTodoStackRotationStep(visibleCount)) / 2,
     };
   }
 

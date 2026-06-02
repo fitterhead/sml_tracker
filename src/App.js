@@ -1196,13 +1196,13 @@ function CardShell({
         onDoubleClick={onDoubleClick}
       >
         <div className="card-top">
-          <h3
-            className={isTopPriority ? 'priority-alert-title' : ''}
-            title={card.jobName || 'client - (no client name)'}
-          >
+          <h3 title={card.jobName || 'client - (no client name)'}>
             <HighlightedText text={card.jobName || 'client - (no client name)'} />
           </h3>
-          <p>
+          <p
+            className={isTopPriority ? 'priority-alert-job' : ''}
+            title={card.taskName || 'no project assigned yet'}
+          >
             <HighlightedText text={card.taskName || 'no project assigned yet'} />
           </p>
         </div>
@@ -1218,13 +1218,13 @@ function CardShell({
       onDoubleClick={onDoubleClick}
     >
       <div className="card-top">
-        <h3
-          className={isTopPriority ? 'priority-alert-title' : ''}
-          title={card.jobName || 'client - (no client name)'}
-        >
+        <h3 title={card.jobName || 'client - (no client name)'}>
           <HighlightedText text={card.jobName || 'client - (no client name)'} />
         </h3>
-        <p>
+        <p
+          className={isTopPriority ? 'priority-alert-job' : ''}
+          title={card.taskName || 'no project assigned yet'}
+        >
           <HighlightedText text={card.taskName || 'no project assigned yet'} />
         </p>
       </div>

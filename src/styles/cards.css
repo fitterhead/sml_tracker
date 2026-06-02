@@ -127,30 +127,30 @@
   margin: 0;
 }
 
-.job-card h3.priority-alert-title {
-  color: #b92817;
+.job-card .priority-alert-job {
+  color: #9a5c00;
   text-decoration: underline;
-  text-decoration-color: rgba(242, 100, 50, 0.55);
+  text-decoration-color: rgba(235, 178, 35, 0.62);
   text-underline-offset: 3px;
-  animation: priority-title-flash 1.35s ease-in-out infinite;
+  animation: priority-job-flash 1.35s ease-in-out infinite;
 }
 
-.job-card h3.priority-alert-title:hover {
-  color: #f26432;
+.job-card .priority-alert-job:hover {
+  color: #d89a00;
   text-decoration-color: currentColor;
-  text-shadow: 0 0 12px rgba(242, 100, 50, 0.45);
+  text-shadow: 0 0 12px rgba(235, 178, 35, 0.58);
 }
 
-@keyframes priority-title-flash {
+@keyframes priority-job-flash {
   0%,
   100% {
-    background-color: rgba(242, 100, 50, 0.08);
-    box-shadow: 0 0 0 rgba(242, 100, 50, 0);
+    background-color: rgba(235, 178, 35, 0.1);
+    box-shadow: 0 0 0 rgba(235, 178, 35, 0);
   }
 
   50% {
-    background-color: rgba(242, 100, 50, 0.24);
-    box-shadow: 0 0 14px rgba(242, 100, 50, 0.28);
+    background-color: rgba(235, 178, 35, 0.28);
+    box-shadow: 0 0 14px rgba(235, 178, 35, 0.34);
   }
 }
 
