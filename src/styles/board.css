@@ -71,6 +71,7 @@
   width: 24px;
   height: 24px;
   border: 0;
+  border-radius: 2px;
   background: #111111;
   color: #ffffff;
   box-shadow: none;
@@ -105,6 +106,7 @@
   background: #fffdf9;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
   padding-top: 22px;
+  border-radius: 0.3px;
 }
 
 .composer-popup .composer-grid {
@@ -415,9 +417,10 @@
 }
 
 .workspace-add {
-  width: 34px;
+  width: 28px;
   height: 34px;
-  border: 0;
+  border: 1px solid rgba(95, 76, 49, 0.18);
+  border-radius: 999px;
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -425,8 +428,8 @@
   display: inline-grid;
   place-items: center;
   flex: 0 0 auto;
-  margin-bottom: -1px;
-  font-size: 1.8rem;
+  margin-bottom: 2px;
+  font-size: 1.15rem;
   line-height: 1;
   font-weight: 400;
 }

@@ -29,6 +29,7 @@
 
 .job-card {
   border: 0;
+  border-radius: 0.3px;
   background:
     linear-gradient(
       0deg,
@@ -128,34 +129,53 @@
 }
 
 .job-card .priority-alert-job {
-  color: #9a5c00;
+  color: #b32020;
   text-decoration: underline;
-  text-decoration-color: rgba(235, 178, 35, 0.62);
+  text-decoration-color: rgba(255, 216, 72, 0.72);
   text-underline-offset: 3px;
-  border-radius: 6px;
-  padding: 4px 12px;
-  margin: -4px -12px;
-  animation: priority-job-flash 1.35s ease-in-out infinite;
+  border-radius: 12px;
+  padding: 5px 14px;
+  margin: -5px -14px;
+  animation: priority-job-flash 0.72s linear infinite;
 }
 
 .job-card .priority-alert-job:hover {
-  color: #f0b900;
+  color: #ffd84a;
   text-decoration-color: currentColor;
-  text-shadow: 0 0 16px rgba(235, 178, 35, 0.75);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.32);
 }
 
 @keyframes priority-job-flash {
-  0%,
-  100% {
-    background-color: rgba(235, 178, 35, 0.16);
-    box-shadow: 0 0 0 rgba(235, 178, 35, 0);
+  0% {
+    color: #ff3b30;
+    background-color: rgba(255, 59, 48, 0.18);
+    box-shadow:
+      0 0 10px 7px rgba(255, 59, 48, 0.16),
+      inset 0 0 18px rgba(255, 59, 48, 0.22);
   }
 
-  50% {
-    background-color: rgba(235, 178, 35, 0.42);
+  33% {
+    color: #21b05b;
+    background-color: rgba(33, 176, 91, 0.18);
     box-shadow:
-      0 0 0 4px rgba(235, 178, 35, 0.16),
-      0 0 22px rgba(235, 178, 35, 0.44);
+      0 0 10px 7px rgba(33, 176, 91, 0.15),
+      inset 0 0 18px rgba(33, 176, 91, 0.22);
+  }
+
+  66% {
+    color: #2077ff;
+    background-color: rgba(32, 119, 255, 0.18);
+    box-shadow:
+      0 0 10px 7px rgba(32, 119, 255, 0.15),
+      inset 0 0 18px rgba(32, 119, 255, 0.22);
+  }
+
+  100% {
+    color: #ff3b30;
+    background-color: rgba(255, 59, 48, 0.18);
+    box-shadow:
+      0 0 10px 7px rgba(255, 59, 48, 0.16),
+      inset 0 0 18px rgba(255, 59, 48, 0.22);
   }
 }
 
@@ -185,7 +205,7 @@
 }
 
 .task-age {
-  color: #6f5c36;
+  color: var(--text);
 }
 
 .missing-box {
@@ -336,7 +356,7 @@
 .pile-area.lane-hold .add-item,
 .pile-area.lane-hold .context-action-button,
 .pile-area.lane-hold .check-context-body {
-  color: rgba(17, 17, 17, 0.42);
+  color: color-mix(in srgb, var(--text) 42%, transparent);
 }
 
 .pile-area.lane-hold .check-mark {
@@ -425,12 +445,12 @@
 
 .checked-manager,
 .check-state-completed {
-  color: rgba(17, 17, 17, 0.42);
+  color: color-mix(in srgb, var(--text) 42%, transparent);
   text-decoration: none;
 }
 
 .checked-staff {
-  color: rgba(17, 17, 17, 0.42);
+  color: color-mix(in srgb, var(--text) 42%, transparent);
   text-decoration: none;
 }
 
@@ -439,7 +459,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #8b6b24;
+  color: var(--text);
   cursor: pointer;
   font-size: var(--font-sm);
   text-transform: uppercase;
@@ -524,7 +544,7 @@
 }
 
 .ghost-button {
-  color: #6f5c36;
+  color: var(--text);
   background: transparent;
   box-shadow: none;
   padding: 0;

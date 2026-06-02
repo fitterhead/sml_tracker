@@ -7,6 +7,7 @@ const HOLD = 'hold';
 const TODO_COLUMN_LIMIT = 2;
 const DEFAULT_PRIORITY = 1;
 const DEFAULT_USER_PREFERENCES = {
+  backgroundColor: '#f6f0df',
   backgroundImage: '',
   cardColor: '#fffdf9',
   textColor: '#111111',

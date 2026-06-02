@@ -970,14 +970,14 @@ function SettingsModal({
         <p className="eyebrow">settings</p>
         <h2>Customize appearance</h2>
         <div className="settings-grid">
-          <label className="field field-full">
-            <span>page background image</span>
+          <label className="field">
+            <span>page background color</span>
             <input
-              value={preferences.backgroundImage}
+              type="color"
+              value={preferences.backgroundColor}
               onChange={(event) =>
-                onChange({ backgroundImage: event.target.value })
+                onChange({ backgroundColor: event.target.value })
               }
-              placeholder="https://..."
             />
           </label>
           <label className="field">
@@ -986,6 +986,16 @@ function SettingsModal({
               type="color"
               value={preferences.cardColor}
               onChange={(event) => onChange({ cardColor: event.target.value })}
+            />
+          </label>
+          <label className="field field-full">
+            <span>page background image</span>
+            <input
+              value={preferences.backgroundImage}
+              onChange={(event) =>
+                onChange({ backgroundImage: event.target.value })
+              }
+              placeholder="https://..."
             />
           </label>
           <label className="field">
@@ -3289,17 +3299,17 @@ function App() {
     [preferenceKey, userPreferences]
   );
   const appAppearanceStyle = {
+    '--bg': appearancePreferences.backgroundColor,
     '--surface': appearancePreferences.cardColor,
     '--text': appearancePreferences.textColor,
     '--muted': appearancePreferences.textColor,
-    ...(appearancePreferences.backgroundImage.trim()
-      ? {
-          backgroundImage: `linear-gradient(rgba(246, 240, 223, 0.78), rgba(246, 240, 223, 0.78)), url("${appearancePreferences.backgroundImage.trim()}")`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed',
-        }
-      : {}),
+    backgroundColor: appearancePreferences.backgroundColor,
+    backgroundImage: appearancePreferences.backgroundImage.trim()
+      ? `linear-gradient(color-mix(in srgb, ${appearancePreferences.backgroundColor} 78%, transparent), color-mix(in srgb, ${appearancePreferences.backgroundColor} 78%, transparent)), url("${appearancePreferences.backgroundImage.trim()}")`
+      : 'none',
+    backgroundSize: appearancePreferences.backgroundImage.trim() ? 'cover' : undefined,
+    backgroundPosition: appearancePreferences.backgroundImage.trim() ? 'center' : undefined,
+    backgroundAttachment: appearancePreferences.backgroundImage.trim() ? 'fixed' : undefined,
   };
 
   const submitComposer = (event) => {
@@ -3794,6 +3804,7 @@ function App() {
         sensors={sensors}
         onDragStart={(event) => {
           const cardId = event.active.id;
+          hideHoverPreview();
           setActiveCardId(cardId);
           setFrontCardId(cardId);
           bringToFront(cardId);
@@ -3828,8 +3839,12 @@ function App() {
           }
 
           setActiveCardId(null);
+          hideHoverPreview();
         }}
-        onDragCancel={() => setActiveCardId(null)}
+        onDragCancel={() => {
+          setActiveCardId(null);
+          hideHoverPreview();
+        }}
       >
         {viewMode === 'all-cards' && expandedSection ? (
           <AllCardsPage
@@ -3912,7 +3927,7 @@ function App() {
         </DragOverlay>
       </DndContext>
 
-      {hoverPreview && hoverPreviewCard ? (
+      {!activeCardId && hoverPreview && hoverPreviewCard ? (
         <div
           className="hover-card-preview"
           style={{
