@@ -152,8 +152,9 @@
       ellipse at center,
       rgba(255, 218, 77, 0.48) 0%,
       rgba(255, 218, 77, 0.24) 34%,
-      rgba(255, 218, 77, 0.08) 62%,
-      transparent 82%
+      rgba(255, 218, 77, 0.06) 58%,
+      rgba(255, 218, 77, 0) 78%,
+      rgba(255, 218, 77, 0) 100%
     );
   filter: blur(18px);
   opacity: 0.78;
@@ -170,20 +171,20 @@
 @keyframes priority-job-flash {
   0% {
     color: #9a6500;
-    background-color: rgba(255, 218, 77, 0.08);
-    box-shadow: inset 0 0 18px rgba(255, 218, 77, 0.12);
+    background-color: transparent;
+    box-shadow: none;
   }
 
   50% {
     color: #d69300;
-    background-color: rgba(255, 218, 77, 0.18);
-    box-shadow: inset 0 0 22px rgba(255, 218, 77, 0.2);
+    background-color: transparent;
+    box-shadow: none;
   }
 
   100% {
     color: #9a6500;
-    background-color: rgba(255, 218, 77, 0.08);
-    box-shadow: inset 0 0 18px rgba(255, 218, 77, 0.12);
+    background-color: transparent;
+    box-shadow: none;
   }
 }
 
