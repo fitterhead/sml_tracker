@@ -1,5 +1,8 @@
+import { useEffect, useMemo, useState } from 'react';
 import { buildTodoSectionId, columnMeta } from '../boardConfig';
 import { useBoardStore } from '../store/useBoardStore';
+
+const ALL_CARDS_PAGE_SIZE = 12;
 
 export function BoardLayout({
   CardSectionComponent,
@@ -137,6 +140,24 @@ export function AllCardsPage({
   onHoverPreviewEnd,
 }) {
   const meta = columnMeta[lane];
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(cards.length / ALL_CARDS_PAGE_SIZE));
+  const pageCards = useMemo(
+    () =>
+      cards.slice(
+        (page - 1) * ALL_CARDS_PAGE_SIZE,
+        page * ALL_CARDS_PAGE_SIZE
+      ),
+    [cards, page]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [lane, title]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   return (
     <main className="all-cards-page">
@@ -150,7 +171,7 @@ export function AllCardsPage({
         </div>
       </div>
       <div className="all-cards-grid">
-        {cards.map((card) => (
+        {pageCards.map((card) => (
           <StaticCardComponent
             key={card.id}
             card={card}
@@ -173,6 +194,41 @@ export function AllCardsPage({
           />
         ))}
       </div>
+      {totalPages > 1 ? (
+        <nav className="all-cards-pagination" aria-label="cards pages">
+          <button
+            type="button"
+            className="ghost-button muted"
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            disabled={page === 1}
+          >
+            previous
+          </button>
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+            (pageNumber) => (
+              <button
+                key={pageNumber}
+                type="button"
+                className={`ghost-button ${pageNumber === page ? 'active' : 'muted'}`}
+                onClick={() => setPage(pageNumber)}
+                aria-current={pageNumber === page ? 'page' : undefined}
+              >
+                {pageNumber}
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            className="ghost-button muted"
+            onClick={() =>
+              setPage((current) => Math.min(totalPages, current + 1))
+            }
+            disabled={page === totalPages}
+          >
+            next
+          </button>
+        </nav>
+      ) : null}
     </main>
   );
 }

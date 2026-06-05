@@ -52,6 +52,7 @@
 }
 
 .search-field {
+  position: relative;
   display: block;
   width: clamp(320px, 28vw, 420px);
   min-width: 0;
@@ -66,11 +67,33 @@
 
 .search-field input {
   width: 100%;
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--space-9) var(--space-3) var(--space-6);
   border: 0;
   background: transparent;
   outline: none;
   font-size: var(--font-md);
+}
+
+.search-clear {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.search-clear:hover,
+.search-clear:focus-visible {
+  color: var(--text);
 }
 
 .search-actions {

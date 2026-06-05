@@ -399,6 +399,15 @@ const triggerActionOnEnter = (event, action) => {
   action();
 };
 
+const getChecklistCreatedTime = (item = {}) => {
+  const value = item.createdAt || item.completedAt || '';
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isNaN(time) ? 0 : time;
+};
+
+const sortChecklistNewestFirst = (checklist = []) =>
+  [...checklist].sort((a, b) => getChecklistCreatedTime(b) - getChecklistCreatedTime(a));
+
 const getChecklistContextHistory = (item = {}) =>
   Array.isArray(item.contextHistory) ? item.contextHistory : [];
 
@@ -548,6 +557,11 @@ function ContextThreadEditor({
 }) {
   const historyEntries = getChecklistContextHistory(item);
   const hasContext = hasChecklistContext(item);
+  const commitContextInput = () => {
+    if (String(inputValue || '').trim()) {
+      onAddContext();
+    }
+  };
 
   return (
     <div className="modal-check-context">
@@ -557,6 +571,8 @@ function ContextThreadEditor({
           <textarea
             value={inputValue || ''}
             onChange={(event) => onInputChange(event.target.value)}
+            onBlur={commitContextInput}
+            onKeyDown={(event) => triggerActionOnEnter(event, commitContextInput)}
             rows={2}
             placeholder="type a context note"
           />
@@ -1297,7 +1313,7 @@ function CardShell({
   const [showChecklistContextField, setShowChecklistContextField] = useState(false);
 
   const submitChecklistItem = (event) => {
-    event.stopPropagation();
+    event?.stopPropagation?.();
     const trimmedText = newChecklistText.trim();
     if (!trimmedText) {
       return;
@@ -1367,7 +1383,7 @@ function CardShell({
         </div>
       ) : (
         <div className="checklist">
-          {card.checklist.map((item) => (
+          {sortChecklistNewestFirst(card.checklist).map((item) => (
             <ChecklistItem
               key={item.id}
               item={item}
@@ -1431,6 +1447,9 @@ function CardShell({
               <input
                 value={newChecklistText}
                 onChange={(event) => setNewChecklistText(event.target.value)}
+                onKeyDown={(event) =>
+                  triggerActionOnEnter(event, () => submitChecklistItem(event))
+                }
                 placeholder="checklist item"
                 autoFocus
               />
@@ -1445,6 +1464,14 @@ function CardShell({
                 <textarea
                   value={newChecklistContext}
                   onChange={(event) => setNewChecklistContext(event.target.value)}
+                  onBlur={() => {
+                    if (newChecklistText.trim() && newChecklistContext.trim()) {
+                      submitChecklistItem();
+                    }
+                  }}
+                  onKeyDown={(event) =>
+                    triggerActionOnEnter(event, () => submitChecklistItem(event))
+                  }
                   placeholder="type a context note"
                   rows={2}
                 />
@@ -1760,7 +1787,6 @@ function CardSection({
 }) {
   const stackLimit = getStackLimit(lane);
   const visibleCards = cards.slice(-stackLimit);
-  const hiddenCount = Math.max(cards.length - stackLimit, 0);
   const pileHeight = getPileHeight(lane, visibleCards.length);
 
   return (
@@ -1783,17 +1809,31 @@ function CardSection({
           <div className="section-title-block">
             <div className="section-title-row">
               <h2>{title || columnMeta[lane].title}</h2>
-              {onDeleteSection ? (
-                <button
-                  type="button"
-                  className="section-delete-button"
-                  onClick={onDeleteSection}
-                  aria-label={`delete ${title || columnMeta[lane].title}`}
-                  title={`delete ${title || columnMeta[lane].title}`}
-                >
-                  delete
-                </button>
-              ) : null}
+              <div className="section-topline-actions">
+                {showSeeMore && cards.length > 0 ? (
+                  <button
+                    type="button"
+                    className="section-see-more-button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onOpenAllCards(sectionId || lane);
+                    }}
+                  >
+                    see more
+                  </button>
+                ) : null}
+                {onDeleteSection ? (
+                  <button
+                    type="button"
+                    className="section-delete-button"
+                    onClick={onDeleteSection}
+                    aria-label={`delete ${title || columnMeta[lane].title}`}
+                    title={`delete ${title || columnMeta[lane].title}`}
+                  >
+                    delete
+                  </button>
+                ) : null}
+              </div>
             </div>
             <span className="section-count">
               {cards.length > 0 ? `${cards.length} cards` : 'no cards'}
@@ -1865,19 +1905,6 @@ function CardSection({
           );
         })}
       </div>
-
-      {showSeeMore && hiddenCount > 0 ? (
-        <button
-          type="button"
-          className="pile-more"
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpenAllCards(sectionId || lane);
-          }}
-        >
-          See more
-        </button>
-      ) : null}
 
     </DropColumn>
   );
@@ -2102,6 +2129,21 @@ function FocusModal({ card, onClose }) {
     if (isDirty) {
       saveChanges();
     }
+  };
+
+  const saveFocusModeOnEnter = (event) => {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.defaultPrevented ||
+      event.target.tagName === 'TEXTAREA' ||
+      event.target.tagName === 'BUTTON'
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    saveChangesFromKeyboard();
   };
 
   const selectedExistingClient = jobOptions.includes(draft.jobName)
@@ -2438,7 +2480,11 @@ function FocusModal({ card, onClose }) {
 
   return (
     <div className="focus-backdrop" onClick={closeFocusModal}>
-      <div className="focus-modal" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="focus-modal"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={saveFocusModeOnEnter}
+      >
         <div className="focus-header">
           <div className="focus-title-line">
             <span>focus mode</span>
@@ -2612,6 +2658,9 @@ function FocusModal({ card, onClose }) {
                   <input
                     value={newDraftChecklistText}
                     onChange={(event) => setNewDraftChecklistText(event.target.value)}
+                    onKeyDown={(event) =>
+                      triggerActionOnEnter(event, addDraftChecklistItem)
+                    }
                     placeholder="checklist item"
                     autoFocus
                   />
@@ -2645,152 +2694,165 @@ function FocusModal({ card, onClose }) {
                     onChange={(event) =>
                       setNewDraftChecklistContext(event.target.value)
                     }
+                    onBlur={() => {
+                      if (
+                        newDraftChecklistText.trim() &&
+                        newDraftChecklistContext.trim()
+                      ) {
+                        addDraftChecklistItem();
+                      }
+                    }}
+                    onKeyDown={(event) =>
+                      triggerActionOnEnter(event, addDraftChecklistItem)
+                    }
                     placeholder="type a context note"
                     rows={2}
                   />
                 ) : null}
               </div>
             ) : null}
-            {draft.checklist.map((item) => (
-              <div className="modal-check-editor" key={item.id}>
-                <div className="modal-check-main">
-                  <div className="dual-checks" aria-label="checklist progress">
-                    <button
-                      type="button"
-                      className="check-toggle"
-                      onClick={() => {
-                        const itemState =
-                          item.state ||
-                          (item.checked
-                            ? CHECKLIST_STATES.COMPLETED
-                            : CHECKLIST_STATES.UNCHECKED);
-                        openDraftChecklistToggle(
-                          item,
-                          itemState === CHECKLIST_STATES.UNCHECKED
-                            ? CHECKLIST_STATES.IN_PROGRESS
-                            : CHECKLIST_STATES.UNCHECKED
-                        );
-                      }}
-                      disabled={card.lane === 'hold'}
-                      aria-label="toggle started"
-                    >
-                      <span
-                        className={`check-mark ${
-                          item.state !== CHECKLIST_STATES.UNCHECKED || item.checked
-                            ? 'started'
-                            : ''
-                        }`}
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      className="check-toggle"
-                      onClick={() => {
-                        const itemState =
-                          item.state ||
-                          (item.checked
-                            ? CHECKLIST_STATES.COMPLETED
-                            : CHECKLIST_STATES.UNCHECKED);
-                        openDraftChecklistToggle(
-                          item,
-                          itemState === CHECKLIST_STATES.COMPLETED
-                            ? CHECKLIST_STATES.IN_PROGRESS
-                            : CHECKLIST_STATES.COMPLETED
-                        );
-                      }}
-                      disabled={card.lane === 'hold'}
-                      aria-label="toggle reviewed"
-                    >
-                      <span
-                        className={`check-mark ${
-                          item.state === CHECKLIST_STATES.COMPLETED || item.checked
-                            ? 'completed'
-                            : ''
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <div className="modal-check-copy">
-                    {editingDraftChecklistId === item.id ? (
-                      <input
-                        value={item.text}
-                        onChange={(event) =>
-                          updateDraftChecklistItem(item.id, event.target.value)
-                        }
-                        onBlur={() => setEditingDraftChecklistId(null)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            setEditingDraftChecklistId(null);
-                          }
-                        }}
-                        className="modal-check-input"
-                        autoFocus
-                      />
-                    ) : (
+            {sortChecklistNewestFirst(draft.checklist).map((item) => {
+              const itemState =
+                item.state ||
+                (item.checked
+                  ? CHECKLIST_STATES.COMPLETED
+                  : CHECKLIST_STATES.UNCHECKED);
+
+              return (
+                <div
+                  className={`modal-check-editor check-state-${itemState}`}
+                  key={item.id}
+                >
+                  <div className="modal-check-main">
+                    <div className="dual-checks" aria-label="checklist progress">
                       <button
                         type="button"
-                        className="modal-check-label-button"
-                        onClick={() => setEditingDraftChecklistId(item.id)}
+                        className="check-toggle"
+                        onClick={() => {
+                          openDraftChecklistToggle(
+                            item,
+                            itemState === CHECKLIST_STATES.UNCHECKED
+                              ? CHECKLIST_STATES.IN_PROGRESS
+                              : CHECKLIST_STATES.UNCHECKED
+                          );
+                        }}
+                        disabled={card.lane === 'hold'}
+                        aria-label="toggle started"
                       >
-                        <HighlightedText text={item.text} />
+                        <span
+                          className={`check-mark ${
+                            itemState !== CHECKLIST_STATES.UNCHECKED
+                              ? 'started'
+                              : ''
+                          }`}
+                        />
                       </button>
-                    )}
-                    {getChecklistContextPreview(item) ? (
-                      <p className="focus-context-inline">
-                        <HighlightedText text={getChecklistContextPreview(item)} />
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="modal-check-actions">
-                    <ContextActionButton
-                      open={Boolean(expandedDraftContexts[item.id])}
-                      hasContext={hasChecklistContext(item)}
-                      onClick={() =>
-                        setExpandedDraftContexts((current) => ({
-                          ...current,
-                          [item.id]: !current[item.id],
-                        }))
-                      }
-                    />
-                    {editingDraftChecklistId !== item.id ? (
+                      <button
+                        type="button"
+                        className="check-toggle"
+                        onClick={() => {
+                          openDraftChecklistToggle(
+                            item,
+                            itemState === CHECKLIST_STATES.COMPLETED
+                              ? CHECKLIST_STATES.IN_PROGRESS
+                              : CHECKLIST_STATES.COMPLETED
+                          );
+                        }}
+                        disabled={card.lane === 'hold'}
+                        aria-label="toggle reviewed"
+                      >
+                        <span
+                          className={`check-mark ${
+                            itemState === CHECKLIST_STATES.COMPLETED
+                              ? 'completed'
+                              : ''
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    <div className="modal-check-copy">
+                      {editingDraftChecklistId === item.id ? (
+                        <input
+                          value={item.text}
+                          onChange={(event) =>
+                            updateDraftChecklistItem(item.id, event.target.value)
+                          }
+                          onBlur={() => setEditingDraftChecklistId(null)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              setEditingDraftChecklistId(null);
+                              saveChangesFromKeyboard();
+                            }
+                          }}
+                          className="modal-check-input"
+                          autoFocus
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="modal-check-label-button"
+                          onClick={() => setEditingDraftChecklistId(item.id)}
+                        >
+                          <HighlightedText text={item.text} />
+                        </button>
+                      )}
+                      {getChecklistContextPreview(item) ? (
+                        <p className="focus-context-inline">
+                          <HighlightedText text={getChecklistContextPreview(item)} />
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="modal-check-actions">
+                      <ContextActionButton
+                        open={Boolean(expandedDraftContexts[item.id])}
+                        hasContext={hasChecklistContext(item)}
+                        onClick={() =>
+                          setExpandedDraftContexts((current) => ({
+                            ...current,
+                            [item.id]: !current[item.id],
+                          }))
+                        }
+                      />
+                      {editingDraftChecklistId !== item.id ? (
+                        <button
+                          type="button"
+                          className="ghost-button muted"
+                          onClick={() => setEditingDraftChecklistId(item.id)}
+                        >
+                          edit
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="ghost-button muted"
-                        onClick={() => setEditingDraftChecklistId(item.id)}
+                        onClick={() =>
+                          setPendingDeleteItem({ id: item.id, text: item.text })
+                        }
                       >
-                        edit
+                        delete
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="ghost-button muted"
-                      onClick={() =>
-                        setPendingDeleteItem({ id: item.id, text: item.text })
-                      }
-                    >
-                      delete
-                    </button>
+                    </div>
                   </div>
+                  {expandedDraftContexts[item.id] ? (
+                    <ContextThreadEditor
+                      item={item}
+                      inputValue={draftContextInputs[item.id] || ''}
+                      onInputChange={(context) =>
+                        updateDraftContextInput(item.id, context)
+                      }
+                      onAddContext={() => addDraftChecklistContext(item.id)}
+                      onDeleteCurrentContext={() =>
+                        deleteDraftCurrentContext(item.id)
+                      }
+                      onDeleteHistoryContext={(index) =>
+                        deleteDraftHistoryContext(item.id, index)
+                      }
+                    />
+                  ) : null}
                 </div>
-                {expandedDraftContexts[item.id] ? (
-                  <ContextThreadEditor
-                    item={item}
-                    inputValue={draftContextInputs[item.id] || ''}
-                    onInputChange={(context) =>
-                      updateDraftContextInput(item.id, context)
-                    }
-                    onAddContext={() => addDraftChecklistContext(item.id)}
-                    onDeleteCurrentContext={() =>
-                      deleteDraftCurrentContext(item.id)
-                    }
-                    onDeleteHistoryContext={(index) =>
-                      deleteDraftHistoryContext(item.id, index)
-                    }
-                  />
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </section>
           <div className="focus-command-row">
             {canMoveToTodo || canMoveToHold || canMoveToFinish ? (

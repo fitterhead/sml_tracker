@@ -54,6 +54,24 @@
   flex: 0 0 auto;
 }
 
+.section-topline-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 0 0 auto;
+}
+
+.section-see-more-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .section-topline p {
   display: none;
 }
@@ -71,7 +89,7 @@
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0.1px;
   background: #111111;
   color: #ffffff;
   box-shadow: none;
@@ -106,7 +124,7 @@
   background: #fffdf9;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
   padding-top: 22px;
-  border-radius: 0.3px;
+  border-radius: 0.1px;
 }
 
 .composer-popup .composer-grid {
@@ -389,7 +407,7 @@
   padding: 0 var(--space-6);
   border: 1px solid transparent;
   border-bottom-color: transparent;
-  border-radius: 10px 10px 0 0;
+  border-radius: 0.1px 0.1px 0 0;
   background: rgba(255, 253, 249, 0.16);
   color: var(--text);
   flex: 0 0 auto;
@@ -421,7 +439,7 @@
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0.1px;
   background: #111111;
   color: #ffffff;
   cursor: pointer;
@@ -529,6 +547,27 @@
   grid-template-columns: repeat(auto-fill, minmax(344px, 1fr));
   gap: 22px;
   margin-top: 22px;
+}
+
+.all-cards-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(95, 76, 49, 0.12);
+  flex-wrap: wrap;
+}
+
+.all-cards-pagination .ghost-button {
+  min-width: 24px;
+}
+
+.all-cards-pagination .ghost-button.active {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
 }
 
 .all-cards-grid .draggable-card,

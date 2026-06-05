@@ -26,7 +26,7 @@
   background: rgba(255, 249, 235, 0.98);
   box-shadow: none;
   border: 1px solid var(--line-soft);
-  border-radius: 0.3px;
+  border-radius: 0.1px;
   animation: modal-rise-in 180ms ease-out;
 }
 
@@ -112,6 +112,7 @@
   box-shadow: inset 0 0 0 1px rgba(90, 72, 48, 0.12);
   font-size: var(--font-md);
   font-family: inherit;
+  border-radius: 0.1px;
 }
 
 .field textarea {
@@ -123,6 +124,7 @@
   font-size: var(--font-md);
   resize: vertical;
   min-height: 96px;
+  border-radius: 0.1px;
 }
 
 .confirm-modal {
@@ -251,6 +253,7 @@
   border: 1px solid rgba(17, 17, 17, 0.34);
   background: #fff;
   display: inline-block;
+  border-radius: 0.1px;
 }
 
 .export-check input:checked + span {

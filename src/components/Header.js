@@ -35,6 +35,17 @@ export default function Header({
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="search projects, clients..."
           />
+          {searchTerm ? (
+            <button
+              type="button"
+              className="search-clear"
+              onClick={() => setSearchTerm('')}
+              aria-label="clear search"
+              title="clear search"
+            >
+              X
+            </button>
+          ) : null}
         </label>
         <div className="search-actions">
           <button
