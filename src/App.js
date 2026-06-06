@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -399,6 +399,46 @@ const triggerActionOnEnter = (event, action) => {
   action();
 };
 
+const selectEditableText = (event) => {
+  const field = event.currentTarget;
+
+  window.requestAnimationFrame(() => {
+    field.select?.();
+  });
+};
+
+const blurActiveInput = () => {
+  if (
+    typeof document !== 'undefined' &&
+    typeof HTMLElement !== 'undefined' &&
+    document.activeElement instanceof HTMLElement
+  ) {
+    document.activeElement.blur();
+  }
+};
+
+const hasTextValueChanged = (nextValue = '', savedValue = '') =>
+  String(nextValue) !== String(savedValue);
+
+function useUnsavedChangesWarning(hasUnsavedChanges) {
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      return undefined;
+    }
+
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', warnBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', warnBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+}
+
 const getChecklistCreatedTime = (item = {}) => {
   const value = item.createdAt || item.completedAt || '';
   const time = value ? new Date(value).getTime() : 0;
@@ -557,9 +597,41 @@ function ContextThreadEditor({
 }) {
   const historyEntries = getChecklistContextHistory(item);
   const hasContext = hasChecklistContext(item);
-  const commitContextInput = () => {
+  const contextInputRef = useRef(null);
+  const skipContextBlurPromptRef = useRef(false);
+  const [showContextUnsavedPrompt, setShowContextUnsavedPrompt] = useState(false);
+  const hasPendingContextInput = Boolean(String(inputValue || '').trim());
+  useUnsavedChangesWarning(hasPendingContextInput);
+
+  const saveContextInput = () => {
+    skipContextBlurPromptRef.current = true;
     if (String(inputValue || '').trim()) {
       onAddContext();
+    }
+    setShowContextUnsavedPrompt(false);
+    contextInputRef.current?.blur();
+    window.setTimeout(() => {
+      skipContextBlurPromptRef.current = false;
+    });
+  };
+
+  const discardContextInput = () => {
+    onInputChange('');
+    setShowContextUnsavedPrompt(false);
+  };
+
+  const cancelContextExit = () => {
+    setShowContextUnsavedPrompt(false);
+    window.requestAnimationFrame(() => contextInputRef.current?.focus());
+  };
+
+  const requestContextExit = () => {
+    if (skipContextBlurPromptRef.current) {
+      return;
+    }
+
+    if (hasPendingContextInput) {
+      setShowContextUnsavedPrompt(true);
     }
   };
 
@@ -569,10 +641,12 @@ function ContextThreadEditor({
         <label className="field field-full modal-check-context-field">
           <span>new context</span>
           <textarea
+            ref={contextInputRef}
             value={inputValue || ''}
             onChange={(event) => onInputChange(event.target.value)}
-            onBlur={commitContextInput}
-            onKeyDown={(event) => triggerActionOnEnter(event, commitContextInput)}
+            onFocus={selectEditableText}
+            onBlur={requestContextExit}
+            onKeyDown={(event) => triggerActionOnEnter(event, saveContextInput)}
             rows={2}
             placeholder="type a context note"
           />
@@ -580,7 +654,8 @@ function ContextThreadEditor({
         <button
           type="button"
           className="ghost-button"
-          onClick={onAddContext}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={saveContextInput}
         >
           add context
         </button>
@@ -639,6 +714,12 @@ function ContextThreadEditor({
           ))}
         {!hasContext ? <p className="context-empty">no context yet</p> : null}
       </div>
+      <UnsavedChangesModal
+        open={showContextUnsavedPrompt}
+        onSave={saveContextInput}
+        onDiscard={discardContextInput}
+        onCancel={cancelContextExit}
+      />
     </div>
   );
 }
@@ -1011,6 +1092,10 @@ function SettingsModal({
               onChange={(event) =>
                 onChange({ backgroundImage: event.target.value })
               }
+              onFocus={selectEditableText}
+              onKeyDown={(event) =>
+                triggerActionOnEnter(event, () => event.currentTarget.blur())
+              }
               placeholder="https://..."
             />
           </label>
@@ -1036,7 +1121,7 @@ function SettingsModal({
   );
 }
 
-function UnsavedChangesModal({ open, onSave, onExit, onCancel }) {
+function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
   if (!open) {
     return null;
   }
@@ -1048,19 +1133,19 @@ function UnsavedChangesModal({ open, onSave, onExit, onCancel }) {
         onClick={(event) => event.stopPropagation()}
       >
         <p className="eyebrow">unsaved changes</p>
-        <h2>do you want to exit?</h2>
+        <h2>save your changes?</h2>
         <p className="confirm-item-text">
-          You have unsaved changes. Save them before leaving, or exit without saving.
+          You have unsaved changes. Save them, discard them, or keep editing.
         </p>
         <div className="focus-actions">
-          <button type="button" className="ghost-button muted" onClick={onExit}>
-            exit
+          <button type="button" className="ghost-button muted" onClick={onDiscard}>
+            Discard Changes
           </button>
           <button type="button" className="ghost-button muted" onClick={onCancel}>
-            stay
+            Cancel
           </button>
           <button type="button" className="ghost-button" onClick={onSave}>
-            save
+            Save Changes
           </button>
         </div>
       </div>
@@ -1107,6 +1192,7 @@ function LoginGate({
             <input
               value={form.name}
               onChange={(event) => onFormChange('name', event.target.value)}
+              onFocus={selectEditableText}
               autoComplete="name"
               required
             />
@@ -1119,6 +1205,7 @@ function LoginGate({
             inputMode="email"
             value={form.email}
             onChange={(event) => onFormChange('email', event.target.value)}
+            onFocus={selectEditableText}
             autoComplete="email"
             required
           />
@@ -1129,6 +1216,7 @@ function LoginGate({
             type="password"
             value={form.password}
             onChange={(event) => onFormChange('password', event.target.value)}
+            onFocus={selectEditableText}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             minLength={8}
             required
@@ -1311,6 +1399,14 @@ function CardShell({
   const [newChecklistText, setNewChecklistText] = useState('');
   const [newChecklistContext, setNewChecklistContext] = useState('');
   const [showChecklistContextField, setShowChecklistContextField] = useState(false);
+  const [showComposerUnsavedPrompt, setShowComposerUnsavedPrompt] = useState(false);
+  const inlineComposerRef = useRef(null);
+  const inlineChecklistInputRef = useRef(null);
+  const skipInlineComposerPromptRef = useRef(false);
+  const hasInlineComposerContent = Boolean(
+    newChecklistText.trim() || newChecklistContext.trim()
+  );
+  useUnsavedChangesWarning(hasInlineComposerContent);
 
   const submitChecklistItem = (event) => {
     event?.stopPropagation?.();
@@ -1319,6 +1415,7 @@ function CardShell({
       return;
     }
 
+    skipInlineComposerPromptRef.current = true;
     onAddChecklistItem({
       text: trimmedText,
       context: newChecklistContext,
@@ -1327,6 +1424,42 @@ function CardShell({
     setNewChecklistContext('');
     setShowChecklistContextField(false);
     setShowAddChecklistComposer(false);
+    setShowComposerUnsavedPrompt(false);
+    window.setTimeout(() => {
+      skipInlineComposerPromptRef.current = false;
+    });
+  };
+
+  const discardChecklistComposer = () => {
+    setShowAddChecklistComposer(false);
+    setNewChecklistText('');
+    setNewChecklistContext('');
+    setShowChecklistContextField(false);
+    setShowComposerUnsavedPrompt(false);
+  };
+
+  const cancelChecklistComposerExit = () => {
+    setShowComposerUnsavedPrompt(false);
+    window.requestAnimationFrame(() => inlineChecklistInputRef.current?.focus());
+  };
+
+  const requestChecklistComposerExit = () => {
+    window.setTimeout(() => {
+      if (
+        skipInlineComposerPromptRef.current ||
+        inlineComposerRef.current?.contains(document.activeElement) ||
+        showComposerUnsavedPrompt
+      ) {
+        return;
+      }
+
+      if (hasInlineComposerContent) {
+        setShowComposerUnsavedPrompt(true);
+        return;
+      }
+
+      setShowAddChecklistComposer(false);
+    });
   };
 
   if (isCompact) {
@@ -1441,12 +1574,16 @@ function CardShell({
         <div className="card-add-area">
           {showAddChecklistComposer ? (
             <div
+              ref={inlineComposerRef}
               className="inline-checklist-composer"
               onClick={(event) => event.stopPropagation()}
+              onBlurCapture={requestChecklistComposerExit}
             >
               <input
+                ref={inlineChecklistInputRef}
                 value={newChecklistText}
                 onChange={(event) => setNewChecklistText(event.target.value)}
+                onFocus={selectEditableText}
                 onKeyDown={(event) =>
                   triggerActionOnEnter(event, () => submitChecklistItem(event))
                 }
@@ -1464,11 +1601,7 @@ function CardShell({
                 <textarea
                   value={newChecklistContext}
                   onChange={(event) => setNewChecklistContext(event.target.value)}
-                  onBlur={() => {
-                    if (newChecklistText.trim() && newChecklistContext.trim()) {
-                      submitChecklistItem();
-                    }
-                  }}
+                  onFocus={selectEditableText}
                   onKeyDown={(event) =>
                     triggerActionOnEnter(event, () => submitChecklistItem(event))
                   }
@@ -1482,10 +1615,7 @@ function CardShell({
                   className="ghost-button muted"
                   onClick={(event) => {
                     event.stopPropagation();
-                    setShowAddChecklistComposer(false);
-                    setNewChecklistText('');
-                    setNewChecklistContext('');
-                    setShowChecklistContextField(false);
+                    discardChecklistComposer();
                   }}
                 >CANCEL</button>
                 <button
@@ -1496,6 +1626,12 @@ function CardShell({
                   add
                 </button>
               </div>
+              <UnsavedChangesModal
+                open={showComposerUnsavedPrompt}
+                onSave={submitChecklistItem}
+                onDiscard={discardChecklistComposer}
+                onCancel={cancelChecklistComposerExit}
+              />
             </div>
           ) : (
             <button
@@ -1562,6 +1698,7 @@ function ChecklistItemModal({
           <input
             value={item.text}
             onChange={(event) => onTextChange(event.target.value)}
+            onFocus={selectEditableText}
             autoFocus
           />
         </label>
@@ -1944,6 +2081,7 @@ function CreateCardPopup({
               onKeyDown={(event) =>
                 triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
+              onFocus={selectEditableText}
               placeholder="project name"
             />
           </label>
@@ -1985,6 +2123,7 @@ function CreateCardPopup({
                 onKeyDown={(event) =>
                   triggerActionOnEnter(event, submitComposerFromKeyboard)
                 }
+                onFocus={selectEditableText}
                 placeholder="new client name"
               />
             </label>
@@ -2003,6 +2142,7 @@ function CreateCardPopup({
               onKeyDown={(event) =>
                 triggerActionOnEnter(event, submitComposerFromKeyboard)
               }
+              onFocus={selectEditableText}
             />
           </label>
         </div>
@@ -2045,6 +2185,11 @@ function FocusModal({ card, onClose }) {
   const [editingFocusField, setEditingFocusField] = useState('');
   const [showClientRename, setShowClientRename] = useState(false);
   const [showUnsavedExit, setShowUnsavedExit] = useState(false);
+  const [fieldUnsavedPrompt, setFieldUnsavedPrompt] = useState(null);
+  const focusFieldRefs = useRef({});
+  const draftChecklistComposerRef = useRef(null);
+  const draftChecklistInputRef = useRef(null);
+  const skipDraftChecklistComposerPromptRef = useRef(false);
 
   useEffect(() => {
     if (!card) {
@@ -2083,13 +2228,18 @@ function FocusModal({ card, onClose }) {
     setShowUnsavedExit(false);
   }, [card]);
 
+  const cleanCardDraft = card ? buildDraftFromCard(card) : null;
+  const isDirty =
+    Boolean(card && draft) &&
+    JSON.stringify(cleanCardDraft) !== JSON.stringify(draft);
+  const hasDraftChecklistComposerContent = Boolean(
+    newDraftChecklistText.trim() || newDraftChecklistContext.trim()
+  );
+  useUnsavedChangesWarning(isDirty || hasDraftChecklistComposerContent);
+
   if (!card || !draft) {
     return null;
   }
-
-  const cleanCardDraft = buildDraftFromCard(card);
-  const isDirty =
-    JSON.stringify(cleanCardDraft) !== JSON.stringify(draft);
 
   const saveChanges = () => {
     const nextLane =
@@ -2129,6 +2279,121 @@ function FocusModal({ card, onClose }) {
     if (isDirty) {
       saveChanges();
     }
+  };
+
+  const closeFieldUnsavedPrompt = () => setFieldUnsavedPrompt(null);
+
+  const requestUnsavedFieldExit = ({
+    hasChanges,
+    onSave,
+    onDiscard,
+    onCancel,
+  }) => {
+    if (fieldUnsavedPrompt) {
+      return;
+    }
+
+    if (!hasChanges) {
+      onDiscard();
+      return;
+    }
+
+    setFieldUnsavedPrompt({
+      onSave: () => {
+        onSave();
+        closeFieldUnsavedPrompt();
+      },
+      onDiscard: () => {
+        onDiscard();
+        closeFieldUnsavedPrompt();
+      },
+      onCancel: () => {
+        closeFieldUnsavedPrompt();
+        onCancel?.();
+      },
+    });
+  };
+
+  const getSavedFocusFieldValue = (field) => cleanCardDraft[field] || '';
+
+  const discardFocusFieldEdit = (field) => {
+    setDraft((current) => ({
+      ...current,
+      [field]: getSavedFocusFieldValue(field),
+    }));
+    setEditingFocusField('');
+  };
+
+  const saveFocusFieldEdit = () => {
+    saveChangesFromKeyboard();
+    setEditingFocusField('');
+    blurActiveInput();
+  };
+
+  const requestFocusFieldExit = (field) => {
+    requestUnsavedFieldExit({
+      hasChanges: hasTextValueChanged(draft[field] || '', getSavedFocusFieldValue(field)),
+      onSave: saveFocusFieldEdit,
+      onDiscard: () => discardFocusFieldEdit(field),
+      onCancel: () =>
+        window.requestAnimationFrame(() =>
+          focusFieldRefs.current[field]?.focus()
+        ),
+    });
+  };
+
+  const getSavedDraftChecklistText = (itemId) =>
+    cleanCardDraft.checklist.find((item) => item.id === itemId)?.text || '';
+
+  const requestDraftChecklistTextExit = (itemId) => {
+    const item = draft.checklist.find((entry) => entry.id === itemId);
+    const savedText = getSavedDraftChecklistText(itemId);
+
+    requestUnsavedFieldExit({
+      hasChanges: hasTextValueChanged(item?.text || '', savedText),
+      onSave: () => {
+        saveChangesFromKeyboard();
+        setEditingDraftChecklistId(null);
+        blurActiveInput();
+      },
+      onDiscard: () => {
+        updateDraftChecklistItem(itemId, savedText);
+        setEditingDraftChecklistId(null);
+      },
+      onCancel: () =>
+        window.requestAnimationFrame(() =>
+          focusFieldRefs.current[`checklist-${itemId}`]?.focus()
+        ),
+    });
+  };
+
+  const discardDraftChecklistComposer = () => {
+    setShowAddDraftChecklistComposer(false);
+    setNewDraftChecklistText('');
+    setNewDraftChecklistContext('');
+    setShowNewDraftChecklistContext(false);
+  };
+
+  const requestDraftChecklistComposerExit = () => {
+    window.setTimeout(() => {
+      if (
+        skipDraftChecklistComposerPromptRef.current ||
+        draftChecklistComposerRef.current?.contains(document.activeElement) ||
+        fieldUnsavedPrompt
+      ) {
+        return;
+      }
+
+      requestUnsavedFieldExit({
+        hasChanges: hasDraftChecklistComposerContent,
+        onSave: addDraftChecklistItem,
+        onDiscard: discardDraftChecklistComposer,
+        onCancel: () =>
+          window.requestAnimationFrame(() =>
+            draftChecklistInputRef.current?.focus()
+          ),
+      });
+    });
   };
 
   const saveFocusModeOnEnter = (event) => {
@@ -2436,6 +2701,7 @@ function FocusModal({ card, onClose }) {
       return;
     }
 
+    skipDraftChecklistComposerPromptRef.current = true;
     const tempId = `draft-${Date.now()}`;
     setDraft((current) => ({
       ...current,
@@ -2466,6 +2732,9 @@ function FocusModal({ card, onClose }) {
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
     setShowNewDraftChecklistContext(false);
+    window.setTimeout(() => {
+      skipDraftChecklistComposerPromptRef.current = false;
+    });
   };
 
   const confirmDeleteCard = () => {
@@ -2509,6 +2778,9 @@ function FocusModal({ card, onClose }) {
                 <span>project name</span>
                 {editingFocusField === 'taskName' ? (
                   <input
+                    ref={(node) => {
+                      focusFieldRefs.current.taskName = node;
+                    }}
                     value={draft.taskName}
                     onChange={(event) =>
                       setDraft((current) => ({
@@ -2516,11 +2788,11 @@ function FocusModal({ card, onClose }) {
                         taskName: event.target.value,
                       }))
                     }
-                    onBlur={() => setEditingFocusField('')}
+                    onFocus={selectEditableText}
+                    onBlur={() => requestFocusFieldExit('taskName')}
                     onKeyDown={(event) => {
-                      triggerActionOnEnter(event, saveChangesFromKeyboard);
-                      if (event.key === 'Enter') {
-                        setEditingFocusField('');
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        triggerActionOnEnter(event, saveFocusFieldEdit);
                       }
                     }}
                     autoFocus
@@ -2547,7 +2819,7 @@ function FocusModal({ card, onClose }) {
                         setClientRenameDraft(nextJobName);
                       }}
                       onKeyDown={(event) =>
-                        triggerActionOnEnter(event, saveChangesFromKeyboard)
+                        triggerActionOnEnter(event, saveFocusFieldEdit)
                       }
                       autoFocus
                     >
@@ -2561,6 +2833,9 @@ function FocusModal({ card, onClose }) {
                     </select>
                     {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
                       <input
+                        ref={(node) => {
+                          focusFieldRefs.current.jobName = node;
+                        }}
                         value={draft.jobName}
                         onChange={(event) =>
                           setDraft((current) => ({
@@ -2568,11 +2843,11 @@ function FocusModal({ card, onClose }) {
                             jobName: event.target.value,
                           }))
                         }
-                        onBlur={() => setEditingFocusField('')}
+                        onFocus={selectEditableText}
+                        onBlur={() => requestFocusFieldExit('jobName')}
                         onKeyDown={(event) => {
-                          triggerActionOnEnter(event, saveChangesFromKeyboard);
-                          if (event.key === 'Enter') {
-                            setEditingFocusField('');
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            triggerActionOnEnter(event, saveFocusFieldEdit);
                           }
                         }}
                       />
@@ -2588,6 +2863,9 @@ function FocusModal({ card, onClose }) {
                 <span>start date</span>
                 {editingFocusField === 'startDate' ? (
                   <input
+                    ref={(node) => {
+                      focusFieldRefs.current.startDate = node;
+                    }}
                     type="date"
                     value={draft.startDate}
                     onChange={(event) =>
@@ -2596,11 +2874,11 @@ function FocusModal({ card, onClose }) {
                         startDate: event.target.value,
                       }))
                     }
-                    onBlur={() => setEditingFocusField('')}
+                    onFocus={selectEditableText}
+                    onBlur={() => requestFocusFieldExit('startDate')}
                     onKeyDown={(event) => {
-                      triggerActionOnEnter(event, saveChangesFromKeyboard);
-                      if (event.key === 'Enter') {
-                        setEditingFocusField('');
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        triggerActionOnEnter(event, saveFocusFieldEdit);
                       }
                     }}
                     autoFocus
@@ -2624,16 +2902,52 @@ function FocusModal({ card, onClose }) {
             {showClientRename && selectedExistingClient ? (
               <div className="client-rename-row">
                 <input
+                  ref={(node) => {
+                    focusFieldRefs.current.clientRename = node;
+                  }}
                   value={clientRenameDraft}
                   onChange={(event) => setClientRenameDraft(event.target.value)}
-                  onKeyDown={(event) =>
-                    triggerActionOnEnter(event, renameSelectedClient)
-                  }
+                  onFocus={selectEditableText}
+                  onBlur={() => {
+                    requestUnsavedFieldExit({
+                      hasChanges: hasTextValueChanged(
+                        clientRenameDraft,
+                        selectedExistingClient
+                      ),
+                      onSave: () => {
+                        renameSelectedClient();
+                        setShowClientRename(false);
+                        blurActiveInput();
+                      },
+                      onDiscard: () => {
+                        setClientRenameDraft(selectedExistingClient);
+                        setShowClientRename(false);
+                      },
+                      onCancel: () =>
+                        window.requestAnimationFrame(() =>
+                          focusFieldRefs.current.clientRename?.focus()
+                        ),
+                    });
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      triggerActionOnEnter(event, () => {
+                        renameSelectedClient();
+                        setShowClientRename(false);
+                        blurActiveInput();
+                      });
+                    }
+                  }}
                 />
                 <button
                   type="button"
                   className="ghost-button"
-                  onClick={renameSelectedClient}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    renameSelectedClient();
+                    setShowClientRename(false);
+                    blurActiveInput();
+                  }}
                   disabled={!clientRenameDraft.trim()}
                 >
                   rename
@@ -2653,11 +2967,17 @@ function FocusModal({ card, onClose }) {
               </button>
             </div>
             {showAddDraftChecklistComposer ? (
-              <div className="modal-check-composer">
+              <div
+                ref={draftChecklistComposerRef}
+                className="modal-check-composer"
+                onBlurCapture={requestDraftChecklistComposerExit}
+              >
                 <div className="modal-check-composer-row">
                   <input
+                    ref={draftChecklistInputRef}
                     value={newDraftChecklistText}
                     onChange={(event) => setNewDraftChecklistText(event.target.value)}
+                    onFocus={selectEditableText}
                     onKeyDown={(event) =>
                       triggerActionOnEnter(event, addDraftChecklistItem)
                     }
@@ -2680,12 +3000,7 @@ function FocusModal({ card, onClose }) {
                   <button
                     type="button"
                     className="ghost-button muted"
-                    onClick={() => {
-                      setShowAddDraftChecklistComposer(false);
-                      setNewDraftChecklistText('');
-                      setNewDraftChecklistContext('');
-                      setShowNewDraftChecklistContext(false);
-                    }}
+                    onClick={discardDraftChecklistComposer}
                   >CANCEL</button>
                 </div>
                 {showNewDraftChecklistContext ? (
@@ -2694,14 +3009,7 @@ function FocusModal({ card, onClose }) {
                     onChange={(event) =>
                       setNewDraftChecklistContext(event.target.value)
                     }
-                    onBlur={() => {
-                      if (
-                        newDraftChecklistText.trim() &&
-                        newDraftChecklistContext.trim()
-                      ) {
-                        addDraftChecklistItem();
-                      }
-                    }}
+                    onFocus={selectEditableText}
                     onKeyDown={(event) =>
                       triggerActionOnEnter(event, addDraftChecklistItem)
                     }
@@ -2773,16 +3081,21 @@ function FocusModal({ card, onClose }) {
                     <div className="modal-check-copy">
                       {editingDraftChecklistId === item.id ? (
                         <input
+                          ref={(node) => {
+                            focusFieldRefs.current[`checklist-${item.id}`] = node;
+                          }}
                           value={item.text}
                           onChange={(event) =>
                             updateDraftChecklistItem(item.id, event.target.value)
                           }
-                          onBlur={() => setEditingDraftChecklistId(null)}
+                          onFocus={selectEditableText}
+                          onBlur={() => requestDraftChecklistTextExit(item.id)}
                           onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
+                            if (event.key === 'Enter' && !event.shiftKey) {
                               event.preventDefault();
-                              setEditingDraftChecklistId(null);
                               saveChangesFromKeyboard();
+                              setEditingDraftChecklistId(null);
+                              blurActiveInput();
                             }
                           }}
                           className="modal-check-input"
@@ -2906,11 +3219,29 @@ function FocusModal({ card, onClose }) {
                   onClose();
                 }}
               >CANCEL</button>
-              <button type="button" className="ghost-button" onClick={saveChanges}>SAVE</button>
+              <button
+                type="button"
+                className="ghost-button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  saveChanges();
+                  setEditingFocusField('');
+                  setEditingDraftChecklistId(null);
+                  blurActiveInput();
+                }}
+              >
+                SAVE
+              </button>
             </div>
           ) : null}
         </div>
       </div>
+      <UnsavedChangesModal
+        open={Boolean(fieldUnsavedPrompt)}
+        onSave={() => fieldUnsavedPrompt?.onSave()}
+        onDiscard={() => fieldUnsavedPrompt?.onDiscard()}
+        onCancel={() => fieldUnsavedPrompt?.onCancel()}
+      />
       <ChecklistConfirmModal
         key={
           pendingToggle
@@ -2945,7 +3276,7 @@ function FocusModal({ card, onClose }) {
       <UnsavedChangesModal
         open={showUnsavedExit}
         onSave={saveAndCloseFocusModal}
-        onExit={() => {
+        onDiscard={() => {
           setShowUnsavedExit(false);
           onClose();
         }}
@@ -2964,6 +3295,13 @@ function WorkspaceTabs({
 }) {
   const [editingId, setEditingId] = useState(null);
   const [draftName, setDraftName] = useState('');
+  const [showRenameUnsavedPrompt, setShowRenameUnsavedPrompt] = useState(false);
+  const renameInputRef = useRef(null);
+  const editingWorkspace = workspaces.find((workspace) => workspace.id === editingId);
+  const savedWorkspaceName = editingWorkspace?.name || '';
+  const hasRenameChanges =
+    editingId && hasTextValueChanged(draftName, savedWorkspaceName);
+  useUnsavedChangesWarning(Boolean(hasRenameChanges));
 
   const startRename = (workspace) => {
     setEditingId(workspace.id);
@@ -2976,6 +3314,28 @@ function WorkspaceTabs({
     }
     setEditingId(null);
     setDraftName('');
+    setShowRenameUnsavedPrompt(false);
+    blurActiveInput();
+  };
+
+  const discardRename = () => {
+    setEditingId(null);
+    setDraftName('');
+    setShowRenameUnsavedPrompt(false);
+  };
+
+  const cancelRenameExit = () => {
+    setShowRenameUnsavedPrompt(false);
+    window.requestAnimationFrame(() => renameInputRef.current?.focus());
+  };
+
+  const requestRenameExit = () => {
+    if (hasRenameChanges) {
+      setShowRenameUnsavedPrompt(true);
+      return;
+    }
+
+    discardRename();
   };
 
   return (
@@ -2992,13 +3352,15 @@ function WorkspaceTabs({
           >
             {editingId === workspace.id ? (
               <input
+                ref={renameInputRef}
                 value={draftName}
                 onChange={(event) => setDraftName(event.target.value)}
                 onClick={(event) => event.stopPropagation()}
                 onDoubleClick={(event) => event.stopPropagation()}
-                onBlur={commitRename}
+                onFocus={selectEditableText}
+                onBlur={requestRenameExit}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
+                  if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
                     commitRename();
                   }
@@ -3026,6 +3388,12 @@ function WorkspaceTabs({
           +
         </button>
       </div>
+      <UnsavedChangesModal
+        open={showRenameUnsavedPrompt}
+        onSave={commitRename}
+        onDiscard={discardRename}
+        onCancel={cancelRenameExit}
+      />
     </nav>
   );
 }
@@ -3411,6 +3779,7 @@ function App() {
         composerDraft.jobName.trim() ||
         composerDraft.startDate
     );
+  useUnsavedChangesWarning(showComposer && hasComposerDraftContent());
 
   const closeComposerFromBackdrop = () => {
     if (hasComposerDraftContent()) {
@@ -3645,6 +4014,7 @@ function App() {
         JSON.stringify(editingChecklistTarget.originalContextHistory || [])
     );
   };
+  useUnsavedChangesWarning(isChecklistEditorDirty());
 
   const requestCloseChecklistEditor = () => {
     if (isChecklistEditorDirty()) {
@@ -4030,7 +4400,7 @@ function App() {
       <UnsavedChangesModal
         open={showComposerUnsavedPrompt}
         onSave={() => submitComposer({ preventDefault() {} })}
-        onExit={discardComposerDraft}
+        onDiscard={discardComposerDraft}
         onCancel={() => setShowComposerUnsavedPrompt(false)}
       />
 
@@ -4066,7 +4436,7 @@ function App() {
       <UnsavedChangesModal
         open={showChecklistUnsavedPrompt}
         onSave={saveChecklistEditor}
-        onExit={() => {
+        onDiscard={() => {
           setShowChecklistUnsavedPrompt(false);
           setEditingChecklistTarget(null);
         }}

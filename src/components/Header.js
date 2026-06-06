@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 
 export default function Header({
@@ -17,6 +17,14 @@ export default function Header({
   const currentUser = useBoardStore((state) => state.currentUser);
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  const clearSearch = () => {
+    setSearchTerm('');
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
+  const selectSearchText = (event) => {
+    window.requestAnimationFrame(() => event.currentTarget.select());
+  };
 
   return (
     <header className="app-header">
@@ -31,15 +39,24 @@ export default function Header({
         <label className="search-field">
           <span>search</span>
           <input
+            ref={searchInputRef}
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
+            onFocus={selectSearchText}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                clearSearch();
+              }
+            }}
             placeholder="search projects, clients..."
           />
           {searchTerm ? (
             <button
               type="button"
               className="search-clear"
-              onClick={() => setSearchTerm('')}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={clearSearch}
               aria-label="clear search"
               title="clear search"
             >
