@@ -474,6 +474,10 @@ const addContextToChecklistItem = (item = {}, noteValue = '', actor = '') => {
     return item;
   }
 
+  if (item.context?.trim() === note) {
+    return item;
+  }
+
   const previousContext = item.context?.trim()
     ? [
         {
@@ -599,11 +603,17 @@ function ContextThreadEditor({
   const hasContext = hasChecklistContext(item);
   const contextInputRef = useRef(null);
   const skipContextBlurPromptRef = useRef(false);
+  const savingContextRef = useRef(false);
   const [showContextUnsavedPrompt, setShowContextUnsavedPrompt] = useState(false);
   const hasPendingContextInput = Boolean(String(inputValue || '').trim());
   useUnsavedChangesWarning(hasPendingContextInput);
 
   const saveContextInput = () => {
+    if (savingContextRef.current) {
+      return;
+    }
+
+    savingContextRef.current = true;
     skipContextBlurPromptRef.current = true;
     if (String(inputValue || '').trim()) {
       onAddContext();
@@ -612,6 +622,7 @@ function ContextThreadEditor({
     contextInputRef.current?.blur();
     window.setTimeout(() => {
       skipContextBlurPromptRef.current = false;
+      savingContextRef.current = false;
     });
   };
 
@@ -1462,6 +1473,20 @@ function CardShell({
     });
   };
 
+  const saveInlineChecklistComposerOnEnter = (event) => {
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      event.defaultPrevented ||
+      !newChecklistText.trim()
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    submitChecklistItem(event);
+  };
+
   if (isCompact) {
     return (
       <article
@@ -1578,6 +1603,7 @@ function CardShell({
               className="inline-checklist-composer"
               onClick={(event) => event.stopPropagation()}
               onBlurCapture={requestChecklistComposerExit}
+              onKeyDown={saveInlineChecklistComposerOnEnter}
             >
               <input
                 ref={inlineChecklistInputRef}
@@ -2402,13 +2428,21 @@ function FocusModal({ card, onClose }) {
       event.shiftKey ||
       event.defaultPrevented ||
       event.target.tagName === 'TEXTAREA' ||
-      event.target.tagName === 'BUTTON'
+      (!isDirty && !hasDraftChecklistComposerContent)
     ) {
       return;
     }
 
     event.preventDefault();
+    if (hasDraftChecklistComposerContent) {
+      addDraftChecklistItem();
+      return;
+    }
+
     saveChangesFromKeyboard();
+    setEditingFocusField('');
+    setEditingDraftChecklistId(null);
+    blurActiveInput();
   };
 
   const selectedExistingClient = jobOptions.includes(draft.jobName)
