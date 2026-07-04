@@ -972,6 +972,33 @@ function ReopenDoneCardModal({ open, onConfirm, onCancel }) {
 }
 
 function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
+  const confirmButtonRef = useRef(null);
+
+  const confirmDelete = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    onConfirm();
+  }, [onConfirm]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    window.requestAnimationFrame(() => confirmButtonRef.current?.focus());
+
+    const confirmOnEnter = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+        return;
+      }
+
+      confirmDelete(event);
+    };
+
+    window.addEventListener('keydown', confirmOnEnter, true);
+    return () => window.removeEventListener('keydown', confirmOnEnter, true);
+  }, [confirmDelete, open]);
+
   if (!open) {
     return null;
   }
@@ -981,6 +1008,13 @@ function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
       <div
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
+        onKeyDownCapture={(event) => {
+          if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+            return;
+          }
+
+          confirmDelete(event);
+        }}
       >
         <p className="eyebrow">delete checklist item</p>
         <h2>do you want to delete this item?</h2>
@@ -989,7 +1023,12 @@ function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
         </p>
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
-          <button type="button" className="ghost-button" onClick={onConfirm}>
+          <button
+            ref={confirmButtonRef}
+            type="button"
+            className="ghost-button"
+            onClick={confirmDelete}
+          >
             delete
           </button>
         </div>
@@ -999,6 +1038,33 @@ function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
 }
 
 function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
+  const confirmButtonRef = useRef(null);
+
+  const confirmDelete = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    onConfirm();
+  }, [onConfirm]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    window.requestAnimationFrame(() => confirmButtonRef.current?.focus());
+
+    const confirmOnEnter = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+        return;
+      }
+
+      confirmDelete(event);
+    };
+
+    window.addEventListener('keydown', confirmOnEnter, true);
+    return () => window.removeEventListener('keydown', confirmOnEnter, true);
+  }, [confirmDelete, open]);
+
   if (!open) {
     return null;
   }
@@ -1008,6 +1074,13 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
       <div
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
+        onKeyDownCapture={(event) => {
+          if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+            return;
+          }
+
+          confirmDelete(event);
+        }}
       >
         <p className="eyebrow">delete card</p>
         <h2>do you want to delete this card?</h2>
@@ -1016,7 +1089,12 @@ function DeleteCardModal({ open, cardTitle, onConfirm, onCancel }) {
         </p>
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
-          <button type="button" className="ghost-button" onClick={onConfirm}>
+          <button
+            ref={confirmButtonRef}
+            type="button"
+            className="ghost-button"
+            onClick={confirmDelete}
+          >
             delete
           </button>
         </div>
@@ -2429,6 +2507,22 @@ function FocusModal({ card, onClose }) {
     });
   };
 
+  const saveDraftChecklistComposerAndClose = () => {
+    const nextDraft = buildDraftWithNewChecklistItem();
+    if (!nextDraft) {
+      return;
+    }
+
+    skipDraftChecklistComposerPromptRef.current = true;
+    skipFocusBlurPromptRef.current = true;
+    saveCardDraft(nextDraft);
+    clearDraftChecklistComposer();
+    exitFocusModeAfterKeyboardSave();
+    window.setTimeout(() => {
+      skipDraftChecklistComposerPromptRef.current = false;
+    });
+  };
+
   const buildDraftWithChecklistItem = (itemId, patch) => ({
     ...draft,
     checklist: draft.checklist.map((item) =>
@@ -2873,62 +2967,22 @@ function FocusModal({ card, onClose }) {
     }));
   };
 
-  const deleteDraftChecklistItem = (itemId) => {
-    setDraft((current) => ({
-      ...current,
-      checklist: current.checklist.filter((item) => item.id !== itemId),
-    }));
-  };
-
   const confirmDeleteDraftChecklistItem = () => {
     if (!pendingDeleteItem) {
       return;
     }
 
-    deleteDraftChecklistItem(pendingDeleteItem.id);
+    const nextDraft = {
+      ...draft,
+      checklist: draft.checklist.filter(
+        (item) => item.id !== pendingDeleteItem.id
+      ),
+    };
+
+    skipFocusBlurPromptRef.current = true;
+    saveCardDraft(nextDraft);
     setPendingDeleteItem(null);
-  };
-
-  const addDraftChecklistItem = () => {
-    const trimmedText = newDraftChecklistText.trim();
-    if (!trimmedText) {
-      return;
-    }
-
-    skipDraftChecklistComposerPromptRef.current = true;
-    const tempId = `draft-${Date.now()}`;
-    setDraft((current) => ({
-      ...current,
-      checklist: [
-        ...current.checklist,
-        {
-          id: tempId,
-          text: trimmedText,
-          state: CHECKLIST_STATES.UNCHECKED,
-          checked: false,
-          checkedBy: null,
-          createdAt: new Date().toISOString(),
-          completedAt: '',
-          context: newDraftChecklistContext.trim(),
-          contextCreatedAt: newDraftChecklistContext.trim()
-            ? new Date().toISOString()
-            : '',
-          contextCompletedAt: '',
-          contextCreatedBy: newDraftChecklistContext.trim()
-            ? getContextActor(currentUser)
-            : '',
-          contextHistory: [],
-          createdBy: useBoardStore.getState().currentUser.role,
-        },
-      ],
-    }));
-    setShowAddDraftChecklistComposer(false);
-    setNewDraftChecklistText('');
-    setNewDraftChecklistContext('');
-    setShowNewDraftChecklistContext(false);
-    window.setTimeout(() => {
-      skipDraftChecklistComposerPromptRef.current = false;
-    });
+    exitFocusModeAfterKeyboardSave();
   };
 
   const confirmDeleteCard = () => {
@@ -3175,7 +3229,7 @@ function FocusModal({ card, onClose }) {
                     onChange={(event) => setNewDraftChecklistText(event.target.value)}
                     onFocus={selectEditableText}
                     onKeyDown={(event) =>
-                      triggerActionOnEnter(event, addDraftChecklistItem)
+                      triggerActionOnEnter(event, saveDraftChecklistComposer)
                     }
                     placeholder="checklist item"
                     autoFocus
@@ -3189,7 +3243,7 @@ function FocusModal({ card, onClose }) {
                   <button
                     type="button"
                     className="ghost-button"
-                    onClick={addDraftChecklistItem}
+                    onClick={saveDraftChecklistComposerAndClose}
                   >
                     add
                   </button>
@@ -3207,7 +3261,7 @@ function FocusModal({ card, onClose }) {
                     }
                     onFocus={selectEditableText}
                     onKeyDown={(event) =>
-                      triggerActionOnEnter(event, addDraftChecklistItem)
+                      triggerActionOnEnter(event, saveDraftChecklistComposer)
                     }
                     placeholder="type a context note"
                     rows={2}
