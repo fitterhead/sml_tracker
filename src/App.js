@@ -2305,20 +2305,24 @@ function FocusModal({ card, onClose }) {
     return null;
   }
 
-  const saveChanges = () => {
+  const saveCardDraft = (nextDraft = draft) => {
     const nextLane =
-      card.lane === 'hold' && draft.checklist.length > card.checklist.length
+      card.lane === 'hold' && nextDraft.checklist.length > card.checklist.length
         ? 'active'
         : card.lane;
 
     updateCard(card.id, {
-      taskName: draft.taskName,
-      jobName: draft.jobName,
-      startDate: draft.startDate,
-      priority: draft.priority,
+      taskName: nextDraft.taskName,
+      jobName: nextDraft.jobName,
+      startDate: nextDraft.startDate,
+      priority: nextDraft.priority,
       lane: nextLane,
-      checklist: draft.checklist,
+      checklist: nextDraft.checklist,
     });
+  };
+
+  const saveChanges = () => {
+    saveCardDraft();
   };
 
   const closeFocusModal = () => {
@@ -2343,6 +2347,67 @@ function FocusModal({ card, onClose }) {
     if (isDirty) {
       saveChanges();
     }
+  };
+
+  const exitFocusModeAfterKeyboardSave = () => {
+    setEditingFocusField('');
+    setEditingDraftChecklistId(null);
+    setFieldUnsavedPrompt(null);
+    setShowUnsavedExit(false);
+    blurActiveInput();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
+    });
+    onClose();
+  };
+
+  const saveAndCloseFocusModeFromKeyboard = () => {
+    skipFocusBlurPromptRef.current = true;
+    saveChangesFromKeyboard();
+    exitFocusModeAfterKeyboardSave();
+  };
+
+  const saveDraftChecklistComposerAndClose = () => {
+    const trimmedText = newDraftChecklistText.trim();
+    if (!trimmedText) {
+      return;
+    }
+
+    const context = newDraftChecklistContext.trim();
+    const createdAt = new Date().toISOString();
+    const nextDraft = {
+      ...draft,
+      checklist: [
+        ...draft.checklist,
+        {
+          id: `draft-${Date.now()}`,
+          text: trimmedText,
+          state: CHECKLIST_STATES.UNCHECKED,
+          checked: false,
+          checkedBy: null,
+          createdAt,
+          completedAt: '',
+          context,
+          contextCreatedAt: context ? createdAt : '',
+          contextCompletedAt: '',
+          contextCreatedBy: context ? getContextActor(currentUser) : '',
+          contextHistory: [],
+          createdBy: useBoardStore.getState().currentUser.role,
+        },
+      ],
+    };
+
+    skipDraftChecklistComposerPromptRef.current = true;
+    skipFocusBlurPromptRef.current = true;
+    saveCardDraft(nextDraft);
+    setShowAddDraftChecklistComposer(false);
+    setNewDraftChecklistText('');
+    setNewDraftChecklistContext('');
+    setShowNewDraftChecklistContext(false);
+    exitFocusModeAfterKeyboardSave();
+    window.setTimeout(() => {
+      skipDraftChecklistComposerPromptRef.current = false;
+    });
   };
 
   const closeFieldUnsavedPrompt = () => setFieldUnsavedPrompt(null);
@@ -2388,15 +2453,8 @@ function FocusModal({ card, onClose }) {
     setEditingFocusField('');
   };
 
-  const saveFocusFieldEdit = () => {
-    skipFocusBlurPromptRef.current = true;
-    saveChangesFromKeyboard();
-    setEditingFocusField('');
-    setFieldUnsavedPrompt(null);
-    blurActiveInput();
-    window.setTimeout(() => {
-      skipFocusBlurPromptRef.current = false;
-    });
+  const saveFocusFieldEditAndClose = () => {
+    saveAndCloseFocusModeFromKeyboard();
   };
 
   const requestFocusFieldExit = (field) => {
@@ -2406,7 +2464,7 @@ function FocusModal({ card, onClose }) {
 
     requestUnsavedFieldExit({
       hasChanges: hasTextValueChanged(draft[field] || '', getSavedFocusFieldValue(field)),
-      onSave: saveFocusFieldEdit,
+      onSave: saveFocusFieldEditAndClose,
       onDiscard: () => discardFocusFieldEdit(field),
       onCancel: () =>
         window.requestAnimationFrame(() =>
@@ -2418,15 +2476,8 @@ function FocusModal({ card, onClose }) {
   const getSavedDraftChecklistText = (itemId) =>
     cleanCardDraft.checklist.find((item) => item.id === itemId)?.text || '';
 
-  const saveDraftChecklistTextEdit = () => {
-    skipFocusBlurPromptRef.current = true;
-    saveChangesFromKeyboard();
-    setEditingDraftChecklistId(null);
-    setFieldUnsavedPrompt(null);
-    blurActiveInput();
-    window.setTimeout(() => {
-      skipFocusBlurPromptRef.current = false;
-    });
+  const saveDraftChecklistTextEditAndClose = () => {
+    saveAndCloseFocusModeFromKeyboard();
   };
 
   const requestDraftChecklistTextExit = (itemId) => {
@@ -2439,7 +2490,7 @@ function FocusModal({ card, onClose }) {
 
     requestUnsavedFieldExit({
       hasChanges: hasTextValueChanged(item?.text || '', savedText),
-      onSave: saveDraftChecklistTextEdit,
+      onSave: saveDraftChecklistTextEditAndClose,
       onDiscard: () => {
         updateDraftChecklistItem(itemId, savedText);
         setEditingDraftChecklistId(null);
@@ -2470,7 +2521,7 @@ function FocusModal({ card, onClose }) {
 
       requestUnsavedFieldExit({
         hasChanges: hasDraftChecklistComposerContent,
-        onSave: addDraftChecklistItem,
+        onSave: saveDraftChecklistComposerAndClose,
         onDiscard: discardDraftChecklistComposer,
         onCancel: () =>
           window.requestAnimationFrame(() =>
@@ -2493,23 +2544,11 @@ function FocusModal({ card, onClose }) {
 
     event.preventDefault();
     if (hasDraftChecklistComposerContent) {
-      skipFocusBlurPromptRef.current = true;
-      addDraftChecklistItem();
-      window.setTimeout(() => {
-        skipFocusBlurPromptRef.current = false;
-      });
+      saveDraftChecklistComposerAndClose();
       return;
     }
 
-    skipFocusBlurPromptRef.current = true;
-    saveChangesFromKeyboard();
-    setEditingFocusField('');
-    setEditingDraftChecklistId(null);
-    setFieldUnsavedPrompt(null);
-    blurActiveInput();
-    window.setTimeout(() => {
-      skipFocusBlurPromptRef.current = false;
-    });
+    saveAndCloseFocusModeFromKeyboard();
   };
 
   const selectedExistingClient = jobOptions.includes(draft.jobName)
@@ -2893,7 +2932,7 @@ function FocusModal({ card, onClose }) {
                     onBlur={() => requestFocusFieldExit('taskName')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
-                        triggerActionOnEnter(event, saveFocusFieldEdit);
+                        triggerActionOnEnter(event, saveFocusFieldEditAndClose);
                       }
                     }}
                     autoFocus
@@ -2920,7 +2959,7 @@ function FocusModal({ card, onClose }) {
                         setClientRenameDraft(nextJobName);
                       }}
                       onKeyDown={(event) =>
-                        triggerActionOnEnter(event, saveFocusFieldEdit)
+                        triggerActionOnEnter(event, saveFocusFieldEditAndClose)
                       }
                       autoFocus
                     >
@@ -2948,7 +2987,7 @@ function FocusModal({ card, onClose }) {
                         onBlur={() => requestFocusFieldExit('jobName')}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.shiftKey) {
-                            triggerActionOnEnter(event, saveFocusFieldEdit);
+                            triggerActionOnEnter(event, saveFocusFieldEditAndClose);
                           }
                         }}
                       />
@@ -2979,7 +3018,7 @@ function FocusModal({ card, onClose }) {
                     onBlur={() => requestFocusFieldExit('startDate')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
-                        triggerActionOnEnter(event, saveFocusFieldEdit);
+                        triggerActionOnEnter(event, saveFocusFieldEditAndClose);
                       }
                     }}
                     autoFocus
@@ -3194,7 +3233,7 @@ function FocusModal({ card, onClose }) {
                           onKeyDown={(event) => {
                             if (event.key === 'Enter' && !event.shiftKey) {
                               event.preventDefault();
-                              saveDraftChecklistTextEdit();
+                              saveDraftChecklistTextEditAndClose();
                             }
                           }}
                           className="modal-check-input"
