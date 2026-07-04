@@ -22,7 +22,6 @@ import {
   formatCardDisplayDate,
   formatChecklistTimeline,
   formatContextHistoryTimeline,
-  getCardAgeWarmth,
   getPileHeight,
   getPileLayout,
   getStackLimit,
@@ -1133,6 +1132,24 @@ function SettingsModal({
 }
 
 function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const confirmOnEnter = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+        return;
+      }
+
+      event.preventDefault();
+      onSave();
+    };
+
+    window.addEventListener('keydown', confirmOnEnter);
+    return () => window.removeEventListener('keydown', confirmOnEnter);
+  }, [open, onSave]);
+
   if (!open) {
     return null;
   }
@@ -1142,6 +1159,15 @@ function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
       <div
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          onSave();
+        }}
       >
         <p className="eyebrow">unsaved changes</p>
         <h2>save your changes?</h2>
@@ -1401,10 +1427,6 @@ function CardShell({
   const isOnHold = cardZone === 'hold';
   const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
   const isTopPriority = Number(card.priority) >= 5;
-  const ageWarmth = getCardAgeWarmth(card.createdAt, cardZone);
-  const cardStyle = {
-    '--age-warmth': ageWarmth,
-  };
   const [expandedContexts, setExpandedContexts] = useState({});
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
@@ -1491,7 +1513,6 @@ function CardShell({
     return (
       <article
         className={`job-card compact-card ${isOverlay ? 'overlay' : ''}`}
-        style={cardStyle}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
       >
@@ -1513,7 +1534,6 @@ function CardShell({
   return (
     <article
       className={`job-card ${isOverlay ? 'overlay' : ''}`}
-      style={cardStyle}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -1950,6 +1970,11 @@ function CardSection({
 }) {
   const stackLimit = getStackLimit(lane);
   const visibleCards = cards.slice(-stackLimit);
+  const shouldShowSeeMore =
+    showSeeMore &&
+    (lane === 'done' || lane === 'hold'
+      ? cards.length > stackLimit
+      : cards.length > 0);
   const pileHeight = getPileHeight(lane, visibleCards.length);
 
   return (
@@ -1973,7 +1998,7 @@ function CardSection({
             <div className="section-title-row">
               <h2>{title || columnMeta[lane].title}</h2>
               <div className="section-topline-actions">
-                {showSeeMore && cards.length > 0 ? (
+                {shouldShowSeeMore ? (
                   <button
                     type="button"
                     className="section-see-more-button"
@@ -2353,6 +2378,7 @@ function FocusModal({ card, onClose }) {
   const saveFocusFieldEdit = () => {
     saveChangesFromKeyboard();
     setEditingFocusField('');
+    setFieldUnsavedPrompt(null);
     blurActiveInput();
   };
 

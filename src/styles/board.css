@@ -549,27 +549,6 @@
   margin-top: 22px;
 }
 
-.all-cards-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-5);
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(95, 76, 49, 0.12);
-  flex-wrap: wrap;
-}
-
-.all-cards-pagination .ghost-button {
-  min-width: 24px;
-}
-
-.all-cards-pagination .ghost-button.active {
-  color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 0.12em;
-}
-
 .all-cards-grid .draggable-card,
 .all-cards-grid .job-card {
   width: 100%;

@@ -1,6 +1,6 @@
 export const STACK_LIMIT = 5;
 export const TODO_STACK_LIMIT = 1000;
-export const COMPACT_STACK_LIMIT = 6;
+export const COMPACT_STACK_LIMIT = 20;
 const TODO_CARD_HEIGHT = 316;
 const TODO_STACK_BASE_VISIBLE_STEP = 34;
 const TODO_STACK_MIN_VISIBLE_STEP = 24;
@@ -87,21 +87,6 @@ export const formatCardAge = (value) => {
 
   const yearCount = Math.floor(monthCount / 12);
   return `${yearCount} ${yearCount === 1 ? 'year' : 'years'}`;
-};
-
-export const getCardAgeWarmth = (value, lane = 'active') => {
-  if (lane === 'done') {
-    return 0;
-  }
-
-  const createdDate = new Date(value || Date.now());
-  if (Number.isNaN(createdDate.getTime())) {
-    return 0;
-  }
-
-  const dayMs = 24 * 60 * 60 * 1000;
-  const dayCount = Math.max(0, Math.floor((Date.now() - createdDate.getTime()) / dayMs));
-  return Math.min(dayCount / 100, 1);
 };
 
 export const formatCardDisplayDate = (startDate, createdAt) => {

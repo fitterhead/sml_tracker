@@ -30,13 +30,7 @@
 .job-card {
   border: 0;
   border-radius: 0.1px;
-  background:
-    linear-gradient(
-      0deg,
-      rgba(238, 124, 45, calc(var(--age-warmth, 0) * 0.34)),
-      rgba(238, 124, 45, calc(var(--age-warmth, 0) * 0.34))
-    ),
-    var(--surface);
+  background: var(--surface);
   padding: 12px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
   cursor: default;
