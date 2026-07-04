@@ -2645,6 +2645,15 @@ function FocusModal({ card, onClose }) {
     });
   };
 
+  const saveFieldUnsavedPromptAndClose = () => {
+    if (!fieldUnsavedPrompt) {
+      return;
+    }
+
+    fieldUnsavedPrompt.onSave();
+    onClose();
+  };
+
   const getSavedFocusFieldValue = (field) => cleanCardDraft[field] || '';
 
   const discardFocusFieldEdit = (field) => {
@@ -3508,12 +3517,7 @@ function FocusModal({ card, onClose }) {
                 type="button"
                 className="ghost-button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  saveChanges();
-                  setEditingFocusField('');
-                  setEditingDraftChecklistId(null);
-                  blurActiveInput();
-                }}
+                onClick={saveAndCloseFocusModeFromKeyboard}
               >
                 SAVE
               </button>
@@ -3523,7 +3527,7 @@ function FocusModal({ card, onClose }) {
       </div>
       <UnsavedChangesModal
         open={Boolean(fieldUnsavedPrompt)}
-        onSave={() => fieldUnsavedPrompt?.onSave()}
+        onSave={saveFieldUnsavedPromptAndClose}
         onDiscard={() => fieldUnsavedPrompt?.onDiscard()}
         onCancel={() => fieldUnsavedPrompt?.onCancel()}
       />
