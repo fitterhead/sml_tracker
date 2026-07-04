@@ -2577,6 +2577,41 @@ function FocusModal({ card, onClose }) {
     });
   };
 
+  const savePendingDraftContextsAndClose = () => {
+    const contextEntries = Object.entries(draftContextInputs)
+      .map(([itemId, note]) => [itemId, String(note || '').trim()])
+      .filter(([, note]) => note);
+
+    if (!contextEntries.length) {
+      saveAndCloseFocusModeFromKeyboard();
+      return;
+    }
+
+    const contextByItemId = new Map(contextEntries);
+    const nextDraft = {
+      ...draft,
+      checklist: draft.checklist.map((item) => {
+        const note = contextByItemId.get(item.id);
+
+        return note
+          ? addContextToChecklistItem(item, note, getContextActor(currentUser))
+          : item;
+      }),
+    };
+
+    skipFocusBlurPromptRef.current = true;
+    saveCardDraft(nextDraft);
+    setDraftContextInputs((current) =>
+      Object.fromEntries(
+        Object.entries(current).map(([itemId, note]) => [
+          itemId,
+          contextByItemId.has(itemId) ? '' : note,
+        ])
+      )
+    );
+    exitFocusModeAfterKeyboardSave();
+  };
+
   const closeFieldUnsavedPrompt = () => setFieldUnsavedPrompt(null);
 
   const requestUnsavedFieldExit = ({
@@ -2698,28 +2733,30 @@ function FocusModal({ card, onClose }) {
     if (
       event.key !== 'Enter' ||
       event.shiftKey ||
-      event.defaultPrevented ||
-      event.target.tagName === 'TEXTAREA'
+      event.defaultPrevented
     ) {
       return;
     }
 
-    if (!isDirty && !hasDraftChecklistComposerContent) {
-      if (event.target === event.currentTarget) {
-        event.preventDefault();
-        onClose();
-      }
-
-      return;
-    }
-
     event.preventDefault();
+    event.stopPropagation();
+
     if (hasDraftChecklistComposerContent) {
-      saveDraftChecklistComposer();
+      saveDraftChecklistComposerAndClose();
       return;
     }
 
-    saveAndCloseFocusModeFromKeyboard();
+    if (Object.values(draftContextInputs).some((value) => String(value || '').trim())) {
+      savePendingDraftContextsAndClose();
+      return;
+    }
+
+    if (isDirty) {
+      saveAndCloseFocusModeFromKeyboard();
+      return;
+    }
+
+    onClose();
   };
 
   const selectedExistingClient = jobOptions.includes(draft.jobName)
@@ -3002,7 +3039,7 @@ function FocusModal({ card, onClose }) {
         className="focus-modal"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={saveFocusModeOnEnter}
+        onKeyDownCapture={saveFocusModeOnEnter}
       >
         <div className="focus-header">
           <div className="focus-title-line">
