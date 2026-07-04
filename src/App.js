@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -1132,23 +1132,32 @@ function SettingsModal({
 }
 
 function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
+  const saveButtonRef = useRef(null);
+
+  const confirmSave = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    onSave();
+  }, [onSave]);
+
   useEffect(() => {
     if (!open) {
       return undefined;
     }
+
+    window.requestAnimationFrame(() => saveButtonRef.current?.focus());
 
     const confirmOnEnter = (event) => {
       if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
         return;
       }
 
-      event.preventDefault();
-      onSave();
+      confirmSave(event);
     };
 
-    window.addEventListener('keydown', confirmOnEnter);
-    return () => window.removeEventListener('keydown', confirmOnEnter);
-  }, [open, onSave]);
+    window.addEventListener('keydown', confirmOnEnter, true);
+    return () => window.removeEventListener('keydown', confirmOnEnter, true);
+  }, [confirmSave, open]);
 
   if (!open) {
     return null;
@@ -1159,14 +1168,12 @@ function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
       <div
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
+        onKeyDownCapture={(event) => {
           if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
             return;
           }
 
-          event.preventDefault();
-          event.stopPropagation();
-          onSave();
+          confirmSave(event);
         }}
       >
         <p className="eyebrow">unsaved changes</p>
@@ -1181,7 +1188,12 @@ function UnsavedChangesModal({ open, onSave, onDiscard, onCancel }) {
           <button type="button" className="ghost-button muted" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="ghost-button" onClick={onSave}>
+          <button
+            ref={saveButtonRef}
+            type="button"
+            className="ghost-button"
+            onClick={confirmSave}
+          >
             Save Changes
           </button>
         </div>
@@ -2241,6 +2253,7 @@ function FocusModal({ card, onClose }) {
   const draftChecklistComposerRef = useRef(null);
   const draftChecklistInputRef = useRef(null);
   const skipDraftChecklistComposerPromptRef = useRef(false);
+  const skipFocusBlurPromptRef = useRef(false);
 
   useEffect(() => {
     if (!card) {
@@ -2376,13 +2389,21 @@ function FocusModal({ card, onClose }) {
   };
 
   const saveFocusFieldEdit = () => {
+    skipFocusBlurPromptRef.current = true;
     saveChangesFromKeyboard();
     setEditingFocusField('');
     setFieldUnsavedPrompt(null);
     blurActiveInput();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
+    });
   };
 
   const requestFocusFieldExit = (field) => {
+    if (skipFocusBlurPromptRef.current) {
+      return;
+    }
+
     requestUnsavedFieldExit({
       hasChanges: hasTextValueChanged(draft[field] || '', getSavedFocusFieldValue(field)),
       onSave: saveFocusFieldEdit,
@@ -2397,17 +2418,28 @@ function FocusModal({ card, onClose }) {
   const getSavedDraftChecklistText = (itemId) =>
     cleanCardDraft.checklist.find((item) => item.id === itemId)?.text || '';
 
+  const saveDraftChecklistTextEdit = () => {
+    skipFocusBlurPromptRef.current = true;
+    saveChangesFromKeyboard();
+    setEditingDraftChecklistId(null);
+    setFieldUnsavedPrompt(null);
+    blurActiveInput();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
+    });
+  };
+
   const requestDraftChecklistTextExit = (itemId) => {
+    if (skipFocusBlurPromptRef.current) {
+      return;
+    }
+
     const item = draft.checklist.find((entry) => entry.id === itemId);
     const savedText = getSavedDraftChecklistText(itemId);
 
     requestUnsavedFieldExit({
       hasChanges: hasTextValueChanged(item?.text || '', savedText),
-      onSave: () => {
-        saveChangesFromKeyboard();
-        setEditingDraftChecklistId(null);
-        blurActiveInput();
-      },
+      onSave: saveDraftChecklistTextEdit,
       onDiscard: () => {
         updateDraftChecklistItem(itemId, savedText);
         setEditingDraftChecklistId(null);
@@ -2461,14 +2493,23 @@ function FocusModal({ card, onClose }) {
 
     event.preventDefault();
     if (hasDraftChecklistComposerContent) {
+      skipFocusBlurPromptRef.current = true;
       addDraftChecklistItem();
+      window.setTimeout(() => {
+        skipFocusBlurPromptRef.current = false;
+      });
       return;
     }
 
+    skipFocusBlurPromptRef.current = true;
     saveChangesFromKeyboard();
     setEditingFocusField('');
     setEditingDraftChecklistId(null);
+    setFieldUnsavedPrompt(null);
     blurActiveInput();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
+    });
   };
 
   const selectedExistingClient = jobOptions.includes(draft.jobName)
@@ -3153,9 +3194,7 @@ function FocusModal({ card, onClose }) {
                           onKeyDown={(event) => {
                             if (event.key === 'Enter' && !event.shiftKey) {
                               event.preventDefault();
-                              saveChangesFromKeyboard();
-                              setEditingDraftChecklistId(null);
-                              blurActiveInput();
+                              saveDraftChecklistTextEdit();
                             }
                           }}
                           className="modal-check-input"
