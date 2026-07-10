@@ -305,7 +305,7 @@ test('focus mode completion phases archive prior checklist items', async () => {
   const focusModal = await screen.findByText(/focus mode/i);
   const focusScope = within(focusModal.closest('.focus-modal'));
 
-  fireEvent.click(focusScope.getByRole('button', { name: 'V' }));
+  fireEvent.click(focusScope.getByRole('button', { name: /completion options/i }));
   fireEvent.click(focusScope.getByRole('menuitem', { name: /add completion date/i }));
   fireEvent.change(screen.getByLabelText(/completion date/i), {
     target: { value: '2026-06-03' },

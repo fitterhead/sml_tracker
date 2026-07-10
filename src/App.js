@@ -3502,11 +3502,12 @@ function FocusModal({ card, onClose }) {
                   <button
                     type="button"
                     className="completion-menu-trigger"
+                    aria-label="completion options"
                     aria-haspopup="menu"
                     aria-expanded={showCompletionMenu}
                     onClick={() => setShowCompletionMenu((current) => !current)}
                   >
-                    V
+                    <span aria-hidden="true">⌄</span>
                   </button>
                   {showCompletionMenu ? (
                     <div className="completion-menu" role="menu">
