@@ -52,6 +52,10 @@ const CHECKLIST_STATES = {
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
 };
+const CHECKLIST_ITEM_TYPES = {
+  TASK: 'task',
+  COMPLETION: 'completion',
+};
 const SORT_OPTIONS = [
   { value: 'client-az', label: 'Sort by client name A -> Z' },
   { value: 'client-za', label: 'Sort by client name Z -> A' },
@@ -460,6 +464,77 @@ const getChecklistCreatedTime = (item = {}) => {
 
 const sortChecklistNewestFirst = (checklist = []) =>
   [...checklist].sort((a, b) => getChecklistCreatedTime(b) - getChecklistCreatedTime(a));
+
+const isCompletionChecklistItem = (item = {}) =>
+  item.type === CHECKLIST_ITEM_TYPES.COMPLETION;
+
+const isActiveChecklistItem = (item = {}) =>
+  !isCompletionChecklistItem(item) && !item.archivedInCompletionId;
+
+const getActiveChecklistItems = (checklist = []) =>
+  checklist.filter(isActiveChecklistItem);
+
+const formatPhaseDate = (value = '') => {
+  if (!value) {
+    return '';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10).replaceAll('-', '/');
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(date)
+    .replaceAll('-', '/');
+};
+
+const getPhaseDurationDays = (startValue = '', endValue = '') => {
+  const parseDateTime = (value) => {
+    if (!value) {
+      return Number.NaN;
+    }
+
+    return new Date(
+      /^\d{4}-\d{2}-\d{2}/.test(value)
+        ? `${value.slice(0, 10)}T00:00:00`
+        : value
+    ).getTime();
+  };
+  const startTime = parseDateTime(startValue);
+  const endTime = parseDateTime(endValue);
+
+  if (Number.isNaN(startTime) || Number.isNaN(endTime)) {
+    return null;
+  }
+
+  return Math.max(0, Math.round((endTime - startTime) / 86400000));
+};
+
+const formatCompletionPhaseLabel = (item = {}) => {
+  const durationDays = getPhaseDurationDays(item.createdAt, item.completedAt);
+  const durationText = durationDays === null
+    ? ''
+    : ` (${durationDays} ${durationDays === 1 ? 'day' : 'days'})`;
+
+  return [
+    `phase ${item.phaseNumber || 1}:`,
+    formatPhaseDate(item.createdAt),
+    '-',
+    formatPhaseDate(item.completedAt),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .concat(durationText);
+};
 
 const getChecklistContextHistory = (item = {}) =>
   Array.isArray(item.contextHistory) ? item.contextHistory : [];
@@ -1527,6 +1602,7 @@ function CardShell({
   onEditChecklistItem,
 }) {
   const missingFields = getMissingFields(card);
+  const visibleChecklist = getActiveChecklistItems(card.checklist);
   const cardZone = getCardZone(card);
   const isOnHold = cardZone === 'hold';
   const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
@@ -1665,7 +1741,7 @@ function CardShell({
         </div>
       ) : (
         <div className="checklist">
-          {sortChecklistNewestFirst(card.checklist).map((item) => (
+          {sortChecklistNewestFirst(visibleChecklist).map((item) => (
             <ChecklistItem
               key={item.id}
               item={item}
@@ -2331,6 +2407,11 @@ function FocusModal({ card, onClose }) {
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [pendingDeleteCard, setPendingDeleteCard] = useState(false);
   const [showAddDraftChecklistComposer, setShowAddDraftChecklistComposer] = useState(false);
+  const [showCompletionMenu, setShowCompletionMenu] = useState(false);
+  const [showCompletionComposer, setShowCompletionComposer] = useState(false);
+  const [completionEndDate, setCompletionEndDate] = useState('');
+  const [completionContext, setCompletionContext] = useState('');
+  const [expandedCompletionIds, setExpandedCompletionIds] = useState({});
   const [newDraftChecklistText, setNewDraftChecklistText] = useState('');
   const [newDraftChecklistContext, setNewDraftChecklistContext] = useState('');
   const [showNewDraftChecklistContext, setShowNewDraftChecklistContext] = useState(false);
@@ -2356,6 +2437,11 @@ function FocusModal({ card, onClose }) {
       setPendingDeleteItem(null);
       setPendingDeleteCard(false);
       setShowAddDraftChecklistComposer(false);
+      setShowCompletionMenu(false);
+      setShowCompletionComposer(false);
+      setCompletionEndDate('');
+      setCompletionContext('');
+      setExpandedCompletionIds({});
       setNewDraftChecklistText('');
       setNewDraftChecklistContext('');
       setShowNewDraftChecklistContext(false);
@@ -2374,6 +2460,11 @@ function FocusModal({ card, onClose }) {
     setPendingDeleteItem(null);
     setPendingDeleteCard(false);
     setShowAddDraftChecklistComposer(false);
+    setShowCompletionMenu(false);
+    setShowCompletionComposer(false);
+    setCompletionEndDate('');
+    setCompletionContext('');
+    setExpandedCompletionIds({});
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
     setShowNewDraftChecklistContext(false);
@@ -2392,15 +2483,22 @@ function FocusModal({ card, onClose }) {
   const hasDraftChecklistComposerContent = Boolean(
     newDraftChecklistText.trim() || newDraftChecklistContext.trim()
   );
-  useUnsavedChangesWarning(isDirty || hasDraftChecklistComposerContent);
+  const hasCompletionComposerContent = Boolean(
+    completionEndDate || completionContext.trim()
+  );
+  useUnsavedChangesWarning(
+    isDirty || hasDraftChecklistComposerContent || hasCompletionComposerContent
+  );
 
   if (!card || !draft) {
     return null;
   }
 
   const saveCardDraft = (nextDraft = draft) => {
+    const currentActiveChecklistCount = getActiveChecklistItems(card.checklist).length;
+    const nextActiveChecklistCount = getActiveChecklistItems(nextDraft.checklist).length;
     const nextLane =
-      card.lane === 'hold' && nextDraft.checklist.length > card.checklist.length
+      card.lane === 'hold' && nextActiveChecklistCount > currentActiveChecklistCount
         ? 'active'
         : card.lane;
 
@@ -2547,6 +2645,100 @@ function FocusModal({ card, onClose }) {
     exitFocusModeAfterKeyboardSave();
     window.setTimeout(() => {
       skipDraftChecklistComposerPromptRef.current = false;
+    });
+  };
+
+  const openCompletionComposer = () => {
+    setShowCompletionMenu(false);
+    setShowAddDraftChecklistComposer(false);
+    setShowCompletionComposer(true);
+  };
+
+  const discardCompletionComposer = () => {
+    setShowCompletionComposer(false);
+    setCompletionEndDate('');
+    setCompletionContext('');
+  };
+
+  const buildDraftWithCompletionPhase = () => {
+    if (!completionEndDate) {
+      return null;
+    }
+
+    const phaseItems = getActiveChecklistItems(draft.checklist);
+    if (!phaseItems.length) {
+      return null;
+    }
+
+    const createdAt =
+      phaseItems
+        .map((item) => item.createdAt || item.completedAt || '')
+        .filter(Boolean)
+        .sort()[0] || new Date().toISOString();
+    const phaseNumber =
+      draft.checklist.filter(isCompletionChecklistItem).length + 1;
+    const phaseId = `completion-${Date.now()}`;
+    const phaseItemIds = phaseItems.map((item) => item.id);
+    const completionItem = {
+      id: phaseId,
+      type: CHECKLIST_ITEM_TYPES.COMPLETION,
+      text: `phase ${phaseNumber}`,
+      state: CHECKLIST_STATES.COMPLETED,
+      checked: false,
+      checkedBy: null,
+      createdAt,
+      completedAt: completionEndDate,
+      context: completionContext.trim(),
+      contextCreatedAt: completionContext.trim() ? createdAt : '',
+      contextCompletedAt: completionEndDate,
+      contextCreatedBy: completionContext.trim() ? getContextActor(currentUser) : '',
+      contextHistory: [],
+      createdBy: useBoardStore.getState().currentUser.role,
+      phaseNumber,
+      phaseItemIds,
+      phaseItems: phaseItems.map((item) => ({
+        id: item.id,
+        text: item.text,
+        state: item.state,
+        checked: item.checked,
+        checkedBy: item.checkedBy,
+        createdAt: item.createdAt,
+        completedAt: item.completedAt,
+        context: item.context || '',
+      })),
+    };
+
+    return {
+      ...draft,
+      checklist: [
+        ...draft.checklist.map((item) =>
+          phaseItemIds.includes(item.id)
+            ? { ...item, archivedInCompletionId: phaseId }
+            : item
+        ),
+        completionItem,
+      ],
+    };
+  };
+
+  const saveCompletionPhase = () => {
+    const nextDraft = buildDraftWithCompletionPhase();
+    if (!nextDraft) {
+      return;
+    }
+
+    skipFocusBlurPromptRef.current = true;
+    saveCardDraft(nextDraft);
+    setDraft(nextDraft);
+    discardCompletionComposer();
+    setExpandedCompletionIds((current) => ({
+      ...current,
+      [nextDraft.checklist[nextDraft.checklist.length - 1].id]: false,
+    }));
+    blurActiveInput();
+    refocusFocusModal();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
     });
   };
 
@@ -3045,11 +3237,18 @@ function FocusModal({ card, onClose }) {
       return;
     }
 
+    const isDeletingCompletion = isCompletionChecklistItem(
+      draft.checklist.find((item) => item.id === pendingDeleteItem.id)
+    );
     const nextDraft = {
       ...draft,
-      checklist: draft.checklist.filter(
-        (item) => item.id !== pendingDeleteItem.id
-      ),
+      checklist: draft.checklist
+        .filter((item) => item.id !== pendingDeleteItem.id)
+        .map((item) =>
+          isDeletingCompletion && item.archivedInCompletionId === pendingDeleteItem.id
+            ? { ...item, archivedInCompletionId: '' }
+            : item
+        ),
     };
 
     skipFocusBlurPromptRef.current = true;
@@ -3067,6 +3266,12 @@ function FocusModal({ card, onClose }) {
   const displayStartDate = draft.startDate
     ? formatCardDisplayDate(draft.startDate)
     : 'no date';
+  const visibleFocusChecklist = sortChecklistNewestFirst(
+    draft.checklist.filter(
+      (item) => isCompletionChecklistItem(item) || isActiveChecklistItem(item)
+    )
+  );
+  const hasActiveChecklistItems = getActiveChecklistItems(draft.checklist).length > 0;
 
   return (
     <div className="focus-backdrop" onClick={closeFocusModal}>
@@ -3282,12 +3487,41 @@ function FocusModal({ card, onClose }) {
           <section className="modal-checklist focus-checklist">
             <div className="modal-section-header">
               <h3>checklist</h3>
-              <button
-                type="button"
-                onClick={() => setShowAddDraftChecklistComposer((current) => !current)}
-              >
-                + add item
-              </button>
+              <div className="checklist-add-controls">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCompletionMenu(false);
+                    setShowCompletionComposer(false);
+                    setShowAddDraftChecklistComposer((current) => !current);
+                  }}
+                >
+                  + add item
+                </button>
+                <div className="completion-menu-wrap">
+                  <button
+                    type="button"
+                    className="completion-menu-trigger"
+                    aria-haspopup="menu"
+                    aria-expanded={showCompletionMenu}
+                    onClick={() => setShowCompletionMenu((current) => !current)}
+                  >
+                    V
+                  </button>
+                  {showCompletionMenu ? (
+                    <div className="completion-menu" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={openCompletionComposer}
+                        disabled={!hasActiveChecklistItems}
+                      >
+                        add completion date
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
             {showAddDraftChecklistComposer ? (
               <div
@@ -3342,7 +3576,109 @@ function FocusModal({ card, onClose }) {
                 ) : null}
               </div>
             ) : null}
-            {sortChecklistNewestFirst(draft.checklist).map((item) => {
+            {showCompletionComposer ? (
+              <div className="modal-check-composer completion-composer">
+                <label className="field">
+                  <span>completion date</span>
+                  <input
+                    type="date"
+                    value={completionEndDate}
+                    onChange={(event) => setCompletionEndDate(event.target.value)}
+                    autoFocus
+                  />
+                </label>
+                <label className="field field-full">
+                  <span>context</span>
+                  <textarea
+                    value={completionContext}
+                    onChange={(event) => setCompletionContext(event.target.value)}
+                    onFocus={selectEditableText}
+                    placeholder="type phase context"
+                    rows={2}
+                  />
+                </label>
+                <div className="modal-check-composer-actions">
+                  <button
+                    type="button"
+                    className="ghost-button muted"
+                    onClick={discardCompletionComposer}
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={saveCompletionPhase}
+                    disabled={!completionEndDate || !hasActiveChecklistItems}
+                  >
+                    save completion
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {visibleFocusChecklist.map((item) => {
+              if (isCompletionChecklistItem(item)) {
+                const isExpanded = Boolean(expandedCompletionIds[item.id]);
+
+                return (
+                  <div
+                    className="modal-check-editor completion-phase"
+                    key={item.id}
+                  >
+                    <div className="completion-phase-main">
+                      <button
+                        type="button"
+                        className="completion-phase-toggle"
+                        onClick={() =>
+                          setExpandedCompletionIds((current) => ({
+                            ...current,
+                            [item.id]: !current[item.id],
+                          }))
+                        }
+                        aria-expanded={isExpanded}
+                      >
+                        <strong>{formatCompletionPhaseLabel(item)}</strong>
+                      </button>
+                      <div className="modal-check-actions">
+                        <button
+                          type="button"
+                          className="ghost-button muted"
+                          onClick={() =>
+                            setPendingDeleteItem({ id: item.id, text: item.text })
+                          }
+                        >
+                          delete
+                        </button>
+                      </div>
+                    </div>
+                    {item.context?.trim() ? (
+                      <p className="focus-context-inline completion-context">
+                        <HighlightedText text={item.context} />
+                      </p>
+                    ) : null}
+                    {isExpanded ? (
+                      <div className="completion-phase-items">
+                        {(item.phaseItems || []).map((phaseItem) => (
+                          <div className="completion-phase-item" key={phaseItem.id}>
+                            <span>
+                              <HighlightedText text={phaseItem.text} />
+                            </span>
+                            {formatChecklistTimeline(phaseItem) ? (
+                              <small>{formatChecklistTimeline(phaseItem)}</small>
+                            ) : null}
+                            {phaseItem.context?.trim() ? (
+                              <p>
+                                <HighlightedText text={phaseItem.context} />
+                              </p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+
               const itemState =
                 item.state ||
                 (item.checked

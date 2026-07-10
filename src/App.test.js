@@ -260,3 +260,83 @@ test('enter saves a focus mode project field without closing focus mode', async 
     })
   ).toBeInTheDocument();
 });
+
+test('focus mode completion phases archive prior checklist items', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      token: 'test-token',
+      user: {
+        name: 'Andrew',
+        role: 'manager',
+      },
+      board: {
+        todoColumns: [{ id: 'todo-1', title: 'To Do' }],
+        cards: [
+          {
+            id: 'phase-card',
+            taskName: 'Phase project',
+            jobName: 'Phase client',
+            lane: 'active',
+            todoColumnId: 'todo-1',
+            order: 1,
+            priority: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            checklist: [
+              {
+                id: 'phase-item',
+                text: 'phase one task',
+                state: 'completed',
+                checked: true,
+                createdAt: '2026-05-01T00:00:00.000Z',
+                completedAt: '2026-05-10T00:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+
+  render(<App />);
+
+  const cardTitle = await screen.findByText('Phase project');
+  fireEvent.click(cardTitle.closest('article'));
+  const focusModal = await screen.findByText(/focus mode/i);
+  const focusScope = within(focusModal.closest('.focus-modal'));
+
+  fireEvent.click(focusScope.getByRole('button', { name: 'V' }));
+  fireEvent.click(focusScope.getByRole('menuitem', { name: /add completion date/i }));
+  fireEvent.change(screen.getByLabelText(/completion date/i), {
+    target: { value: '2026-06-03' },
+  });
+  fireEvent.change(screen.getByPlaceholderText(/type phase context/i), {
+    target: { value: 'phase one complete' },
+  });
+  fireEvent.click(focusScope.getByRole('button', { name: /save completion/i }));
+
+  const phaseButton = await focusScope.findByRole('button', { name: /phase 1:/i });
+  expect(phaseButton).toHaveTextContent('2026/06/03');
+  expect(focusScope.queryByRole('button', { name: /phase one task/i })).not.toBeInTheDocument();
+
+  fireEvent.click(phaseButton);
+  expect(focusScope.getByText('phase one task')).toBeInTheDocument();
+
+  fireEvent.click(focusScope.getByRole('button', { name: /\+ add item/i }));
+  const newChecklistInput = screen.getByPlaceholderText(/checklist item/i);
+  fireEvent.change(newChecklistInput, {
+    target: { value: 'phase two task' },
+  });
+  fireEvent.keyDown(newChecklistInput, { key: 'Enter', code: 'Enter' });
+
+  await waitFor(() => {
+    expect(focusScope.getByRole('button', { name: /phase two task/i })).toBeInTheDocument();
+  });
+  const checklistText = focusModal.closest('.focus-modal').textContent;
+  expect(checklistText.indexOf('phase two task')).toBeLessThan(
+    checklistText.indexOf('phase 1:')
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: /CLOSE/i }));
+  expect(screen.queryByText(/phase 1:/i)).not.toBeInTheDocument();
+});

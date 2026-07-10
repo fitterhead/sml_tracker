@@ -17,6 +17,10 @@ const CHECKLIST_STATES = {
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
 };
+const CHECKLIST_ITEM_TYPES = {
+  TASK: 'task',
+  COMPLETION: 'completion',
+};
 
 const getPrimaryTodoColumnId = (todoColumns) => todoColumns[0]?.id || '';
 
@@ -126,8 +130,12 @@ export const getMissingFields = (card) => {
 };
 
 export const isCardComplete = (card) =>
-  card.checklist.length > 0 &&
-  card.checklist.every((item) => item.state === CHECKLIST_STATES.COMPLETED);
+  card.checklist.some(
+    (item) => item.type !== CHECKLIST_ITEM_TYPES.COMPLETION && !item.archivedInCompletionId
+  ) &&
+  card.checklist
+    .filter((item) => item.type !== CHECKLIST_ITEM_TYPES.COMPLETION && !item.archivedInCompletionId)
+    .every((item) => item.state === CHECKLIST_STATES.COMPLETED);
 
 export const getCardZone = (card) => {
   if (isCardIncomplete(card)) {
@@ -151,6 +159,7 @@ const bumpCardOrder = (cards, cardId) => {
 
 const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   id: item.id || createId(),
+  type: item.type || CHECKLIST_ITEM_TYPES.TASK,
   text: item.text || 'checklist item',
   state: item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
   checked: item.state
@@ -177,6 +186,21 @@ const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
       }))
     : [],
   createdBy: item.createdBy || createdBy,
+  archivedInCompletionId: item.archivedInCompletionId || '',
+  phaseNumber: Number(item.phaseNumber) || 0,
+  phaseItemIds: Array.isArray(item.phaseItemIds) ? item.phaseItemIds : [],
+  phaseItems: Array.isArray(item.phaseItems)
+    ? item.phaseItems.map((entry = {}) => ({
+        id: entry.id || createId(),
+        text: entry.text || 'checklist item',
+        state: entry.state || CHECKLIST_STATES.UNCHECKED,
+        checked: Boolean(entry.checked),
+        checkedBy: entry.checkedBy || null,
+        createdAt: entry.createdAt || '',
+        completedAt: entry.completedAt || '',
+        context: entry.context || '',
+      }))
+    : [],
 });
 
 const normalizeCardsForTodoColumns = (cards = [], todoColumns = []) => {
