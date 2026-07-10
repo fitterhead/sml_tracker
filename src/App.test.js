@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
 
 beforeEach(() => {
@@ -195,4 +195,68 @@ test('priority five cards highlight the job name for attention', async () => {
 
   expect(jobName.closest('p')).toHaveClass('priority-alert-job');
   expect(clientName.closest('h3')).not.toHaveClass('priority-alert-job');
+});
+
+test('enter saves a focus mode project field without closing focus mode', async () => {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      token: 'test-token',
+      user: {
+        name: 'Andrew',
+        role: 'manager',
+      },
+      board: {
+        todoColumns: [{ id: 'todo-1', title: 'To Do' }],
+        cards: [
+          {
+            id: 'focus-edit-card',
+            taskName: 'Original project',
+            jobName: 'Focus client',
+            lane: 'active',
+            todoColumnId: 'todo-1',
+            order: 1,
+            priority: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            checklist: [
+              {
+                id: 'focus-item',
+                text: 'review brief',
+                state: 'unchecked',
+                checked: false,
+                createdAt: '2026-01-01T00:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  });
+
+  render(<App />);
+
+  const cardTitle = await screen.findByText('Original project');
+  fireEvent.click(cardTitle.closest('article'));
+  const focusModal = await screen.findByText(/focus mode/i);
+  fireEvent.click(
+    within(focusModal.closest('.focus-modal')).getByRole('button', {
+      name: /original project/i,
+    })
+  );
+
+  const projectInput = screen.getByDisplayValue('Original project');
+  fireEvent.change(projectInput, { target: { value: 'Updated project' } });
+  expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument();
+
+  fireEvent.keyDown(projectInput, { key: 'Enter', code: 'Enter' });
+
+  await waitFor(() => {
+    expect(screen.queryByRole('button', { name: /^SAVE$/i })).not.toBeInTheDocument();
+  });
+  expect(screen.getByText(/focus mode/i)).toBeInTheDocument();
+  expect(
+    within(focusModal.closest('.focus-modal')).getByRole('button', {
+      name: /updated project/i,
+    })
+  ).toBeInTheDocument();
 });

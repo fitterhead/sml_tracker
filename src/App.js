@@ -398,6 +398,20 @@ const triggerActionOnEnter = (event, action) => {
   action();
 };
 
+const isEditableControl = (target) => {
+  if (!target) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return (
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    tagName === 'SELECT' ||
+    target.isContentEditable
+  );
+};
+
 const selectEditableText = (event) => {
   const field = event.currentTarget;
 
@@ -2450,6 +2464,19 @@ function FocusModal({ card, onClose }) {
     exitFocusModeAfterKeyboardSave();
   };
 
+  const saveFocusModeFromKeyboard = () => {
+    skipFocusBlurPromptRef.current = true;
+    saveChangesFromKeyboard();
+    setEditingFocusField('');
+    setEditingDraftChecklistId(null);
+    setFieldUnsavedPrompt(null);
+    blurActiveInput();
+    refocusFocusModal();
+    window.setTimeout(() => {
+      skipFocusBlurPromptRef.current = false;
+    });
+  };
+
   const buildDraftWithNewChecklistItem = () => {
     const trimmedText = newDraftChecklistText.trim();
     if (!trimmedText) {
@@ -2645,13 +2672,12 @@ function FocusModal({ card, onClose }) {
     });
   };
 
-  const saveFieldUnsavedPromptAndClose = () => {
+  const saveFieldUnsavedPrompt = () => {
     if (!fieldUnsavedPrompt) {
       return;
     }
 
     fieldUnsavedPrompt.onSave();
-    onClose();
   };
 
   const getSavedFocusFieldValue = (field) => cleanCardDraft[field] || '';
@@ -2664,8 +2690,8 @@ function FocusModal({ card, onClose }) {
     setEditingFocusField('');
   };
 
-  const saveFocusFieldEditAndClose = () => {
-    saveAndCloseFocusModeFromKeyboard();
+  const saveFocusFieldEdit = () => {
+    saveFocusModeFromKeyboard();
   };
 
   const requestFocusFieldExit = (field) => {
@@ -2675,7 +2701,7 @@ function FocusModal({ card, onClose }) {
 
     requestUnsavedFieldExit({
       hasChanges: hasTextValueChanged(draft[field] || '', getSavedFocusFieldValue(field)),
-      onSave: saveFocusFieldEditAndClose,
+      onSave: saveFocusFieldEdit,
       onDiscard: () => discardFocusFieldEdit(field),
       onCancel: () =>
         window.requestAnimationFrame(() =>
@@ -2742,7 +2768,8 @@ function FocusModal({ card, onClose }) {
     if (
       event.key !== 'Enter' ||
       event.shiftKey ||
-      event.defaultPrevented
+      event.defaultPrevented ||
+      isEditableControl(event.target)
     ) {
       return;
     }
@@ -2761,7 +2788,7 @@ function FocusModal({ card, onClose }) {
     }
 
     if (isDirty) {
-      saveAndCloseFocusModeFromKeyboard();
+      saveFocusModeFromKeyboard();
       return;
     }
 
@@ -3088,7 +3115,7 @@ function FocusModal({ card, onClose }) {
                     onBlur={() => requestFocusFieldExit('taskName')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
-                        triggerActionOnEnter(event, saveFocusFieldEditAndClose);
+                        triggerActionOnEnter(event, saveFocusFieldEdit);
                       }
                     }}
                     autoFocus
@@ -3115,7 +3142,7 @@ function FocusModal({ card, onClose }) {
                         setClientRenameDraft(nextJobName);
                       }}
                       onKeyDown={(event) =>
-                        triggerActionOnEnter(event, saveFocusFieldEditAndClose)
+                        triggerActionOnEnter(event, saveFocusFieldEdit)
                       }
                       autoFocus
                     >
@@ -3143,7 +3170,7 @@ function FocusModal({ card, onClose }) {
                         onBlur={() => requestFocusFieldExit('jobName')}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter' && !event.shiftKey) {
-                            triggerActionOnEnter(event, saveFocusFieldEditAndClose);
+                            triggerActionOnEnter(event, saveFocusFieldEdit);
                           }
                         }}
                       />
@@ -3174,7 +3201,7 @@ function FocusModal({ card, onClose }) {
                     onBlur={() => requestFocusFieldExit('startDate')}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' && !event.shiftKey) {
-                        triggerActionOnEnter(event, saveFocusFieldEditAndClose);
+                        triggerActionOnEnter(event, saveFocusFieldEdit);
                       }
                     }}
                     autoFocus
@@ -3517,7 +3544,7 @@ function FocusModal({ card, onClose }) {
                 type="button"
                 className="ghost-button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={saveAndCloseFocusModeFromKeyboard}
+                onClick={saveFocusModeFromKeyboard}
               >
                 SAVE
               </button>
@@ -3527,7 +3554,7 @@ function FocusModal({ card, onClose }) {
       </div>
       <UnsavedChangesModal
         open={Boolean(fieldUnsavedPrompt)}
-        onSave={saveFieldUnsavedPromptAndClose}
+        onSave={saveFieldUnsavedPrompt}
         onDiscard={() => fieldUnsavedPrompt?.onDiscard()}
         onCancel={() => fieldUnsavedPrompt?.onCancel()}
       />
