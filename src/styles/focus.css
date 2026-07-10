@@ -153,8 +153,9 @@
 }
 
 .completion-menu-trigger span {
-  transform: translateY(-1px);
-  font-size: 1rem;
+  display: block;
+  font-size: var(--font-sm);
+  line-height: 1;
 }
 
 .completion-menu-trigger:hover,

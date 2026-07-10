@@ -3588,7 +3588,7 @@ function FocusModal({ card, onClose }) {
                     aria-expanded={showCompletionMenu}
                     onClick={() => setShowCompletionMenu((current) => !current)}
                   >
-                    <span aria-hidden="true">⌄</span>
+                    <span aria-hidden="true">...</span>
                   </button>
                   {showCompletionMenu ? (
                     <div className="completion-menu" role="menu">
