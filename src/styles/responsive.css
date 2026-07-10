@@ -73,6 +73,9 @@
 @media (max-width: 720px) {
   .app-shell {
     padding: var(--space-5);
+    background:
+      linear-gradient(180deg, rgba(255, 253, 249, 0.72), rgba(255, 253, 249, 0.42)),
+      radial-gradient(circle at 50% 0%, rgba(42, 114, 65, 0.12), transparent 42%);
   }
 
   .app-header {
@@ -136,6 +139,9 @@
 
   .board-row {
     gap: var(--space-8);
+    padding: var(--space-5);
+    border: 1px solid rgba(95, 76, 49, 0.1);
+    background: rgba(39, 116, 66, 0.07);
   }
 
   .row-slot,
@@ -154,7 +160,38 @@
   .row-todo .pile-area,
   .row-done .pile-area,
   .row-hold .pile-area {
-    min-height: 360px;
+    min-height: 270px;
+  }
+
+  .pile-slot,
+  .row-todo .pile-slot {
+    width: 142px;
+  }
+
+  .column-header {
+    align-items: baseline;
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid rgba(95, 76, 49, 0.1);
+  }
+
+  .column-header h2,
+  .section-title-row h2 {
+    font-size: var(--font-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .column-header p,
+  .section-count {
+    display: none;
+  }
+
+  .section-topline {
+    min-height: 28px;
+  }
+
+  .section-topline-actions {
+    margin-left: auto;
   }
 
   .search-bar {
@@ -212,6 +249,14 @@
     gap: var(--space-6);
   }
 
+  .focus-project-info {
+    padding-bottom: var(--space-5);
+  }
+
+  .focus-checklist {
+    gap: var(--space-3);
+  }
+
   .modal-section-header {
     align-items: flex-start;
     gap: var(--space-4);
@@ -239,16 +284,76 @@
   .job-card,
   .drag-overlay .job-card,
   .job-card.overlay {
-    width: 100%;
-    max-width: 340px;
-    min-height: 300px;
+    width: 142px;
+    max-width: 142px;
+    min-height: 190px;
+    padding: var(--space-5);
+    border-top: 1px solid rgba(95, 76, 49, 0.14);
+    box-shadow: 0 8px 18px rgba(35, 26, 14, 0.08);
+  }
+
+  .job-card .card-top {
+    height: 100%;
+    display: grid;
+    align-content: start;
+    gap: var(--space-4);
+  }
+
+  .job-card .card-top h3,
+  .job-card .card-top p {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .job-card .card-top h3 {
+    -webkit-line-clamp: 3;
+    font-size: 0.78rem;
+    line-height: 1.18;
+  }
+
+  .job-card .card-top p {
+    -webkit-line-clamp: 4;
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .job-card .card-meta,
+  .job-card .missing-box,
+  .job-card .checklist,
+  .job-card .card-footer {
+    display: none;
   }
 
   .compact-card,
   .drag-overlay .compact-card,
   .compact-card.overlay {
-    width: 100%;
-    max-width: 260px;
-    min-height: 0;
+    width: 124px;
+    max-width: 124px;
+    min-height: 132px;
+  }
+
+  .board-legend {
+    position: sticky;
+    bottom: var(--space-3);
+    z-index: 20;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid rgba(95, 76, 49, 0.12);
+    background: rgba(255, 253, 249, 0.88);
+    backdrop-filter: blur(10px);
+    font-size: 0.64rem;
+  }
+
+  .board-legend span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
