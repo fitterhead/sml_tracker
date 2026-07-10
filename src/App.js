@@ -1221,6 +1221,74 @@ function ConfirmMoveToHoldModal({ open, cardTitle, onConfirm, onCancel }) {
   );
 }
 
+function CompletionArchiveWarningModal({ open, itemCount, onConfirm, onCancel }) {
+  const confirmButtonRef = useRef(null);
+
+  const confirmArchive = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    onConfirm();
+  }, [onConfirm]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    window.requestAnimationFrame(() => confirmButtonRef.current?.focus());
+
+    const confirmOnEnter = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+        return;
+      }
+
+      confirmArchive(event);
+    };
+
+    window.addEventListener('keydown', confirmOnEnter, true);
+    return () => window.removeEventListener('keydown', confirmOnEnter, true);
+  }, [confirmArchive, open]);
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="focus-backdrop nested-backdrop" onClick={onCancel}>
+      <div
+        className="confirm-modal"
+        onClick={(event) => event.stopPropagation()}
+        onKeyDownCapture={(event) => {
+          if (event.key !== 'Enter' || event.shiftKey || event.defaultPrevented) {
+            return;
+          }
+
+          confirmArchive(event);
+        }}
+      >
+        <p className="eyebrow">completion date</p>
+        <h2>archive current checklist?</h2>
+        <p className="confirm-item-text">
+          The {itemCount} current checklist {itemCount === 1 ? 'item' : 'items'} will be hidden under this completion phase and cannot be used again while the phase exists. Delete the completion date later to show them normally again.
+        </p>
+        <div className="focus-actions">
+          <button type="button" className="ghost-button muted" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            ref={confirmButtonRef}
+            type="button"
+            className="ghost-button"
+            onClick={confirmArchive}
+          >
+            Create completion
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsModal({
   open,
   preferences,
@@ -2409,6 +2477,7 @@ function FocusModal({ card, onClose }) {
   const [showAddDraftChecklistComposer, setShowAddDraftChecklistComposer] = useState(false);
   const [showCompletionMenu, setShowCompletionMenu] = useState(false);
   const [showCompletionComposer, setShowCompletionComposer] = useState(false);
+  const [showCompletionArchiveWarning, setShowCompletionArchiveWarning] = useState(false);
   const [completionEndDate, setCompletionEndDate] = useState('');
   const [completionContext, setCompletionContext] = useState('');
   const [expandedCompletionIds, setExpandedCompletionIds] = useState({});
@@ -2439,6 +2508,7 @@ function FocusModal({ card, onClose }) {
       setShowAddDraftChecklistComposer(false);
       setShowCompletionMenu(false);
       setShowCompletionComposer(false);
+      setShowCompletionArchiveWarning(false);
       setCompletionEndDate('');
       setCompletionContext('');
       setExpandedCompletionIds({});
@@ -2462,6 +2532,7 @@ function FocusModal({ card, onClose }) {
     setShowAddDraftChecklistComposer(false);
     setShowCompletionMenu(false);
     setShowCompletionComposer(false);
+    setShowCompletionArchiveWarning(false);
     setCompletionEndDate('');
     setCompletionContext('');
     setExpandedCompletionIds({});
@@ -2655,6 +2726,7 @@ function FocusModal({ card, onClose }) {
   };
 
   const discardCompletionComposer = () => {
+    setShowCompletionArchiveWarning(false);
     setShowCompletionComposer(false);
     setCompletionEndDate('');
     setCompletionContext('');
@@ -2728,6 +2800,7 @@ function FocusModal({ card, onClose }) {
     }
 
     skipFocusBlurPromptRef.current = true;
+    setShowCompletionArchiveWarning(false);
     saveCardDraft(nextDraft);
     setDraft(nextDraft);
     discardCompletionComposer();
@@ -2740,6 +2813,14 @@ function FocusModal({ card, onClose }) {
     window.setTimeout(() => {
       skipFocusBlurPromptRef.current = false;
     });
+  };
+
+  const requestSaveCompletionPhase = () => {
+    if (!completionEndDate || !getActiveChecklistItems(draft.checklist).length) {
+      return;
+    }
+
+    setShowCompletionArchiveWarning(true);
   };
 
   const buildDraftWithChecklistItem = (itemId, patch) => ({
@@ -3609,7 +3690,7 @@ function FocusModal({ card, onClose }) {
                   <button
                     type="button"
                     className="ghost-button"
-                    onClick={saveCompletionPhase}
+                    onClick={requestSaveCompletionPhase}
                     disabled={!completionEndDate || !hasActiveChecklistItems}
                   >
                     save completion
@@ -3925,6 +4006,12 @@ function FocusModal({ card, onClose }) {
         cardTitle={draft.jobName || draft.taskName || 'untitled card'}
         onConfirm={confirmDeleteCard}
         onCancel={() => setPendingDeleteCard(false)}
+      />
+      <CompletionArchiveWarningModal
+        open={showCompletionArchiveWarning}
+        itemCount={getActiveChecklistItems(draft.checklist).length}
+        onConfirm={saveCompletionPhase}
+        onCancel={() => setShowCompletionArchiveWarning(false)}
       />
       <UnsavedChangesModal
         open={showUnsavedExit}

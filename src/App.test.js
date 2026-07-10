@@ -314,6 +314,12 @@ test('focus mode completion phases archive prior checklist items', async () => {
     target: { value: 'phase one complete' },
   });
   fireEvent.click(focusScope.getByRole('button', { name: /save completion/i }));
+  expect(screen.getByText(/archive current checklist/i)).toBeInTheDocument();
+  expect(
+    screen.getByText(/will be hidden under this completion phase/i)
+  ).toBeInTheDocument();
+  expect(focusScope.queryByRole('button', { name: /phase 1:/i })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /create completion/i }));
 
   const phaseButton = await focusScope.findByRole('button', { name: /phase 1:/i });
   expect(phaseButton).toHaveTextContent('2026/06/03');

@@ -293,11 +293,15 @@
   background: transparent;
   color: var(--text);
   font: inherit;
+  font-size: var(--font-md);
+  line-height: 1.25;
   text-align: left;
   cursor: pointer;
 }
 
 .completion-phase-toggle strong {
+  font-size: inherit;
+  line-height: inherit;
   font-weight: 700;
 }
 
