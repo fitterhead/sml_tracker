@@ -72,7 +72,57 @@
 
 @media (max-width: 720px) {
   .app-shell {
-    padding: var(--space-7);
+    padding: var(--space-5);
+  }
+
+  .app-header {
+    align-items: stretch;
+    gap: var(--space-4);
+    padding: var(--space-3) 0 var(--space-2);
+  }
+
+  .brand {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .brand strong {
+    font-size: 0.68rem;
+  }
+
+  .header-actions {
+    order: 2;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .account-menu-list {
+    right: auto;
+    left: 0;
+  }
+
+  .workspace-tabs {
+    margin-bottom: var(--space-6);
+    padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .workspace-tab-list {
+    flex-wrap: nowrap;
+    min-width: max-content;
+    padding-bottom: var(--space-1);
+  }
+
+  .workspace-tab {
+    min-width: 112px;
+    height: 36px;
+    padding: 0 var(--space-5);
+  }
+
+  .workspace-add {
+    width: 28px;
+    height: 28px;
   }
 
   .todo-grid,
@@ -81,7 +131,30 @@
   }
 
   .todo-grid {
-    gap: var(--space-9);
+    gap: var(--space-8);
+  }
+
+  .board-row {
+    gap: var(--space-8);
+  }
+
+  .row-slot,
+  .plain-section,
+  .pile-area,
+  .row-todo .pile-area,
+  .row-done .pile-area,
+  .row-hold .pile-area,
+  .side-status-column .row-slot,
+  .side-status-column .plain-section,
+  .side-status-column .pile-area {
+    width: 100%;
+  }
+
+  .pile-area,
+  .row-todo .pile-area,
+  .row-done .pile-area,
+  .row-hold .pile-area {
+    min-height: 360px;
   }
 
   .search-bar {
@@ -89,33 +162,93 @@
     align-items: stretch;
     gap: var(--space-3);
     flex-basis: 100%;
+    order: 3;
   }
 
   .search-field {
     width: 100%;
+    min-height: 40px;
   }
 
   .search-actions {
-    justify-content: flex-start;
-    padding: 0 var(--space-7) var(--space-5);
+    width: 100%;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: 0;
+    white-space: normal;
+  }
+
+  .header-link,
+  .workspace-filter-button {
+    min-height: 34px;
+    padding: 0 var(--space-3);
+  }
+
+  .header-filter {
+    margin-left: auto;
+  }
+
+  .workspace-filter-menu {
+    right: 0;
+    width: min(238px, calc(100vw - 32px));
   }
 
   .focus-modal,
   .login-card {
-    padding: var(--space-8);
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: var(--space-7);
+  }
+
+  .confirm-modal,
+  .export-modal,
+  .settings-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: var(--space-7);
+  }
+
+  .focus-info-grid {
+    gap: var(--space-6);
+  }
+
+  .modal-section-header {
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .modal-check-composer-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .modal-check-composer-row .ghost-button {
+    min-height: 28px;
+  }
+
+  .modal-check-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .focus-command-row,
+  .focus-actions {
+    gap: var(--space-5);
+    align-items: flex-start;
   }
 
   .job-card,
   .drag-overlay .job-card,
   .job-card.overlay {
-    width: min(100%, 304px);
+    width: 100%;
+    max-width: 340px;
     min-height: 300px;
   }
 
   .compact-card,
   .drag-overlay .compact-card,
   .compact-card.overlay {
-    width: min(100%, 260px);
+    width: 100%;
+    max-width: 260px;
     min-height: 0;
   }
 }
