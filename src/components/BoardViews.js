@@ -98,8 +98,8 @@ export function IncompletePage({
   return (
     <main className="incomplete-page">
       <div className="incomplete-page-head">
-        <h2>incomplete card</h2>
-        <p>these cards stay out of the main board until project name and client name are filled in.</p>
+        <h2>Needs details</h2>
+        <p>Add a project and client name to move these cards onto the board.</p>
       </div>
 
       <div className="incomplete-page-body">
@@ -149,6 +149,7 @@ export function AllCardsPage({
           <p>{cards.length} cards</p>
         </div>
       </div>
+      {cards.length === 0 && <p className="view-empty-state">No cards match your search in this section.</p>}
       <div className="all-cards-grid">
         {cards.map((card) => (
           <StaticCardComponent

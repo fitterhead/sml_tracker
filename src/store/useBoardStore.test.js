@@ -294,3 +294,36 @@ test('clearing required details removes the completion timestamp', () => {
   expect(updated.completedAt).toBe('');
   useBoardStore.getState().resetBoard();
 });
+
+test('card log applies once, retains source history after hydration, and stays in the active workspace', () => {
+  const store = useBoardStore.getState();
+  store.resetBoard();
+  store.createCard({ taskName: 'Log project', jobName: 'Client' });
+  const card = useBoardStore.getState().cards.slice(-1)[0];
+  const input = { schema: 'sml-card-log/v1', source: 'Design meeting', updates: [{ match: { cardId: card.id }, fields: { assignedPerson: 'Alex' }, notes: ['Direction approved'], tasks: [{ text: card.checklist[0].text, context: 'Please check the PDF' }, { text: 'Send artwork' }] }] };
+  expect(store.applyCardLog(input)).toBe(1);
+  expect(store.applyCardLog(input)).toBe(0);
+  const updated = useBoardStore.getState().cards.find((item) => item.id === card.id);
+  expect(updated.assignedPerson).toBe('Alex');
+  expect(updated.activityLog[0]).toMatchObject({ note: 'Direction approved', source: 'Design meeting' });
+  expect(updated.checklist[1].id).toBeTruthy();
+  expect(updated.checklist[0].contextHistory[0]).toMatchObject({ note: 'Please check the PDF', createdBy: expect.any(String), source: 'Design meeting' });
+  const board = useBoardStore.getState();
+  store.hydrateBoard(board);
+  expect(useBoardStore.getState().cards.find((item) => item.id === card.id).activityLog[0].source).toBe('Design meeting');
+  store.createWorkspace('Other');
+  expect(store.applyCardLog(input)).toBe(0);
+  store.resetBoard();
+});
+
+test('card log rechecks fields changed since preview instead of overwriting them', () => {
+  const store = useBoardStore.getState();
+  store.resetBoard();
+  store.createCard({ taskName: 'Project', jobName: 'Client' });
+  const card = useBoardStore.getState().cards.slice(-1)[0];
+  const input = { schema: 'sml-card-log/v1', source: 'Email', updates: [{ match: { cardId: card.id }, fields: { assignedPerson: 'Alex' } }] };
+  store.updateCard(card.id, { assignedPerson: 'Taylor' });
+  expect(store.applyCardLog(input)).toBe(0);
+  expect(useBoardStore.getState().cards.find((item) => item.id === card.id).assignedPerson).toBe('Taylor');
+  store.resetBoard();
+});

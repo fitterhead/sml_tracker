@@ -74,3 +74,9 @@ REACT_APP_API_BASE=https://your-railway-service.up.railway.app/api
 ```
 
 Do not commit real secrets.
+
+## ChatGPT update logs
+
+Use **Paste update log** to copy a prompt for reviewing emails/transcripts in
+ChatGPT, then paste the returned JSON to review and apply updates to existing
+cards. No API key is required. See [the workflow and log format](docs/chatgpt-logs.md).

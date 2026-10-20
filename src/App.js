@@ -31,6 +31,7 @@ import {
   parseDropTarget,
 } from './boardConfig';
 import Header from './components/Header';
+import CardLogModal from './components/CardLogModal';
 import {
   fetchSession,
   loginRequest,
@@ -624,6 +625,7 @@ function ContextMeta({ entry = {}, fallback = 'saved context' }) {
     <span className="context-entry-date">
       {timeline}
       {actor ? ` by ${actor}` : ''}
+      {entry.source ? ` · ${entry.source}` : ''}
     </span>
   );
 }
@@ -1802,6 +1804,7 @@ function CardShell({
         <span className="task-age">
           {formatCardAge(card.createdAt)}
         </span>
+        {card.activityLog?.length > 0 && <span className="card-note-count">{card.activityLog.length} {card.activityLog.length === 1 ? 'update' : 'updates'}</span>}
       </div>
 
       {missingFields.length > 0 ? (
@@ -2240,7 +2243,7 @@ function CardSection({
           <>
           {showCreateButton ? (
             <button type="button" className="plus-button" aria-label="create project" onClick={onCreateCard}>
-              +
+              <span aria-hidden="true">+</span><span className="add-card-label">Add card</span>
             </button>
           ) : null}
           <div className="section-title-block">
@@ -2256,7 +2259,7 @@ function CardSection({
                       onOpenAllCards(sectionId || lane);
                     }}
                   >
-                    see more
+                    View all
                   </button>
                 ) : null}
                 {onDeleteSection ? (
@@ -2273,7 +2276,7 @@ function CardSection({
               </div>
             </div>
             <span className="section-count">
-              {cards.length > 0 ? `${cards.length} cards` : 'no cards'}
+              {cards.length > 0 ? `${cards.length} ${cards.length === 1 ? 'card' : 'cards'}` : 'No cards yet'}
             </span>
           </div>
           </>
@@ -2577,6 +2580,7 @@ function FocusModal({ card, onClose }) {
     updateCard(card.id, {
       taskName: nextDraft.taskName,
       jobName: nextDraft.jobName,
+      assignedPerson: nextDraft.assignedPerson,
       startDate: nextDraft.startDate,
       priority: nextDraft.priority,
       lane: nextLane,
@@ -3101,6 +3105,7 @@ function FocusModal({ card, onClose }) {
     updateCard(card.id, {
       taskName: draft.taskName,
       jobName: draft.jobName,
+      assignedPerson: draft.assignedPerson,
       startDate: draft.startDate,
       priority: draft.priority,
       checklist: draft.checklist,
@@ -3499,6 +3504,20 @@ function FocusModal({ card, onClose }) {
                   </button>
                 )}
               </div>
+              <div className="focus-info-field">
+                <span>assigned to</span>
+                {editingFocusField === 'assignedPerson' ? (
+                  <input
+                    ref={(node) => { focusFieldRefs.current.assignedPerson = node; }}
+                    aria-label="Assigned to"
+                    value={draft.assignedPerson || ''}
+                    onChange={(event) => setDraft((current) => ({ ...current, assignedPerson: event.target.value }))}
+                    onBlur={() => requestFocusFieldExit('assignedPerson')}
+                    onKeyDown={(event) => triggerActionOnEnter(event, saveFocusFieldEdit)}
+                    autoFocus
+                  />
+                ) : <button type="button" onClick={() => setEditingFocusField('assignedPerson')}>{draft.assignedPerson || 'Unassigned'}</button>}
+              </div>
               <div className="focus-info-field focus-info-priority">
                 <span>priority</span>
                 <PriorityDots
@@ -3565,6 +3584,14 @@ function FocusModal({ card, onClose }) {
               </div>
             ) : null}
           </section>
+
+        {card.activityLog?.length > 0 && <section className="project-updates" aria-label="Project updates">
+          <h3>Project updates <span>{card.activityLog.length}</span></h3>
+          <div className="project-update-list">{[...card.activityLog].reverse().map((entry, index) => <article key={index}>
+            <p>{entry.note}</p>
+            <small>{entry.source}{entry.createdAt ? ` · ${formatCardDisplayDate('', entry.createdAt)}` : ''}</small>
+          </article>)}</div>
+        </section>}
 
           <section className="modal-checklist focus-checklist">
             <div className="modal-section-header">
@@ -4124,9 +4151,9 @@ function WorkspaceTabs({
           className="workspace-add"
           onClick={onCreate}
           aria-label="add client tab"
-          title="Add client tab"
+          title="Add workspace"
         >
-          +
+          <span aria-hidden="true">+</span>
         </button>
       </div>
       <UnsavedChangesModal
@@ -4176,12 +4203,13 @@ function App() {
   const [pendingHoldMove, setPendingHoldMove] = useState(null);
   const [editingChecklistTarget, setEditingChecklistTarget] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCardLog, setShowCardLog] = useState(false);
   const [authToken, setAuthToken] = useState(readStoredAuthToken);
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authStatus, setAuthStatus] = useState('');
-  const [, setSyncStatus] = useState('');
+  const [syncStatus, setSyncStatus] = useState('');
   const [footerNow, setFooterNow] = useState(() => new Date());
   const [boardHydrated, setBoardHydrated] = useState(false);
   const serverBoardUpdatedAt = useRef('');
@@ -4959,6 +4987,9 @@ function App() {
   return (
     <div className="app-shell" style={appAppearanceStyle}>
       <Header
+        syncStatus={syncStatus}
+        incompleteCount={cards.filter((card) => getMissingFields(card).length > 0).length}
+        onPasteLog={() => setShowCardLog(true)}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         viewMode={viewMode}
@@ -5161,6 +5192,7 @@ function App() {
       />
 
       <FocusModal card={focusCard} onClose={() => setFocusCardId(null)} />
+      {showCardLog && <CardLogModal onClose={() => setShowCardLog(false)} />}
       <SettingsModal
         open={showSettings}
         preferences={appearancePreferences}

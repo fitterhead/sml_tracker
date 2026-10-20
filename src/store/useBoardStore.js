@@ -1,3 +1,4 @@
+import { buildLogPreview, parseCardLog } from '../lib/cardLog';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -180,6 +181,7 @@ const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   contextHistory: Array.isArray(item.contextHistory)
     ? item.contextHistory.map((entry = {}) => ({
         note: entry.note || '',
+        source: entry.source || '',
         createdAt: entry.createdAt || '',
         completedAt: entry.completedAt || '',
         createdBy: entry.createdBy || entry.updatedBy || '',
@@ -217,6 +219,7 @@ const normalizeCardsForTodoColumns = (cards = [], todoColumns = []) => {
         startDate: card.startDate || '',
         createdAt: card.createdAt || card.startDate || new Date().toISOString(),
         completedAt: card.completedAt || '',
+        activityLog: Array.isArray(card.activityLog) ? card.activityLog.filter((entry) => entry && typeof entry.note === 'string').map((entry) => ({ note: entry.note, source: String(entry.source || ''), createdAt: entry.createdAt || '', createdBy: entry.createdBy || '' })) : [],
         lane: card.lane || ACTIVE,
         todoColumnId: todoColumnIds.has(card.todoColumnId)
           ? card.todoColumnId
@@ -563,6 +566,42 @@ export const useBoardStore = create(
               cards: [...state.cards, ...nextCards],
             }));
           });
+        },
+        applyCardLog(input, choices = {}) {
+          const log = parseCardLog(JSON.stringify(input));
+          let applied = 0;
+          set((state) => {
+            const preview = buildLogPreview(log, state.cards, choices);
+            const patches = new Map();
+            preview.forEach((row) => {
+              if (!row.cardId || !row.changes.length) return;
+              patches.set(row.cardId, { ...(patches.get(row.cardId) || {}), ...row.patch });
+              applied += 1;
+            });
+            if (!applied) return state;
+            const now = new Date().toISOString();
+            const actor = state.currentUser.name || state.currentUser.role;
+            return updateActiveWorkspace(state, () => ({
+              cards: state.cards.map((card) => {
+                const patch = patches.get(card.id);
+                if (!patch) return card;
+                const updated = { ...card, ...patch };
+                return {
+                  ...updated,
+                  activityLog: (updated.activityLog || []).map((note) => ({ ...note, createdAt: note.createdAt || now, createdBy: note.createdBy || actor })),
+                  checklist: updated.checklist.map((item) => {
+                    const { imported, ...cleanItem } = item;
+                    const nextItem = item.id ? cleanItem : createChecklistItem(item.text, actor, { context: item.context || '', contextCreatedAt: item.context ? now : '', contextCreatedBy: item.context ? actor : '' });
+                    return { ...nextItem, contextHistory: (item.contextHistory || []).map((entry) => {
+                      const { imported: importedContext, ...cleanEntry } = entry;
+                      return importedContext ? { ...cleanEntry, createdAt: now, createdBy: actor } : cleanEntry;
+                    }) };
+                  }),
+                };
+              }),
+            }));
+          });
+          return applied;
         },
         updateCard(cardId, updates) {
           set((state) =>

@@ -130,6 +130,7 @@ const normalizeChecklistItem = (item = {}) => ({
   contextHistory: Array.isArray(item.contextHistory)
     ? item.contextHistory.map((entry = {}) => ({
         note: entry.note || '',
+        source: entry.source || '',
         createdAt: entry.createdAt || '',
         completedAt: entry.completedAt || '',
         createdBy: entry.createdBy || entry.updatedBy || '',
@@ -146,6 +147,7 @@ const normalizeCard = (card = {}, todoColumns = []) => ({
   startDate: card.startDate || '',
   createdAt: card.createdAt || card.startDate || new Date().toISOString(),
   completedAt: card.completedAt || '',
+  activityLog: Array.isArray(card.activityLog) ? card.activityLog.filter((entry) => entry && typeof entry.note === 'string').map((entry) => ({ note: entry.note, source: String(entry.source || ''), createdAt: entry.createdAt || '', createdBy: entry.createdBy || '' })) : [],
   lane: card.lane || ACTIVE,
   todoColumnId: todoColumns.some((column) => column.id === card.todoColumnId)
     ? card.todoColumnId
