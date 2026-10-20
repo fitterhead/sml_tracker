@@ -39,7 +39,8 @@ test('renders board view', async () => {
 
 test('opens workspace filter menu', async () => {
   render(<App />);
-  const filterButton = await screen.findByRole('button', { name: /filter/i });
+  fireEvent.click(await screen.findByRole('button', { name: /^Tools/i }));
+  const filterButton = screen.getByRole('button', { name: /filter/i });
 
   fireEvent.click(filterButton);
 
@@ -66,7 +67,7 @@ test('account menu opens settings and logout options', async () => {
   const accountButton = await screen.findByRole('button', { name: /andrew manager/i });
   fireEvent.click(accountButton);
 
-  expect(screen.getByRole('menuitem', { name: /settings/i })).toBeInTheDocument();
+  expect(screen.queryByRole('menuitem', { name: /settings/i })).not.toBeInTheDocument();
   expect(screen.getByRole('menuitem', { name: /logout/i })).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /^logout$/i })).not.toBeInTheDocument();
 });
@@ -74,7 +75,7 @@ test('account menu opens settings and logout options', async () => {
 test('settings can update account appearance preferences', async () => {
   render(<App />);
 
-  fireEvent.click(await screen.findByRole('button', { name: /andrew manager/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Tools/i }));
   fireEvent.click(screen.getByRole('menuitem', { name: /settings/i }));
 
   const textColorInput = screen.getByLabelText(/text color/i);
@@ -142,7 +143,8 @@ test('priority high sorting moves high priority cards to the front of the stack'
   });
 
   const { container } = render(<App />);
-  const filterButton = await screen.findByRole('button', { name: /filter/i });
+  fireEvent.click(await screen.findByRole('button', { name: /^Tools/i }));
+  const filterButton = screen.getByRole('button', { name: /filter/i });
 
   fireEvent.click(filterButton);
   fireEvent.click(
@@ -348,7 +350,8 @@ test('focus mode completion phases archive prior checklist items', async () => {
 
 test('header menus close on Escape and outside interaction', async () => {
   render(<App />);
-  fireEvent.click(await screen.findByRole('button', { name: /filter/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /^Tools/i }));
+  fireEvent.click(screen.getByRole('button', { name: /filter/i }));
   fireEvent.keyDown(document, { key: 'Escape' });
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /andrew manager/i }));
@@ -399,4 +402,31 @@ test('autosave waits for the previous request and uses its revision', async () =
     unmount();
     jest.useRealTimers();
   }
+});
+
+test('first view keeps card details and secondary tools out of the board, with expandable status sections', async () => {
+  global.fetch.mockResolvedValue({ ok: true, json: async () => ({ user: { name: 'Andrew', role: 'manager' }, board: {
+    todoColumns: [{ id: 'todo-1', title: 'To Do' }],
+    cards: [
+      { id: 'active-overview', taskName: 'Current project', jobName: 'Client', lane: 'active', todoColumnId: 'todo-1', priority: 5, checklist: [{ id: 'private-task', text: 'Detailed internal checklist', context: 'Detailed context' }] },
+      { id: 'held-overview', taskName: 'Waiting project', jobName: 'Other client', lane: 'hold', todoColumnId: 'todo-1', checklist: [{ id: 'hold-task', text: 'Review response' }] },
+    ],
+  } }) });
+  render(<App />);
+  const title = await screen.findByText('Current project');
+  expect(screen.queryByText('Detailed internal checklist')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Needs details/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('menuitem', { name: /Paste update log/ })).not.toBeInTheDocument();
+  expect(screen.queryByText('Waiting project')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Show on hold cards/i }));
+  expect(screen.getByText('Waiting project')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Hide on hold cards/i }));
+  expect(screen.queryByText('Waiting project')).not.toBeInTheDocument();
+  fireEvent.keyDown(title.closest('article'), { key: 'Enter' });
+  expect(await screen.findByRole('dialog', { name: 'Card details' })).toHaveFocus();
+  expect(screen.getByText('Detailed internal checklist')).toBeInTheDocument();
+  expect(fireEvent.keyDown(screen.getByRole('button', { name: /\+ add item/i }), { key: 'Enter' })).toBe(true);
+  expect(screen.getByRole('dialog', { name: 'Card details' })).toBeInTheDocument();
+  fireEvent.keyDown(screen.getByRole('dialog', { name: 'Card details' }), { key: 'Escape' });
+  expect(screen.queryByRole('dialog', { name: 'Card details' })).not.toBeInTheDocument();
 });

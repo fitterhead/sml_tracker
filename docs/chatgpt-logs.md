@@ -1,7 +1,7 @@
 # Update cards from email or meeting transcripts
 
 1. Open the workspace containing the cards you want to update.
-2. Select **Paste update log → Copy prompt**. The prompt includes card IDs, project/client names, assignees, start dates, and current task titles for that workspace. Review it using **View prompt** if needed.
+2. Select **Tools → Paste update log → Copy prompt**. The prompt includes card IDs, project/client names, assignees, start dates, and current task titles for that workspace. Review it using **View prompt** if needed.
 3. Paste the prompt into your ChatGPT conversation, then provide the email or transcript. Ask ChatGPT to return the update log.
 4. Paste its JSON result into the app and select **Review matches**.
 5. Review each destination card and proposed change. Choose a card for ambiguous names, or select **Skip / choose a card** to exclude an update.

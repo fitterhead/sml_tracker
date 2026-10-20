@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 
-export default function Header({ searchTerm, setSearchTerm, viewMode, sortMode, sortOptions, onMainPage, onIncompleteCards, onExportExcel, onSortChange, onSettings, onLogout, onPasteLog, incompleteCount = 0, syncStatus = '' }) {
+export default function Header({ searchTerm, setSearchTerm, viewMode, sortMode, sortOptions, onMainPage, onIncompleteCards, onExportExcel, onSortChange, onSettings, onLogout, onPasteLog, onCreateCard, workspaceNavigation, incompleteCount = 0, syncStatus = '' }) {
   const currentUser = useBoardStore((state) => state.currentUser);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const searchInputRef = useRef(null);
@@ -10,8 +11,8 @@ export default function Header({ searchTerm, setSearchTerm, viewMode, sortMode, 
   useEffect(() => {
     const closeMenus = (event) => {
       if (event.type === 'keydown' && event.key !== 'Escape') return;
-      if (event.type === 'pointerdown' && headerRef.current?.contains(event.target)) return;
-      setFilterOpen(false); setAccountOpen(false);
+      if (event.type === 'pointerdown' && [...(headerRef.current?.querySelectorAll('.tools-menu, .account-menu') || [])].some((menu) => menu.contains(event.target))) return;
+      setFilterOpen(false); setAccountOpen(false); setToolsOpen(false);
     };
     document.addEventListener('pointerdown', closeMenus);
     document.addEventListener('keydown', closeMenus);
@@ -38,26 +39,35 @@ export default function Header({ searchTerm, setSearchTerm, viewMode, sortMode, 
       <div className="header-actions">
         <span className={`save-status ${/failed|refresh/.test(syncStatus) ? 'save-status-error' : ''}`} role="status">{syncStatus}</span>
         <div className="account-menu">
-          <button type="button" className="profile-chip" onClick={() => { setAccountOpen(!accountOpen); setFilterOpen(false); }} aria-expanded={accountOpen} aria-haspopup="menu"><span>{currentUser.name}</span><small>{currentUser.role}</small></button>
+          <button type="button" className="profile-chip" onClick={() => { setAccountOpen(!accountOpen); setFilterOpen(false); setToolsOpen(false); }} aria-expanded={accountOpen} aria-haspopup="menu"><span>{currentUser.name}</span><small>{currentUser.role}</small></button>
           {accountOpen && <div className="account-menu-list" role="menu">
-            <button type="button" role="menuitem" onClick={() => runAccountAction(onExportExcel)}>Excel import / export</button>
-            <button type="button" role="menuitem" onClick={() => runAccountAction(onSettings)}>Settings</button>
             <button type="button" role="menuitem" onClick={() => runAccountAction(onLogout)}>Logout</button>
           </div>}
         </div>
       </div>
       <div className="app-toolbar">
-        <nav className="board-navigation" aria-label="Board views">
+        <div className="workspace-controls">
+          {workspaceNavigation}
+        {(incompleteCount > 0 || viewMode !== 'board') && <nav className="board-navigation" aria-label="Board views">
           <button type="button" className={viewMode !== 'incomplete' ? 'active' : ''} aria-current={viewMode !== 'incomplete' ? 'page' : undefined} onClick={onMainPage}>Board</button>
-          <button type="button" className={viewMode === 'incomplete' ? 'active' : ''} aria-current={viewMode === 'incomplete' ? 'page' : undefined} onClick={onIncompleteCards}>Needs details <span className="nav-count">{incompleteCount}</span></button>
-        </nav>
+          {(incompleteCount > 0 || viewMode === 'incomplete') && <button type="button" className={viewMode === 'incomplete' ? 'active' : ''} aria-current={viewMode === 'incomplete' ? 'page' : undefined} onClick={onIncompleteCards}>Needs details <span className="nav-count">{incompleteCount}</span></button>}
+        </nav>}
+        </div>
         <div className="toolbar-tools">
-          <button type="button" className="log-launch-button" onClick={onPasteLog}>Paste update log</button>
-          <div className="workspace-filter header-filter">
-            <button type="button" className={`workspace-filter-button ${sortMode ? 'has-sort' : ''}`} aria-label="Filter" onClick={() => { setFilterOpen(!filterOpen); setAccountOpen(false); }} aria-expanded={filterOpen} aria-haspopup="menu">Sort <span aria-hidden="true">⌄</span></button>
-            {filterOpen && <div className="workspace-filter-menu" role="menu">
-              <button type="button" role="menuitem" className={!sortMode ? 'active' : ''} onClick={() => { onSortChange(''); setFilterOpen(false); }}>Default order</button>
-              {sortOptions.map((option) => <button type="button" role="menuitem" className={sortMode === option.value ? 'active' : ''} key={option.value} onClick={() => { onSortChange(option.value); setFilterOpen(false); }}>{option.label}</button>)}
+          <button type="button" className="header-create-button" onClick={onCreateCard}>+ Card</button>
+          <div className="tools-menu">
+            <button type="button" className="tools-button" aria-expanded={toolsOpen} aria-haspopup="menu" onClick={() => { setToolsOpen(!toolsOpen); setAccountOpen(false); setFilterOpen(false); }}>Tools <span aria-hidden="true">⌄</span></button>
+            {toolsOpen && <div className="tools-menu-list" role="menu" aria-label="Board tools">
+              <button type="button" role="menuitem" onClick={() => { setToolsOpen(false); onPasteLog(); }}>Paste update log</button>
+              <button type="button" role="menuitem" onClick={() => { setToolsOpen(false); onExportExcel(); }}>Excel import / export</button>
+              <button type="button" role="menuitem" onClick={() => { setToolsOpen(false); onSettings(); }}>Appearance settings</button>
+              <div className="workspace-filter header-filter">
+                <button type="button" className="workspace-filter-button" aria-label="Filter" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>Sort cards <span aria-hidden="true">⌄</span></button>
+                {filterOpen && <div className="workspace-filter-menu" role="menu" aria-label="Sort order">
+                  <button type="button" role="menuitem" className={!sortMode ? 'active' : ''} onClick={() => { onSortChange(''); setFilterOpen(false); setToolsOpen(false); }}>Default order</button>
+                  {sortOptions.map((option) => <button type="button" role="menuitem" className={sortMode === option.value ? 'active' : ''} key={option.value} onClick={() => { onSortChange(option.value); setFilterOpen(false); setToolsOpen(false); }}>{option.label}</button>)}
+                </div>}
+              </div>
             </div>}
           </div>
         </div>

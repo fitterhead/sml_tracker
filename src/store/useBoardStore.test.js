@@ -343,3 +343,27 @@ test('formatted titles and context survive board hydration with their styles', (
   expect(richTextToPlainText(restored.taskName)).toBe('Review artwork');
   store.resetBoard();
 });
+
+test('restores the current user’s most recent workspace rather than the server selection', () => {
+  const store = useBoardStore.getState();
+  store.resetBoard();
+  const user = { id: 'recent-user', email: 'recent@example.com', name: 'Recent user', role: 'manager' };
+  store.hydrateBoard(useBoardStore.getState(), user);
+  const firstId = useBoardStore.getState().activeWorkspaceId;
+  store.createWorkspace('Recent workspace');
+  const recentId = useBoardStore.getState().activeWorkspaceId;
+  store.updateUserPreferences(require('./useBoardStore').getDefaultUserPreferences());
+  const serverBoard = JSON.parse(JSON.stringify(useBoardStore.getState()));
+  serverBoard.activeWorkspaceId = firstId;
+  store.hydrateBoard(serverBoard, user);
+  expect(useBoardStore.getState().activeWorkspaceId).toBe(recentId);
+  store.switchWorkspace(firstId);
+  store.hydrateBoard({ ...serverBoard, activeWorkspaceId: recentId }, user);
+  expect(useBoardStore.getState().activeWorkspaceId).toBe(firstId);
+  store.hydrateBoard({ ...serverBoard, activeWorkspaceId: recentId }, { ...user, id: 'other', email: 'other@example.com' });
+  expect(useBoardStore.getState().activeWorkspaceId).toBe(recentId);
+  store.resetBoard();
+  store.hydrateBoard(useBoardStore.getState(), user);
+  expect(useBoardStore.getState().activeWorkspaceId).not.toBe(recentId);
+  store.resetBoard();
+});

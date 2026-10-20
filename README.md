@@ -77,7 +77,7 @@ Do not commit real secrets.
 
 ## ChatGPT update logs
 
-Use **Paste update log** to copy a prompt for reviewing emails/transcripts in
+Use **Tools → Paste update log** to copy a prompt for reviewing emails/transcripts in
 ChatGPT, then paste the returned JSON to review and apply updates to existing
 cards. No API key is required. See [the workflow and log format](docs/chatgpt-logs.md).
 
@@ -94,3 +94,13 @@ Formatting is preserved in existing board storage and history. Older plain-text
 content remains editable. Search, ChatGPT log matching/prompts, and Excel export
 use readable text; spreadsheet exports intentionally omit styling. The editor
 engine loads only when a rich field is opened.
+
+
+## Focused board view
+
+The board opens the last workspace used by the signed-in account on this browser.
+Cards show client/project names, age and priority; open a card for checklists,
+context and editing. Desktop details open in a side panel, while mobile details
+use the full screen. Hold/Finish are collapsed on desktop and are separate status
+tabs on mobile. Paste logs, Excel tools, appearance and sorting are under **Tools**.
+Formatting controls appear when a text field has focus. Priority flashing is unchanged.

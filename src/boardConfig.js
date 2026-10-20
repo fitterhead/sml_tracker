@@ -1,7 +1,7 @@
 export const STACK_LIMIT = 5;
 export const TODO_STACK_LIMIT = 1000;
 export const COMPACT_STACK_LIMIT = 20;
-const TODO_CARD_HEIGHT = 316;
+const TODO_CARD_HEIGHT = 148;
 const TODO_STACK_BASE_VISIBLE_STEP = 34;
 const TODO_STACK_MIN_VISIBLE_STEP = 24;
 const TODO_STACK_BASE_X_SPREAD = 14;
@@ -236,20 +236,20 @@ export const getPileLayout = (lane, visibleCount, index) => {
 
 export const getPileHeight = (lane, visibleCount) => {
   if (visibleCount === 0) {
-    return lane === 'done' || lane === 'hold' ? 24 : 420;
+    return 96;
   }
 
   if (lane === 'active') {
     const { y } = getPileLayout(lane, visibleCount, visibleCount - 1);
 
     return Math.max(
-      420,
+      180,
       y + TODO_CARD_HEIGHT + 18
     );
   }
 
   const { y, scale } = getPileLayout(lane, visibleCount, visibleCount - 1);
-  const cardHeight = 86;
+  const cardHeight = 148;
   const breathingRoom = 24;
   const naturalHeight = Math.ceil(y + cardHeight * scale + breathingRoom);
 
@@ -257,7 +257,7 @@ export const getPileHeight = (lane, visibleCount) => {
     return naturalHeight;
   }
 
-  return Math.max(420, naturalHeight);
+  return Math.max(180, naturalHeight);
 };
 
 export const buildTodoSectionId = (todoColumnId) => `active:${todoColumnId}`;
@@ -287,3 +287,16 @@ export const getVisibleTodoColumnId = (todoColumns, todoColumnId) =>
   todoColumns.some((column) => column.id === todoColumnId)
     ? todoColumnId
     : todoColumns[0]?.id || '';
+
+
+// Use the actual pointer, especially when a status drop zone is collapsed.
+export const getDragPoint = (event) => {
+  if (!event.delta) return null;
+  const activator = event.activatorEvent;
+  const pointer = activator?.touches?.[0] || activator?.changedTouches?.[0] || activator;
+  if (Number.isFinite(pointer?.clientX) && Number.isFinite(pointer?.clientY)) {
+    return { x: pointer.clientX + event.delta.x, y: pointer.clientY + event.delta.y };
+  }
+  const rect = event.active?.rect?.current?.initial;
+  return rect ? { x: rect.left + rect.width / 2 + event.delta.x, y: rect.top + rect.height / 2 + event.delta.y } : null;
+};
