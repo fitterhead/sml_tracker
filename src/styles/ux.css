@@ -157,3 +157,46 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+@media (min-width: 721px) {
+  /* Let status cards size to their text instead of covering the previous title. */
+  .side-status-column {
+    grid-template-rows: auto;
+    height: auto;
+    align-content: start;
+  }
+
+  .side-status-column .row-slot,
+  .side-status-column .plain-section {
+    height: auto;
+  }
+
+  .side-status-column .plain-section {
+    display: block;
+  }
+
+  .side-status-column .pile-area {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: auto;
+    min-height: 0 !important;
+  }
+
+  .side-status-column .pile-slot {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .side-status-column .compact-card .card-top h3,
+  .side-status-column .compact-card .card-top p {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+}
