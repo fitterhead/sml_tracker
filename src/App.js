@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useDraggable,
   useDroppable,
   useSensor,
@@ -2238,7 +2239,7 @@ function CardSection({
         {showHeader ? (
           <>
           {showCreateButton ? (
-            <button type="button" className="plus-button" onClick={onCreateCard}>
+            <button type="button" className="plus-button" aria-label="create project" onClick={onCreateCard}>
               +
             </button>
           ) : null}
@@ -4183,7 +4184,13 @@ function App() {
   const [, setSyncStatus] = useState('');
   const [footerNow, setFooterNow] = useState(() => new Date());
   const [boardHydrated, setBoardHydrated] = useState(false);
-  const [serverBoardUpdatedAt, setServerBoardUpdatedAt] = useState('');
+  const serverBoardUpdatedAt = useRef('');
+  const saveQueue = useRef(Promise.resolve());
+  const activeAuthToken = useRef(authToken);
+  activeAuthToken.current = authToken;
+  const setServerBoardUpdatedAt = useCallback((value) => {
+    serverBoardUpdatedAt.current = value;
+  }, []);
   const [, setServerMeta] = useState(createEmptyServerMeta);
   const [showComposerUnsavedPrompt, setShowComposerUnsavedPrompt] = useState(false);
   const [showChecklistUnsavedPrompt, setShowChecklistUnsavedPrompt] = useState(false);
@@ -4205,10 +4212,13 @@ function App() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: {
         distance: 6,
       },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 300, tolerance: 8 },
     })
   );
 
@@ -4280,39 +4290,46 @@ function App() {
     return () => {
       cancelled = true;
     };
-  }, [authToken, hydrateBoard, logoutUser]);
+  }, [authToken, hydrateBoard, logoutUser, setServerBoardUpdatedAt]);
 
   useEffect(() => {
     if (!authToken || !authReady || !boardHydrated) {
       return undefined;
     }
 
+    let cancelled = false;
     const syncTimer = window.setTimeout(() => {
-      setSyncStatus('saving...');
-      saveBoardRequest(
-        authToken,
-        { cards, todoColumns, workspaces, activeWorkspaceId },
-        serverBoardUpdatedAt
-      )
-        .then((payload) => {
+      // Serialize saves so each request uses the revision returned by the last one.
+      saveQueue.current = saveQueue.current.then(async () => {
+        if (cancelled || activeAuthToken.current !== authToken) return;
+        setSyncStatus('saving...');
+        try {
+          const payload = await saveBoardRequest(
+            authToken,
+            { cards, todoColumns, workspaces, activeWorkspaceId },
+            serverBoardUpdatedAt.current
+          );
+          if (activeAuthToken.current !== authToken) return;
           const savedBoard = payload.board || payload;
           setServerBoardUpdatedAt(savedBoard.updatedAt || '');
-          setServerMeta((current) => ({
-            ...current,
-            ...(payload.meta || {}),
-          }));
+          if (cancelled) return;
+          setServerMeta((current) => ({ ...current, ...(payload.meta || {}) }));
           setSyncStatus('saved');
-        })
-        .catch((error) => {
+        } catch (error) {
+          if (cancelled || activeAuthToken.current !== authToken) return;
           setSyncStatus(
             error.message?.includes('server')
               ? 'server changed, refresh'
               : 'save failed'
           );
-        });
+        }
+      });
     }, 700);
 
-    return () => window.clearTimeout(syncTimer);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(syncTimer);
+    };
   }, [
     authToken,
     authReady,
@@ -4321,8 +4338,7 @@ function App() {
     todoColumns,
     workspaces,
     activeWorkspaceId,
-    serverBoardUpdatedAt,
-    hydrateBoard,
+    setServerBoardUpdatedAt,
   ]);
 
   const submitAuth = async (event) => {

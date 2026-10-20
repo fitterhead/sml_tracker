@@ -1,5 +1,5 @@
 .draggable-card {
-  touch-action: none;
+  touch-action: auto;
   width: 100%;
 }
 

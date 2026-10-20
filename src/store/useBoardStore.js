@@ -575,7 +575,7 @@ export const useBoardStore = create(
                 const nextCard = { ...card, ...updates };
 
                 if (isCardIncomplete(nextCard)) {
-                  return { ...nextCard, lane: ACTIVE };
+                  return { ...nextCard, lane: ACTIVE, completedAt: '' };
                 }
 
                 if (isCardComplete(nextCard)) {
@@ -782,7 +782,7 @@ export const useBoardStore = create(
                     ? !isCardIncomplete(card)
                     : targetLane === ACTIVE
                       ? !isCardIncomplete(card)
-                  : true;
+                  : false;
 
               return validTarget
                   ? {

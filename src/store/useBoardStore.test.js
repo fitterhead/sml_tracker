@@ -272,3 +272,25 @@ describe('useBoardStore', () => {
     expect(updatedItem.contextHistory[0].note).toBe('old popup note');
   });
 });
+
+test('moveCard rejects an unknown lane', () => {
+  useBoardStore.getState().createCard({ taskName: 'Project', jobName: 'Client' });
+  const card = useBoardStore.getState().cards.slice(-1)[0];
+  useBoardStore.getState().moveCard(card.id, 'unknown');
+  expect(useBoardStore.getState().cards.find((item) => item.id === card.id).lane).toBe('active');
+  useBoardStore.getState().resetBoard();
+});
+
+test('clearing required details removes the completion timestamp', () => {
+  useBoardStore.getState().createCard({ taskName: 'Project', jobName: 'Client' });
+  const card = useBoardStore.getState().cards.slice(-1)[0];
+  useBoardStore.getState().updateCard(card.id, {
+    checklist: card.checklist.map((item) => ({ ...item, state: 'completed', checked: true })),
+  });
+  expect(useBoardStore.getState().cards.find((item) => item.id === card.id).completedAt).toBeTruthy();
+  useBoardStore.getState().updateCard(card.id, { taskName: '' });
+  const updated = useBoardStore.getState().cards.find((item) => item.id === card.id);
+  expect(updated.lane).toBe('active');
+  expect(updated.completedAt).toBe('');
+  useBoardStore.getState().resetBoard();
+});

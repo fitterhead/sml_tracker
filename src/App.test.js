@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
+import { useBoardStore } from './store/useBoardStore';
 
 beforeEach(() => {
   localStorage.setItem('sml-tracker-auth-token', 'test-token');
@@ -345,4 +346,59 @@ test('focus mode completion phases archive prior checklist items', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: /CLOSE/i }));
   expect(screen.queryByText(/phase 1:/i)).not.toBeInTheDocument();
+});
+
+test('header menus close on Escape and outside interaction', async () => {
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: /filter/i }));
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /andrew manager/i }));
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+});
+
+
+test('autosave does not repeat when the server returns a new revision', async () => {
+  jest.useFakeTimers();
+  const { unmount } = render(<App />);
+  await screen.findByRole('button', { name: /SML Project Note/i });
+  try {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ board: { updatedAt: 'revision-1' } }),
+    });
+    await act(async () => { jest.advanceTimersByTime(700); });
+    const saves = () => global.fetch.mock.calls.filter(([, options]) => options.method === 'PUT');
+    expect(saves()).toHaveLength(1);
+    await act(async () => { jest.advanceTimersByTime(2100); });
+    expect(saves()).toHaveLength(1);
+  } finally {
+    unmount();
+    jest.useRealTimers();
+  }
+});
+
+test('autosave waits for the previous request and uses its revision', async () => {
+  jest.useFakeTimers();
+  const { unmount } = render(<App />);
+  await screen.findByRole('button', { name: /SML Project Note/i });
+  try {
+    let resolveSave;
+    global.fetch.mockImplementation(() => new Promise((resolve) => { resolveSave = resolve; }));
+    await act(async () => { jest.advanceTimersByTime(700); });
+    act(() => { useBoardStore.getState().createCard({ taskName: 'Queued project', jobName: 'Client' }); });
+    await act(async () => { jest.advanceTimersByTime(700); });
+    const saves = () => global.fetch.mock.calls.filter(([, options]) => options.method === 'PUT');
+    expect(saves()).toHaveLength(1);
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ board: { updatedAt: 'revision-2' } }) });
+    await act(async () => {
+      resolveSave({ ok: true, json: async () => ({ board: { updatedAt: 'revision-1' } }) });
+    });
+    expect(saves()).toHaveLength(2);
+    expect(JSON.parse(saves()[1][1].body).baseUpdatedAt).toBe('revision-1');
+  } finally {
+    unmount();
+    jest.useRealTimers();
+  }
 });

@@ -356,4 +356,126 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .app-shell {
+    min-height: 100dvh;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .app-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  .brand { width: auto; }
+  .header-actions { width: auto; order: initial; }
+  .search-bar { grid-column: 1 / -1; }
+  .profile-chip { max-width: 150px; }
+  .profile-chip span { overflow: hidden; text-overflow: ellipsis; }
+  .account-menu-list { left: auto; right: 0; }
+  .search-actions { flex-wrap: wrap; }
+
+  .workspace-tab,
+  .header-link,
+  .workspace-filter-button,
+  .profile-chip,
+  .section-see-more-button,
+  .section-delete-button,
+  .ghost-button,
+  .context-action-button,
+  .account-menu-list button,
+  .workspace-filter-menu button {
+    min-height: 44px;
+  }
+
+  .workspace-add,
+  .plus-button,
+  .search-clear {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  input, textarea, select { font-size: 16px; }
+  .field, .todo-board, .plain-section, .row-slot { min-width: 0; }
+  .section-count { display: block; }
+  .section-topline { position: static; }
+  .section-title-row { flex-wrap: wrap; gap: 4px; }
+
+  /* A swipeable row keeps cards readable without desktop pile offsets. */
+  .pile-area,
+  .row-todo .pile-area,
+  .row-done .pile-area,
+  .row-hold .pile-area,
+  .side-status-column .pile-area {
+    display: flex;
+    gap: 12px;
+    min-height: 0 !important;
+    overflow-x: auto;
+    padding: 6px 2px 18px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pile-slot,
+  .row-todo .pile-slot {
+    position: relative;
+    flex: 0 0 min(260px, 88%);
+    width: min(260px, 88%);
+    transform: none !important;
+    scroll-snap-align: start;
+  }
+
+  .job-card,
+  .compact-card,
+  .drag-overlay .job-card,
+  .job-card.overlay {
+    width: 100%;
+    max-width: none;
+    min-height: 160px;
+    padding: 16px;
+  }
+
+  .job-card .card-top h3 { font-size: 1rem; line-height: 1.35; }
+  .job-card .card-top p { font-size: 0.875rem; line-height: 1.4; }
+  .job-card .card-meta { display: flex; flex-wrap: wrap; }
+  .draggable-card.hover-lift-card:hover .job-card { transform: none; }
+  .hover-card-preview { display: none; }
+  .all-cards-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+
+  .focus-actions,
+  .focus-header,
+  .modal-section-header,
+  .composer-actions,
+  .login-actions { flex-wrap: wrap; }
+  .focus-command-row { opacity: 1; }
+  .focus-actions { justify-content: flex-start; }
+  .modal-check-composer-row { grid-template-columns: minmax(0, 1fr); }
+  .focus-modal, .confirm-modal, .export-modal, .settings-modal, .login-card {
+    overscroll-behavior: contain;
+    scroll-padding-bottom: 24px;
+    overflow-wrap: anywhere;
+  }
+
+  .board-legend { position: static; flex-wrap: wrap; }
+  .board-legend span { white-space: normal; }
+  .job-card .card-top {
+    justify-content: stretch;
+    align-items: stretch;
+    height: auto;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .job-card .card-top p {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  .search-field input,
+  .field input,
+  .field select,
+  .field textarea,
+  .modal-check-composer-row input {
+    font-size: 16px;
+  }
 }

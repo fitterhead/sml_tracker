@@ -1,4 +1,4 @@
-import { getPileLayout } from './boardConfig';
+import { formatCardDisplayDate, getPileLayout } from './boardConfig';
 
 test('active card stack keeps horizontal spacing consistent for every adjacent card', () => {
   const visibleCount = 100;
@@ -22,4 +22,9 @@ test('active card stack uses half-strength diagonal rotation', () => {
 
   expect(lateRotation).toBeCloseTo(firstRotation, 6);
   expect(firstRotation).toBeCloseTo(0.014, 6);
+});
+
+
+test('start dates keep their calendar day in time zones west of UTC', () => {
+  expect(formatCardDisplayDate('2026-10-18')).toBe('Oct 18, 2026');
 });

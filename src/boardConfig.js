@@ -96,7 +96,8 @@ export const formatCardDisplayDate = (startDate, createdAt) => {
     return 'today';
   }
 
-  const date = new Date(value);
+  // Date-only fields represent a calendar day, not midnight UTC.
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
 
   if (Number.isNaN(date.getTime())) {
     return String(value);

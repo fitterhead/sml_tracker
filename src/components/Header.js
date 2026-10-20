@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBoardStore } from '../store/useBoardStore';
 
 export default function Header({
@@ -18,16 +18,33 @@ export default function Header({
   const [filterOpen, setFilterOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const searchInputRef = useRef(null);
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    const closeMenus = (event) => {
+      if (event.type === 'keydown' && event.key !== 'Escape') return;
+      if (event.type === 'pointerdown' && headerRef.current?.contains(event.target)) return;
+      setFilterOpen(false);
+      setAccountOpen(false);
+    };
+    document.addEventListener('pointerdown', closeMenus);
+    document.addEventListener('keydown', closeMenus);
+    return () => {
+      document.removeEventListener('pointerdown', closeMenus);
+      document.removeEventListener('keydown', closeMenus);
+    };
+  }, []);
   const clearSearch = () => {
     setSearchTerm('');
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
   };
   const selectSearchText = (event) => {
-    window.requestAnimationFrame(() => event.currentTarget.select());
+    const input = event.currentTarget;
+    window.requestAnimationFrame(() => input.select());
   };
 
   return (
-    <header className="app-header">
+    <header className="app-header" ref={headerRef}>
       <button type="button" className="brand" onClick={onMainPage}>
         <div className="brand-mark">F</div>
         <div>
@@ -79,7 +96,10 @@ export default function Header({
           <button
             type="button"
             className="workspace-filter-button"
-            onClick={() => setFilterOpen((current) => !current)}
+            onClick={() => {
+              setFilterOpen((current) => !current);
+              setAccountOpen(false);
+            }}
             aria-expanded={filterOpen}
             aria-haspopup="menu"
           >
@@ -112,7 +132,10 @@ export default function Header({
           <button
             type="button"
             className="profile-chip"
-            onClick={() => setAccountOpen((current) => !current)}
+            onClick={() => {
+              setAccountOpen((current) => !current);
+              setFilterOpen(false);
+            }}
             aria-expanded={accountOpen}
             aria-haspopup="menu"
           >
