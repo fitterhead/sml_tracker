@@ -80,3 +80,17 @@ Do not commit real secrets.
 Use **Paste update log** to copy a prompt for reviewing emails/transcripts in
 ChatGPT, then paste the returned JSON to review and apply updates to existing
 cards. No API key is required. See [the workflow and log format](docs/chatgpt-logs.md).
+
+## Rich text fields
+
+Project/client names, assignees, checklist text, and context notes support bold,
+italic, bullet/numbered lists, and text colours. Select text and use the toolbar,
+or use Cmd/Ctrl+B and Cmd/Ctrl+I. Shift+Enter inserts a line break. Enter keeps
+existing save/add behaviour; inside lists it creates the next item (Ctrl/Cmd+Enter
+uses the field's save/add action). The completion-note field also accepts normal
+paragraphs with Enter.
+
+Formatting is preserved in existing board storage and history. Older plain-text
+content remains editable. Search, ChatGPT log matching/prompts, and Excel export
+use readable text; spreadsheet exports intentionally omit styling. The editor
+engine loads only when a rich field is opened.

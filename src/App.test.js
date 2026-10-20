@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
+import { toEditorDocument } from './lib/richText';
 import { useBoardStore } from './store/useBoardStore';
 
 beforeEach(() => {
@@ -245,8 +246,8 @@ test('enter saves a focus mode project field without closing focus mode', async 
     })
   );
 
-  const projectInput = screen.getByDisplayValue('Original project');
-  fireEvent.change(projectInput, { target: { value: 'Updated project' } });
+  const projectInput = await screen.findByRole('textbox', { name: 'Project name' });
+  act(() => projectInput.editor.commands.setContent(toEditorDocument('Updated project')));
   expect(screen.getByRole('button', { name: /^SAVE$/i })).toBeInTheDocument();
 
   fireEvent.keyDown(projectInput, { key: 'Enter', code: 'Enter' });
@@ -311,9 +312,8 @@ test('focus mode completion phases archive prior checklist items', async () => {
   fireEvent.change(screen.getByLabelText(/completion date/i), {
     target: { value: '2026-06-03' },
   });
-  fireEvent.change(screen.getByPlaceholderText(/type phase context/i), {
-    target: { value: 'phase one complete' },
-  });
+  const phaseContext = await screen.findByRole('textbox', { name: 'Context note' });
+  act(() => phaseContext.editor.commands.setContent(toEditorDocument('phase one complete')));
   fireEvent.click(focusScope.getByRole('button', { name: /save completion/i }));
   expect(screen.getByText(/archive current checklist/i)).toBeInTheDocument();
   expect(
@@ -330,10 +330,8 @@ test('focus mode completion phases archive prior checklist items', async () => {
   expect(focusScope.getByText('phase one task')).toBeInTheDocument();
 
   fireEvent.click(focusScope.getByRole('button', { name: /\+ add item/i }));
-  const newChecklistInput = screen.getByPlaceholderText(/checklist item/i);
-  fireEvent.change(newChecklistInput, {
-    target: { value: 'phase two task' },
-  });
+  const newChecklistInput = await screen.findByRole('textbox', { name: 'Checklist item' });
+  act(() => newChecklistInput.editor.commands.setContent(toEditorDocument('phase two task')));
   fireEvent.keyDown(newChecklistInput, { key: 'Enter', code: 'Enter' });
 
   await waitFor(() => {

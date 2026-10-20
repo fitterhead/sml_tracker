@@ -32,6 +32,9 @@ import {
 } from './boardConfig';
 import Header from './components/Header';
 import CardLogModal from './components/CardLogModal';
+import RichTextInput from './components/RichTextInput';
+import RichText from './components/RichText';
+import { richTextToPlainText } from './lib/richText';
 import {
   fetchSession,
   loginRequest,
@@ -99,7 +102,7 @@ const readStoredAuthToken = () => {
   return window.localStorage.getItem(AUTH_TOKEN_KEY) || '';
 };
 
-const getSortableClientName = (card) => (card.jobName || '').trim().toLowerCase();
+const getSortableClientName = (card) => richTextToPlainText(card.jobName).trim().toLowerCase();
 
 const getSortableCreatedTime = (card) => {
   const value = card.createdAt || card.startDate || '';
@@ -396,7 +399,7 @@ const buildDraftFromCard = (card) => ({
 });
 
 const triggerActionOnEnter = (event, action) => {
-  if (event.key !== 'Enter' || event.shiftKey) {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.nativeEvent?.isComposing) {
     return;
   }
 
@@ -414,7 +417,8 @@ const isEditableControl = (target) => {
     tagName === 'INPUT' ||
     tagName === 'TEXTAREA' ||
     tagName === 'SELECT' ||
-    target.isContentEditable
+    target.isContentEditable ||
+    Boolean(target.closest?.('[contenteditable="true"], .rich-editor'))
   );
 };
 
@@ -614,7 +618,7 @@ const deleteChecklistHistoryContext = (item = {}, historyIndexFromNewest) => {
 };
 
 function HighlightedText({ text = '' }) {
-  return String(text);
+  return <RichText value={text} />;
 }
 
 function ContextMeta({ entry = {}, fallback = 'saved context' }) {
@@ -740,9 +744,9 @@ function ContextThreadEditor({
   return (
     <div className="modal-check-context">
       <div className="context-composer">
-        <label className="field field-full modal-check-context-field">
+        <div className="field field-full modal-check-context-field">
           <span>new context</span>
-          <textarea
+          <RichTextInput aria-label="Context note"
             ref={contextInputRef}
             value={inputValue || ''}
             onChange={(event) => onInputChange(event.target.value)}
@@ -752,7 +756,7 @@ function ContextThreadEditor({
             rows={2}
             placeholder="type a context note"
           />
-        </label>
+        </div>
         <button
           type="button"
           className="ghost-button"
@@ -898,7 +902,7 @@ function ChecklistConfirmModal({
         className="confirm-modal"
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+          if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !event.target.closest?.('.rich-editor') && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
             onConfirm();
           }
@@ -1768,12 +1772,12 @@ function CardShell({
         onDoubleClick={onDoubleClick}
       >
         <div className="card-top">
-          <h3 title={card.jobName || 'client - (no client name)'}>
+          <h3 title={richTextToPlainText(card.jobName) || 'client - (no client name)'}>
             <HighlightedText text={card.jobName || 'client - (no client name)'} />
           </h3>
           <p
             className={isTopPriority ? 'priority-alert-job' : ''}
-            title={card.taskName || 'no project assigned yet'}
+            title={richTextToPlainText(card.taskName) || 'no project assigned yet'}
           >
             <HighlightedText text={card.taskName || 'no project assigned yet'} />
           </p>
@@ -1789,12 +1793,12 @@ function CardShell({
       onDoubleClick={onDoubleClick}
     >
       <div className="card-top">
-        <h3 title={card.jobName || 'client - (no client name)'}>
+        <h3 title={richTextToPlainText(card.jobName) || 'client - (no client name)'}>
           <HighlightedText text={card.jobName || 'client - (no client name)'} />
         </h3>
         <p
           className={isTopPriority ? 'priority-alert-job' : ''}
-          title={card.taskName || 'no project assigned yet'}
+          title={richTextToPlainText(card.taskName) || 'no project assigned yet'}
         >
           <HighlightedText text={card.taskName || 'no project assigned yet'} />
         </p>
@@ -1877,7 +1881,7 @@ function CardShell({
               onBlurCapture={requestChecklistComposerExit}
               onKeyDown={saveInlineChecklistComposerOnEnter}
             >
-              <input
+              <RichTextInput aria-label="Checklist item"
                 ref={inlineChecklistInputRef}
                 value={newChecklistText}
                 onChange={(event) => setNewChecklistText(event.target.value)}
@@ -1896,7 +1900,7 @@ function CardShell({
                 }}
               />
               {showChecklistContextField ? (
-                <textarea
+                <RichTextInput aria-label="Context note"
                   value={newChecklistContext}
                   onChange={(event) => setNewChecklistContext(event.target.value)}
                   onFocus={selectEditableText}
@@ -1983,7 +1987,7 @@ function ChecklistItemModal({
         className="confirm-modal checklist-modal"
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
-          if (event.key === 'Enter' && event.target.tagName !== 'TEXTAREA') {
+          if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !event.target.closest?.('.rich-editor') && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
             onSave();
           }
@@ -1991,15 +1995,16 @@ function ChecklistItemModal({
       >
         <p className="eyebrow">checklist item</p>
         <h2>edit checklist item</h2>
-        <label className="field field-full">
+        <div className="field field-full">
           <span>item</span>
-          <input
+          <RichTextInput aria-label="Checklist item"
             value={item.text}
+            onKeyDown={(event) => triggerActionOnEnter(event, onSave)}
             onChange={(event) => onTextChange(event.target.value)}
             onFocus={selectEditableText}
             autoFocus
           />
-        </label>
+        </div>
         <ContextSummary item={item} />
         <ContextActionButton
           open={showContextField}
@@ -2371,9 +2376,9 @@ function CreateCardPopup({
     <div className="focus-backdrop" onClick={onOutsideCommit}>
       <form className="composer-popup" onClick={(event) => event.stopPropagation()} onSubmit={onSubmit}>
         <div className="composer-grid">
-          <label className="field">
+          <div className="field">
             <span>project</span>
-            <input
+            <RichTextInput aria-label="Project name"
               value={composerDraft.taskName}
               onChange={(event) =>
                 setComposerDraft((draft) => ({
@@ -2387,7 +2392,7 @@ function CreateCardPopup({
               onFocus={selectEditableText}
               placeholder="project name"
             />
-          </label>
+          </div>
           <label className="field">
             <span>client</span>
             <select
@@ -2406,16 +2411,16 @@ function CreateCardPopup({
             >
               {jobOptions.map((jobName) => (
                 <option key={jobName} value={jobName}>
-                  {jobName}
+                  {richTextToPlainText(jobName)}
                 </option>
               ))}
               <option value="__new__">add new client</option>
             </select>
           </label>
           {(!composerDraft.jobChoice || composerDraft.jobChoice === '__new__') ? (
-            <label className="field field-full">
+            <div className="field field-full">
               <span>add new client</span>
-              <input
+              <RichTextInput aria-label="Client name"
                 value={composerDraft.jobName}
                 onChange={(event) =>
                   setComposerDraft((draft) => ({
@@ -2429,7 +2434,7 @@ function CreateCardPopup({
                 onFocus={selectEditableText}
                 placeholder="new client name"
               />
-            </label>
+            </div>
           ) : null}
           <label className="field">
             <span>date</span>
@@ -3392,7 +3397,7 @@ function FocusModal({ card, onClose }) {
               <div className="focus-info-field">
                 <span>project name</span>
                 {editingFocusField === 'taskName' ? (
-                  <input
+                  <RichTextInput aria-label="Project name"
                     ref={(node) => {
                       focusFieldRefs.current.taskName = node;
                     }}
@@ -3441,13 +3446,13 @@ function FocusModal({ card, onClose }) {
                       <option value="">select existing client</option>
                       {jobOptions.map((jobName) => (
                         <option key={jobName} value={jobName}>
-                          {jobName}
+                          {richTextToPlainText(jobName)}
                         </option>
                       ))}
                       <option value="__custom__">add new client</option>
                     </select>
                     {!jobOptions.includes(draft.jobName) || draft.jobName === '' ? (
-                      <input
+                      <RichTextInput aria-label="Client name"
                         ref={(node) => {
                           focusFieldRefs.current.jobName = node;
                         }}
@@ -3507,7 +3512,7 @@ function FocusModal({ card, onClose }) {
               <div className="focus-info-field">
                 <span>assigned to</span>
                 {editingFocusField === 'assignedPerson' ? (
-                  <input
+                  <RichTextInput
                     ref={(node) => { focusFieldRefs.current.assignedPerson = node; }}
                     aria-label="Assigned to"
                     value={draft.assignedPerson || ''}
@@ -3516,7 +3521,7 @@ function FocusModal({ card, onClose }) {
                     onKeyDown={(event) => triggerActionOnEnter(event, saveFocusFieldEdit)}
                     autoFocus
                   />
-                ) : <button type="button" onClick={() => setEditingFocusField('assignedPerson')}>{draft.assignedPerson || 'Unassigned'}</button>}
+                ) : <button type="button" onClick={() => setEditingFocusField('assignedPerson')}><RichText value={draft.assignedPerson || 'Unassigned'} /></button>}
               </div>
               <div className="focus-info-field focus-info-priority">
                 <span>priority</span>
@@ -3530,7 +3535,7 @@ function FocusModal({ card, onClose }) {
             </div>
             {showClientRename && selectedExistingClient ? (
               <div className="client-rename-row">
-                <input
+                <RichTextInput aria-label="Client name"
                   ref={(node) => {
                     focusFieldRefs.current.clientRename = node;
                   }}
@@ -3588,7 +3593,7 @@ function FocusModal({ card, onClose }) {
         {card.activityLog?.length > 0 && <section className="project-updates" aria-label="Project updates">
           <h3>Project updates <span>{card.activityLog.length}</span></h3>
           <div className="project-update-list">{[...card.activityLog].reverse().map((entry, index) => <article key={index}>
-            <p>{entry.note}</p>
+            <p><RichText value={entry.note} /></p>
             <small>{entry.source}{entry.createdAt ? ` · ${formatCardDisplayDate('', entry.createdAt)}` : ''}</small>
           </article>)}</div>
         </section>}
@@ -3640,7 +3645,7 @@ function FocusModal({ card, onClose }) {
                 onBlurCapture={requestDraftChecklistComposerExit}
               >
                 <div className="modal-check-composer-row">
-                  <input
+                  <RichTextInput aria-label="Checklist item"
                     ref={draftChecklistInputRef}
                     value={newDraftChecklistText}
                     onChange={(event) => setNewDraftChecklistText(event.target.value)}
@@ -3671,7 +3676,7 @@ function FocusModal({ card, onClose }) {
                   >CANCEL</button>
                 </div>
                 {showNewDraftChecklistContext ? (
-                  <textarea
+                  <RichTextInput aria-label="Context note"
                     value={newDraftChecklistContext}
                     onChange={(event) =>
                       setNewDraftChecklistContext(event.target.value)
@@ -3697,16 +3702,16 @@ function FocusModal({ card, onClose }) {
                     autoFocus
                   />
                 </label>
-                <label className="field field-full">
+                <div className="field field-full">
                   <span>context</span>
-                  <textarea
+                  <RichTextInput aria-label="Context note"
                     value={completionContext}
                     onChange={(event) => setCompletionContext(event.target.value)}
                     onFocus={selectEditableText}
                     placeholder="type phase context"
                     rows={2}
                   />
-                </label>
+                </div>
                 <div className="modal-check-composer-actions">
                   <button
                     type="button"
@@ -3849,7 +3854,7 @@ function FocusModal({ card, onClose }) {
                     </div>
                     <div className="modal-check-copy">
                       {editingDraftChecklistId === item.id ? (
-                        <input
+                        <RichTextInput aria-label="Checklist item"
                           ref={(node) => {
                             focusFieldRefs.current[`checklist-${item.id}`] = node;
                           }}
@@ -4424,14 +4429,15 @@ function App() {
   };
 
   const filteredCards = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+    const query = searchTerm.trim().toLowerCase().replace(/\s+/g, ' ');
     if (!query) {
       return cards;
     }
 
     return cards.filter((card) =>
-      [card.taskName, card.jobName]
+      [richTextToPlainText(card.taskName), richTextToPlainText(card.jobName)]
         .join(' ')
+        .replace(/\s+/g, ' ')
         .toLowerCase()
         .includes(query)
     );
@@ -4478,7 +4484,7 @@ function App() {
   const pendingReopenCard =
     cards.find((card) => card.id === pendingReopenCardId) || null;
   const jobOptions = useMemo(
-    () => [...new Set(cards.map((card) => card.jobName.trim()).filter(Boolean))].sort(),
+    () => [...new Map(cards.filter((card) => richTextToPlainText(card.jobName).trim()).map((card) => [richTextToPlainText(card.jobName).trim().toLowerCase(), card.jobName.trim()])).values()].sort((a, b) => richTextToPlainText(a).localeCompare(richTextToPlainText(b))),
     [cards]
   );
   const showHoverPreview = (card, event) => {
@@ -4879,18 +4885,18 @@ function App() {
             ];
 
       return checklistRows.map((item) => ({
-        taskName: card.taskName,
-        jobName: card.jobName,
+        taskName: richTextToPlainText(card.taskName),
+        jobName: richTextToPlainText(card.jobName),
         lane: getCardZone(card),
         priority: card.priority || 1,
-        assignedPerson: card.assignedPerson,
+        assignedPerson: richTextToPlainText(card.assignedPerson),
         startDate: card.startDate,
-        checklistText: item.text,
+        checklistText: richTextToPlainText(item.text),
         checklistChecked:
           item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
         checklistcreatedAt: item.createdAt || '',
         checklistCompletedAt: item.completedAt || '',
-        checklistContext: item.context || '',
+        checklistContext: richTextToPlainText(item.context),
         checkedBy: item.checkedBy || '',
         createdBy: item.createdBy || '',
       }));

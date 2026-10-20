@@ -1,0 +1,67 @@
+.rich-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.rich-text strong, .rich-input-surface strong { font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.rich-text em, .rich-input-surface em { font-style: italic; }
+.rich-paragraph { display: block; min-height: 1em; }
+.rich-list { display: block; margin: .4em 0; padding-left: 1.3em; }
+.rich-list-item { display: block; position: relative; margin: .2em 0; }
+.rich-list-item::before { content: '•'; position: absolute; left: -1em; }
+.rich-list-ordered > .rich-list-item { counter-increment: rich-item; }
+.rich-list-ordered > .rich-list-item::before { content: counter(rich-item) '.'; left: -1.5em; width: 1.2em; text-align: right; }
+.rich-editor { min-width: 0; width: 100%; border: 1px solid var(--line-soft); border-radius: 7px; background: var(--surface); color: var(--text); overflow: visible; }
+.rich-editor:focus-within { border-color: #63816a; box-shadow: 0 0 0 2px #38674a12; }
+.rich-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px; border-bottom: 1px solid var(--line-soft); background: rgba(95,76,49,.025); border-radius: 7px 7px 0 0; }
+.rich-editor .rich-toolbar button { display: inline-grid; place-items: center; border: 0; border-radius: 4px; min-width: 30px; min-height: 30px; padding: 4px 7px; margin: 0; background: transparent; color: var(--muted); font-size: .75rem; text-transform: none; letter-spacing: 0; line-height: 1; cursor: pointer; }
+.rich-editor .rich-toolbar button:hover { background: #38674a0c; text-decoration: none; }
+.rich-editor .rich-toolbar button[aria-pressed='true'] { background: #38674a19; color: #315c40; }
+.rich-toolbar b { font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.rich-toolbar i { font-style: italic; }
+.rich-toolbar-divider { width: 1px; height: 16px; background: var(--line-soft); margin: 0 3px; }
+.rich-color-icon { border-bottom: 3px solid; padding-bottom: 2px; }
+.rich-editor .rich-input-surface { min-height: calc(var(--editor-rows, 2) * 1.5em + 20px); max-height: 40dvh; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; outline: none; font-size: .875rem; font-family: inherit; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; cursor: text; }
+.rich-editor .rich-input-surface p { display: block; margin: 0 0 .4em; padding: 0; max-width: none; border: 0; font-size: inherit; color: inherit; text-align: left; }
+.rich-editor .rich-input-surface p:last-child { margin-bottom: 0; }
+.rich-editor .rich-input-surface ul, .rich-editor .rich-input-surface ol { margin: .3em 0; padding-left: 1.5em; }
+.rich-editor .rich-input-surface li { margin: .2em 0; }
+.rich-editor[data-empty='true'] .rich-input-surface::before { content: attr(data-placeholder); float: left; color: var(--muted); pointer-events: none; height: 0; }
+.rich-editor .rich-input-hint { display: block; margin: 0; padding: 0 12px 7px; font-size: .625rem; color: var(--muted); line-height: 1.4; text-transform: none; letter-spacing: 0; }
+.rich-color-palette { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border-bottom: 1px solid var(--line-soft); }
+.rich-editor .rich-color-palette > button { min-width: 24px; min-height: 24px; border: 1px solid var(--line-soft); border-radius: 50%; padding: 0; cursor: pointer; }
+.rich-editor .rich-color-palette > button:last-child { border-radius: 4px; border: 0; background: transparent; color: var(--text); font-size: .75rem; padding: 4px; }
+.rich-color-palette button[aria-pressed='true'] { outline: 2px solid #63816a; outline-offset: 2px; }
+.rich-custom-color { display: flex; align-items: center; gap: 5px; font-size: .75rem; color: var(--muted); }
+.rich-editor .rich-custom-color input { width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; }
+.focus-grid .rich-editor, .modal-check-composer-row > .rich-editor { grid-column: 1 / -1; }
+.focus-info-field > .rich-editor { min-width: 0; }
+.job-card .rich-text .rich-paragraph { margin: 0; }
+.job-card .rich-editor .rich-input-surface p { white-space: pre-wrap; display: block; -webkit-line-clamp: unset; }
+@media (max-width: 720px) {
+  .rich-editor .rich-input-surface { font-size: 16px; }
+  .rich-editor .rich-toolbar button { min-height: 36px; min-width: 32px; }
+  .rich-editor .rich-color-palette > button { min-width: 28px; min-height: 28px; }
+  .rich-editor .rich-toolbar { gap: 2px; padding: 3px; }
+  .rich-editor .rich-input-hint { font-size: .625rem; }
+}
+/* Field labels must not restyle nested formatted content. */
+.focus-info-field .rich-text,
+.focus-info-field .rich-text span,
+.focus-info-field .rich-editor span {
+  font-size: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.focus-info-field:has(> .rich-editor) { grid-column: 1 / -1; }
+.rich-editor-loading { min-height: 96px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--muted); font-size: .8125rem; }
+.rich-editor .rich-input-surface span,
+.rich-editor .rich-toolbar span,
+.rich-text,
+.rich-text span {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: inherit;
+}
+@media (max-width: 720px) {
+  .focus-modal .context-composer, .context-composer { grid-template-columns: minmax(0, 1fr); }
+  .context-composer > .ghost-button { justify-self: end; min-height: 40px; }
+}
+
+.focus-context-inline .rich-text { font-size: .8125rem; line-height: 1.5; }

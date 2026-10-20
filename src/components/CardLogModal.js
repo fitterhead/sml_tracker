@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildCardLogPrompt, buildLogPreview, parseCardLog } from '../lib/cardLog';
+import { richTextToPlainText } from '../lib/richText';
 import { useBoardStore } from '../store/useBoardStore';
 
 export default function CardLogModal({ onClose }) {
@@ -83,7 +84,7 @@ export default function CardLogModal({ onClose }) {
             <label className="field"><span>Update {row.index + 1} · {row.entry.match.project || row.entry.match.client || row.entry.match.cardId}</span>
               <select aria-label={`Card for update ${row.index + 1}`} value={row.cardId} onChange={(event) => setChoices((current) => ({ ...current, [row.index]: event.target.value }))}>
                 <option value="">Skip / choose a card</option>
-                {cards.map((card) => <option key={card.id} value={card.id}>{card.taskName || 'Untitled project'} · {card.jobName || 'No client'} · {card.id.slice(-6)}</option>)}
+                {cards.map((card) => <option key={card.id} value={card.id}>{richTextToPlainText(card.taskName) || 'Untitled project'} · {richTextToPlainText(card.jobName) || 'No client'} · {card.id.slice(-6)}</option>)}
               </select>
             </label>
             {row.warnings.map((warning) => <p className="log-warning" key={warning}>{warning}</p>)}

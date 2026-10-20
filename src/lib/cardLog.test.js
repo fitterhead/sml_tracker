@@ -53,3 +53,14 @@ test('prompt includes stable IDs and the card index without context history', ()
   expect(prompt).toContain(LOG_SCHEMA);
   expect(prompt).not.toContain('Existing note');
 });
+
+test('formatted card and task names still match plain ChatGPT logs', () => {
+  const { serializeRichText } = require('./richText');
+  const format = (text) => serializeRichText({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text, marks: [{ type: 'bold' }] }] }] });
+  const formattedCard = { ...card, taskName: format(card.taskName), jobName: format(card.jobName), checklist: card.checklist.map((item) => ({ ...item, text: format(item.text) })) };
+  const input = log([{ match: { project: 'Website', client: 'Acme' }, tasks: [{ text: 'Review', context: 'Latest feedback' }] }]);
+  const row = buildLogPreview(input, [formattedCard])[0];
+  expect(row.cardId).toBe('a');
+  expect(row.patch.checklist).toHaveLength(1);
+  expect(buildCardLogPrompt([formattedCard], 'Main')).not.toContain('sml-richtext');
+});

@@ -12,6 +12,10 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
+    "@tiptap/extension-text-style": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/react": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -47,5 +51,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@tiptap/pm/(.*)$": "<rootDir>/node_modules/@tiptap/pm/dist/$1/index.cjs",
+      "^@tiptap/core/jsx-runtime$": "<rootDir>/node_modules/@tiptap/core/dist/jsx-runtime/jsx-runtime.cjs"
+    }
   }
 }

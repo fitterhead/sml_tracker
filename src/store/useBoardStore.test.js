@@ -327,3 +327,19 @@ test('card log rechecks fields changed since preview instead of overwriting them
   expect(useBoardStore.getState().cards.find((item) => item.id === card.id).assignedPerson).toBe('Taylor');
   store.resetBoard();
 });
+
+test('formatted titles and context survive board hydration with their styles', () => {
+  const { serializeRichText, richTextToPlainText } = require('../lib/richText');
+  const store = useBoardStore.getState();
+  store.resetBoard();
+  const formatted = serializeRichText({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Review artwork', marks: [{ type: 'italic' }, { type: 'textStyle', attrs: { color: '#2457a6' } }] }] }] });
+  store.createCard({ taskName: formatted, jobName: 'Client' });
+  const card = useBoardStore.getState().cards.slice(-1)[0];
+  store.updateCard(card.id, { checklist: card.checklist.map((item) => ({ ...item, context: formatted })) });
+  store.hydrateBoard(JSON.parse(JSON.stringify(useBoardStore.getState())));
+  const restored = useBoardStore.getState().cards.find((item) => item.id === card.id);
+  expect(restored.taskName).toBe(formatted);
+  expect(restored.checklist[0].context).toBe(formatted);
+  expect(richTextToPlainText(restored.taskName)).toBe('Review artwork');
+  store.resetBoard();
+});

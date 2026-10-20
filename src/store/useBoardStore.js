@@ -1,3 +1,4 @@
+import { richTextToPlainText } from '../lib/richText';
 import { buildLogPreview, parseCardLog } from '../lib/cardLog';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -114,16 +115,16 @@ const getHighestOrder = (cards) =>
   cards.reduce((max, card) => Math.max(max, card.order ?? 0), 0);
 
 export const isCardIncomplete = (card) =>
-  !card.taskName.trim() || !card.jobName.trim();
+  !richTextToPlainText(card.taskName).trim() || !richTextToPlainText(card.jobName).trim();
 
 export const getMissingFields = (card) => {
   const missing = [];
 
-  if (!card.taskName.trim()) {
+  if (!richTextToPlainText(card.taskName).trim()) {
     missing.push('project name');
   }
 
-  if (!card.jobName.trim()) {
+  if (!richTextToPlainText(card.jobName).trim()) {
     missing.push('client name');
   }
 
@@ -645,7 +646,7 @@ export const useBoardStore = create(
           set((state) =>
             updateActiveWorkspace(state, () => ({
             cards: state.cards.map((card) =>
-              card.jobName.trim() === previousName
+              richTextToPlainText(card.jobName).trim() === richTextToPlainText(previousName).trim()
                 ? { ...card, jobName: nextName }
                 : card
             ),
