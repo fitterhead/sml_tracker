@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { buildTodoSectionId, columnMeta } from '../boardConfig';
 import { useBoardStore } from '../store/useBoardStore';
 
@@ -16,47 +15,69 @@ export function BoardLayout({
   onHoverPreviewMove,
   onHoverPreviewEnd,
 }) {
-  const [mobileLane, setMobileLane] = useState('active');
-  const [expanded, setExpanded] = useState({ hold: false, done: false });
-  const renderSection = (lane, extra = {}) => <CardSectionComponent
-    lane={lane}
-    sectionId={lane}
-    cards={lanes[lane] || []}
-    onCreateCard={createCard}
-    onOpenAllCards={onOpenAllCards}
-    onOpenCard={(card) => setFocusCardId(card.id)}
-    onAddChecklistItem={addChecklistItem}
-    onRequestChecklistToggle={onRequestChecklistToggle}
-    onEditChecklistItem={onEditChecklistItem}
-    {...extra}
-  />;
   return (
     <main className="board-row">
-      <nav className="mobile-status-tabs" aria-label="Card status">
-        {[
-          ['active', 'To Do', Object.values(lanes.activeByColumn).reduce((count, items) => count + items.length, 0)],
-          ['hold', 'On Hold', lanes.hold.length], ['done', 'Finish', lanes.done.length],
-        ].map(([lane, label, count]) => <button type="button" key={lane} aria-label={`${label}, ${count} cards`} aria-pressed={mobileLane === lane} onClick={() => setMobileLane(lane)}>{label}<span>{count}</span></button>)}
-      </nav>
-      <div className={`todo-board board-panel ${mobileLane === 'active' ? 'is-mobile-active' : ''}`}>
+      <div className="todo-board">
         <div className="todo-grid">
-          {todoColumns.map((column) => <div className="row-slot row-todo" key={column.id}>
-            <CardSectionComponent lane="active" sectionId={buildTodoSectionId(column.id)} title={column.title}
-              cards={lanes.activeByColumn[column.id] || []}
-              onCreateCard={() => createCard(column.id)} onOpenAllCards={onOpenAllCards}
-              onOpenCard={(card) => setFocusCardId(card.id)} onAddChecklistItem={addChecklistItem}
-              onRequestChecklistToggle={onRequestChecklistToggle} onEditChecklistItem={onEditChecklistItem}
-              showCreateButton={false} showHeader />
-          </div>)}
+          {todoColumns.map((column, index) => (
+            <div className="row-slot row-todo" key={column.id}>
+              <CardSectionComponent
+                lane="active"
+                sectionId={buildTodoSectionId(column.id)}
+                title={column.title}
+                subtitle={index === 0 ? 'primary queue' : 'additional queue'}
+                cards={lanes.activeByColumn[column.id] || []}
+                onCreateCard={() => createCard(column.id)}
+                onOpenAllCards={onOpenAllCards}
+                onOpenCard={(card) => setFocusCardId(card.id)}
+                onAddChecklistItem={addChecklistItem}
+                onRequestChecklistToggle={onRequestChecklistToggle}
+                onEditChecklistItem={onEditChecklistItem}
+                onHoverPreview={onHoverPreview}
+                onHoverPreviewMove={onHoverPreviewMove}
+                onHoverPreviewEnd={onHoverPreviewEnd}
+                showCreateButton={index === 0}
+                showHeader
+              />
+            </div>
+          ))}
         </div>
       </div>
+
       <div className="side-status-column">
-        {['hold', 'done'].map((lane) => <div className={`row-slot row-${lane} board-panel ${mobileLane === lane ? 'is-mobile-active' : ''}`} key={lane}>
-          {renderSection(lane, {
-            collapsed: !expanded[lane] && mobileLane !== lane,
-            onToggleCollapse: () => setExpanded((current) => ({ ...current, [lane]: !current[lane] })),
-          })}
-        </div>)}
+        <div className="row-slot row-hold">
+          <CardSectionComponent
+            lane="hold"
+            sectionId="hold"
+            cards={lanes.hold}
+            onCreateCard={createCard}
+            onOpenAllCards={onOpenAllCards}
+            onOpenCard={(card) => setFocusCardId(card.id)}
+            onAddChecklistItem={addChecklistItem}
+            onRequestChecklistToggle={onRequestChecklistToggle}
+            onEditChecklistItem={onEditChecklistItem}
+            onHoverPreview={onHoverPreview}
+            onHoverPreviewMove={onHoverPreviewMove}
+            onHoverPreviewEnd={onHoverPreviewEnd}
+          />
+        </div>
+
+        <div className="row-slot row-done">
+          <CardSectionComponent
+            lane="done"
+            sectionId="done"
+            cards={lanes.done}
+            onCreateCard={createCard}
+            onOpenAllCards={onOpenAllCards}
+            onOpenCard={(card) => setFocusCardId(card.id)}
+            onAddChecklistItem={addChecklistItem}
+            onRequestChecklistToggle={onRequestChecklistToggle}
+            onEditChecklistItem={onEditChecklistItem}
+            onHoverPreview={onHoverPreview}
+            onHoverPreviewMove={onHoverPreviewMove}
+            onHoverPreviewEnd={onHoverPreviewEnd}
+          />
+        </div>
       </div>
     </main>
   );
@@ -134,6 +155,7 @@ export function AllCardsPage({
           <StaticCardComponent
             key={card.id}
             card={card}
+            forceFull
             isFrontCard={false}
             zIndex={10}
             onClick={() => onOpenCard(card)}

@@ -12,7 +12,6 @@ const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, 
   callbacks.current = { onChange, onKeyDown };
   const lastEmitted = useRef(value);
   const [colorsOpen, setColorsOpen] = useState(false);
-  const [focused, setFocused] = useState(false);
   const extensions = useMemo(() => [StarterKit.configure({ heading: false, blockquote: false, code: false, codeBlock: false, horizontalRule: false, strike: false, link: false, underline: false, trailingNode: false }), TextStyle, Color], []);
   const editor = useEditor({
     extensions,
@@ -61,14 +60,14 @@ const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, 
   const command = (run) => { if (editor) run(editor.chain().focus()).run(); };
   const action = (label, content, active, run) => <button type="button" aria-label={label} title={label} aria-pressed={active == null ? undefined : Boolean(active)} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => command(run)}>{content}</button>;
   return (
-    <div data-placeholder={placeholder} data-empty={formatting?.empty ? 'true' : 'false'} className={`rich-editor ${focused ? 'is-editing' : ''} ${className}`} ref={wrapperRef} style={{ '--editor-rows': rows }} onClick={(event) => event.stopPropagation()} onBlur={(event) => {
-      if (!event.currentTarget.contains(event.relatedTarget)) { setFocused(false); setColorsOpen(false); onBlur?.(event); }
-    }} onFocus={(event) => { setFocused(true); onFocus?.(event); }} onKeyDown={(event) => {
+    <div data-placeholder={placeholder} data-empty={formatting?.empty ? 'true' : 'false'} className={`rich-editor ${className}`} ref={wrapperRef} style={{ '--editor-rows': rows }} onClick={(event) => event.stopPropagation()} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) { setColorsOpen(false); onBlur?.(event); }
+    }} onFocus={onFocus} onKeyDown={(event) => {
       // Handled in ProseMirror so typing, IME, and list shortcuts win first.
       event.stopPropagation();
       if (event.key === 'Escape' && colorsOpen) { event.preventDefault(); setColorsOpen(false); editor?.commands.focus(); }
     }}>
-      <div className="rich-toolbar" hidden={!focused} role="group" aria-label="Text formatting">
+      <div className="rich-toolbar" role="group" aria-label="Text formatting">
         {action('Bold', <b>B</b>, formatting?.bold, (chain) => chain.toggleBold())}
         {action('Italic', <i>I</i>, formatting?.italic, (chain) => chain.toggleItalic())}
         <span className="rich-toolbar-divider" />
@@ -83,7 +82,7 @@ const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, 
         <button type="button" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => { command((chain) => chain.unsetColor()); setColorsOpen(false); }}>Default</button>
       </div>}
       <EditorContent editor={editor} />
-      <small className="rich-input-hint" hidden={!focused}>Shift + Enter for a new line</small>
+      <small className="rich-input-hint">Shift + Enter for a new line</small>
     </div>
   );
 });

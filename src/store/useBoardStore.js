@@ -73,7 +73,6 @@ const getUserPreferenceKey = (user = {}) =>
   String(user.email || user.id || user.name || 'default').trim().toLowerCase() || 'default';
 
 const normalizeUserPreferences = (preferences = {}) => ({
-  lastWorkspaceId: '',
   ...DEFAULT_USER_PREFERENCES,
   ...preferences,
 });
@@ -386,19 +385,18 @@ export const useBoardStore = create(
         hydrateBoard(board = {}, user = null) {
           const normalizedBoard = normalizeBoardPayload(board);
 
-          set((state) => {
-            const currentUser = user ? {
-              id: user.id || '', name: user.name || state.currentUser.name,
-              email: user.email || '', role: user.role || state.currentUser.role, isAuthenticated: true,
-            } : state.currentUser;
-            const preferredId = state.userPreferences?.[getUserPreferenceKey(currentUser)]?.lastWorkspaceId;
-            const workspace = normalizedBoard.workspaces.find((item) => item.id === preferredId);
-            return {
-              ...normalizedBoard,
-              ...(workspace ? { activeWorkspaceId: workspace.id, cards: workspace.cards, todoColumns: workspace.todoColumns } : {}),
-              currentUser,
-            };
-          });
+          set((state) => ({
+            ...normalizedBoard,
+            currentUser: user
+              ? {
+                  id: user.id || state.currentUser.id || '',
+                  name: user.name || state.currentUser.name,
+                  email: user.email || state.currentUser.email || '',
+                  role: user.role || state.currentUser.role,
+                  isAuthenticated: true,
+                }
+              : state.currentUser,
+          }));
         },
         createWorkspace(name = '') {
           set((state) => {
@@ -411,7 +409,6 @@ export const useBoardStore = create(
               activeWorkspaceId: workspace.id,
               todoColumns: workspace.todoColumns,
               cards: workspace.cards,
-              userPreferences: { ...state.userPreferences, [getUserPreferenceKey(state.currentUser)]: { ...normalizeUserPreferences(state.userPreferences?.[getUserPreferenceKey(state.currentUser)]), lastWorkspaceId: workspace.id } },
             };
           });
         },
@@ -431,11 +428,7 @@ export const useBoardStore = create(
           }));
         },
         switchWorkspace(workspaceId) {
-          set((state) => {
-            const next = syncActiveWorkspace(state, workspaceId);
-            const key = getUserPreferenceKey(state.currentUser);
-            return { ...next, userPreferences: { ...state.userPreferences, [key]: { ...normalizeUserPreferences(state.userPreferences?.[key]), lastWorkspaceId: next.activeWorkspaceId } } };
-          });
+          set((state) => syncActiveWorkspace(state, workspaceId));
         },
         logoutUser() {
           set((state) => ({

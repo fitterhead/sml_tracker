@@ -15,7 +15,6 @@ test('toolbar applies bold, italic and colour to selected text and renders safel
   const change = jest.fn();
   const { unmount } = render(<RichTextInput value="Approved" onChange={change} aria-label="Note" />);
   const input = screen.getByRole('textbox', { name: 'Note' });
-  fireEvent.focus(input);
   act(() => input.editor.commands.setTextSelection({ from: 1, to: 9 }));
   fireEvent.click(screen.getByRole('button', { name: 'Bold' }));
   fireEvent.click(screen.getByRole('button', { name: 'Italic' }));
@@ -35,7 +34,6 @@ test('Shift+Enter makes a line break without saving; Enter in a list creates an 
   const change = jest.fn();
   render(<RichTextInput value="First" onChange={change} onKeyDown={save} aria-label="Note" />);
   const input = screen.getByRole('textbox', { name: 'Note' });
-  fireEvent.focus(input);
   act(() => input.editor.commands.setTextSelection(6));
   fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
   expect(save).not.toHaveBeenCalled();
@@ -51,7 +49,6 @@ test('numbered lists, clear formatting, undo and empty values behave as text con
   const change = jest.fn();
   const { rerender } = render(<RichTextInput value="Review" onChange={change} aria-label="Note" />);
   const input = screen.getByRole('textbox', { name: 'Note' });
-  fireEvent.focus(input);
   fireEvent.click(screen.getByRole('button', { name: 'Numbered list' }));
   expect(input.querySelector('ol')).toBeInTheDocument();
   act(() => input.editor.view.dispatch(closeHistory(input.editor.state.tr)));
@@ -68,19 +65,8 @@ test('IME composition and toolbar Enter do not trigger parent save shortcuts', (
   const save = jest.fn();
   render(<div onKeyDown={parentKey}><RichTextInput value="Review" onChange={jest.fn()} onKeyDown={save} aria-label="Note" /></div>);
   const input = screen.getByRole('textbox', { name: 'Note' });
-  fireEvent.focus(input);
   fireEvent.keyDown(input, { key: 'Enter', isComposing: true, keyCode: 229 });
   expect(save).not.toHaveBeenCalled();
   fireEvent.keyDown(screen.getByRole('button', { name: 'Bold' }), { key: 'Enter' });
   expect(parentKey).not.toHaveBeenCalled();
-});
-
-test('formatting tools appear only while the field or its controls have focus', () => {
-  render(<RichTextInput value="Read first" onChange={jest.fn()} aria-label="Note" />);
-  const input = screen.getByRole('textbox', { name: 'Note' });
-  expect(screen.queryByRole('button', { name: 'Bold' })).not.toBeInTheDocument();
-  fireEvent.focus(input);
-  expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument();
-  fireEvent.blur(input, { relatedTarget: document.body });
-  expect(screen.queryByRole('button', { name: 'Bold' })).not.toBeInTheDocument();
 });

@@ -24,7 +24,6 @@ import {
   formatChecklistTimeline,
   formatContextHistoryTimeline,
   getPileHeight,
-  getDragPoint,
   getPileLayout,
   getStackLimit,
   getVisibleTodoColumnId,
@@ -1765,13 +1764,10 @@ function CardShell({
     submitChecklistItem(event);
   };
 
-  if (!forceFull) {
+  if (isCompact) {
     return (
       <article
-        tabIndex={0}
-        role="button"
-        onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.(); } }}
-        className={`job-card overview-card ${isCompact ? 'compact-card' : ''} ${isOverlay ? 'overlay' : ''}`}
+        className={`job-card compact-card ${isOverlay ? 'overlay' : ''}`}
         onClick={onClick}
         onDoubleClick={onDoubleClick}
       >
@@ -1786,7 +1782,6 @@ function CardShell({
             <HighlightedText text={card.taskName || 'no project assigned yet'} />
           </p>
         </div>
-        <div className="overview-meta"><span>{formatCardAge(card.createdAt)}</span><span className={`overview-priority priority-${card.priority || 1}`} aria-label={`Priority ${card.priority || 1}`}>P{card.priority || 1}</span></div>
       </article>
     );
   }
@@ -2044,6 +2039,18 @@ const getHoverPreviewPosition = (event) => ({
   y: Math.min(event.clientY + 18, window.innerHeight - 360),
 });
 
+const getDragPoint = (event) => {
+  const initialRect = event.active?.rect?.current?.initial;
+
+  if (!initialRect || !event.delta) {
+    return null;
+  }
+
+  return {
+    x: initialRect.left + initialRect.width / 2 + event.delta.x,
+    y: initialRect.top + initialRect.height / 2 + event.delta.y,
+  };
+};
 
 const isIntentionalStatusDrop = (lane, point) => {
   if (!STATUS_DROP_INTENT_LANES.has(lane)) {
@@ -2071,6 +2078,8 @@ const isIntentionalStatusDrop = (lane, point) => {
   );
 };
 
+const isCardHeaderTarget = (target) => Boolean(target?.closest?.('.card-top'));
+
 function DraggableCard(props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -2093,10 +2102,33 @@ function DraggableCard(props) {
       className={`draggable-card ${isDragging ? 'dragging' : ''} ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
+      onMouseEnter={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        if (isCardHeaderTarget(event.target)) {
+          props.onHoverPreview?.(props.card, event);
+        }
+      }}
+      onMouseMove={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        if (!isCardHeaderTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreview?.(props.card, event);
+      }}
+      onMouseLeave={props.onHoverPreviewEnd}
+      onPointerDown={props.onHoverPreviewEnd}
       {...listeners}
       {...attributes}
-      role="group"
-      tabIndex={-1}
     >
       <CardShell {...props} />
     </div>
@@ -2109,7 +2141,31 @@ function StaticCard(props) {
       className={`draggable-card static-card ${
         props.isFrontCard ? 'front-card' : 'hover-lift-card'
       }`}
+      onMouseEnter={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
 
+        if (isCardHeaderTarget(event.target)) {
+          props.onHoverPreview?.(props.card, event);
+        }
+      }}
+      onMouseMove={(event) => {
+        if (props.isFrontCard) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        if (!isCardHeaderTarget(event.target)) {
+          props.onHoverPreviewEnd?.();
+          return;
+        }
+
+        props.onHoverPreview?.(props.card, event);
+      }}
+      onMouseLeave={props.onHoverPreviewEnd}
+      onPointerDown={props.onHoverPreviewEnd}
     >
       <CardShell {...props} />
     </div>
@@ -2168,8 +2224,6 @@ function CardSection({
   showHeader = true,
   showCreateButton = false,
   showSeeMore = true,
-  collapsed = false,
-  onToggleCollapse,
 }) {
   const stackLimit = getStackLimit(lane);
   const visibleCards = cards.slice(-stackLimit);
@@ -2185,7 +2239,7 @@ function CardSection({
       lane={lane}
       dropId={sectionId}
       count={cards.length}
-      className={`plain-section ${collapsed ? 'is-collapsed' : ''}`}
+      className="plain-section"
       title={title}
       subtitle={subtitle}
     >
@@ -2201,8 +2255,7 @@ function CardSection({
             <div className="section-title-row">
               <h2>{title || columnMeta[lane].title}</h2>
               <div className="section-topline-actions">
-                {onToggleCollapse && <button type="button" className="status-disclosure" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Show' : 'Hide'} ${columnMeta[lane].title} cards`} onClick={onToggleCollapse}>{collapsed ? 'Show' : 'Hide'} <span aria-hidden="true">{collapsed ? '⌄' : '⌃'}</span></button>}
-                {shouldShowSeeMore && !collapsed ? (
+                {shouldShowSeeMore ? (
                   <button
                     type="button"
                     className="section-see-more-button"
@@ -2235,11 +2288,10 @@ function CardSection({
         ) : null}
       </div>
 
-      {!collapsed && <div
+      <div
         className={`pile-area lane-${lane}`}
         style={{ minHeight: pileHeight }}
       >
-        {cards.length === 0 && <p className="lane-empty">{lane === 'active' ? 'Drop a card here.' : 'No cards here yet.'}</p>}
         {visibleCards.map((card, index) => {
           const layout = getPileLayout(lane, visibleCards.length, index);
 
@@ -2297,7 +2349,7 @@ function CardSection({
             </div>
           );
         })}
-      </div>}
+      </div>
 
     </DropColumn>
   );
@@ -2451,21 +2503,6 @@ function FocusModal({ card, onClose }) {
   const focusFieldRefs = useRef({});
   const focusModalRef = useRef(null);
   const draftChecklistComposerRef = useRef(null);
-  useEffect(() => {
-    if (!card?.id) return undefined;
-    const previous = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      previous?.focus?.();
-    };
-  }, [card?.id]);
-  const focusCardReady = Boolean(card && draft);
-  useEffect(() => {
-    if (focusCardReady) focusModalRef.current?.focus();
-  }, [focusCardReady, card?.id]);
-
   const draftChecklistInputRef = useRef(null);
   const skipDraftChecklistComposerPromptRef = useRef(false);
   const skipFocusBlurPromptRef = useRef(false);
@@ -3015,8 +3052,7 @@ function FocusModal({ card, onClose }) {
       event.key !== 'Enter' ||
       event.shiftKey ||
       event.defaultPrevented ||
-      isEditableControl(event.target) ||
-      Boolean(event.target.closest?.('button'))
+      isEditableControl(event.target)
     ) {
       return;
     }
@@ -3330,27 +3366,13 @@ function FocusModal({ card, onClose }) {
   const hasActiveChecklistItems = getActiveChecklistItems(draft.checklist).length > 0;
 
   return (
-    <div className="focus-backdrop card-detail-backdrop" onClick={closeFocusModal}>
+    <div className="focus-backdrop" onClick={closeFocusModal}>
       <div
         ref={focusModalRef}
         className="focus-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Card details"
         tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
-        onKeyDownCapture={(event) => {
-          if (event.key === 'Escape' && !event.target.closest?.('.rich-editor')) {
-            event.preventDefault(); event.stopPropagation(); closeFocusModal(); return;
-          }
-          if (event.key === 'Tab') {
-            const controls = [...focusModalRef.current.querySelectorAll('button:not(:disabled), input, select, textarea, [contenteditable="true"], [tabindex="0"]')].filter((element) => element.getClientRects().length && !element.closest('[hidden]'));
-            const first = controls[0]; const last = controls[controls.length - 1];
-            if (event.shiftKey && (document.activeElement === first || document.activeElement === focusModalRef.current)) { event.preventDefault(); last?.focus(); }
-            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-          }
-          saveFocusModeOnEnter(event);
-        }}
+        onKeyDownCapture={saveFocusModeOnEnter}
       >
         <div className="focus-header">
           <div className="focus-title-line">
@@ -4971,16 +4993,6 @@ function App() {
   return (
     <div className="app-shell" style={appAppearanceStyle}>
       <Header
-        workspaceNavigation={
-          <WorkspaceTabs
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onSwitch={switchWorkspace}
-        onCreate={createClientWorkspace}
-        onRename={renameWorkspace}
-      />
-        }
-        onCreateCard={() => { setComposerDraft((current) => ({ ...current, todoColumnId: todoColumns[0]?.id || '' })); setShowComposer(true); }}
         syncStatus={syncStatus}
         incompleteCount={cards.filter((card) => getMissingFields(card).length > 0).length}
         onPasteLog={() => setShowCardLog(true)}
@@ -5006,7 +5018,13 @@ function App() {
         onLogout={logout}
       />
 
-
+      <WorkspaceTabs
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        onSwitch={switchWorkspace}
+        onCreate={createClientWorkspace}
+        onRename={renameWorkspace}
+      />
 
       <DndContext
         sensors={sensors}
@@ -5082,7 +5100,7 @@ function App() {
           />
         ) : viewMode === 'board' ? (
           (
-            <BoardLayout key={activeWorkspaceId}
+            <BoardLayout
               CardSectionComponent={CardSection}
               lanes={lanes}
               todoColumns={todoColumns}
