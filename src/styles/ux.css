@@ -56,12 +56,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .section-title-block { gap: 4px; }
 .section-count { color: var(--muted); font-size: .6875rem; }
 .section-see-more-button { font-size: .6875rem; color: var(--muted); min-height: 32px; text-transform: none; }
-.job-card .card-top, .compact-card .card-top { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; }
-.job-card .card-top h3 { font-size: .75rem; color: var(--muted); line-height: 1.4; }
-.job-card .card-top p { flex: none; max-width: 100%; text-align: left; font-size: 1rem; line-height: 1.45; color: var(--text); }
-.job-card .priority-alert-job { animation: none; padding: 0; margin: 0; border-radius: 0; color: #8a620c; background: transparent; text-decoration: none; }
-.job-card .priority-alert-job::before { display: none; }
-.job-card .priority-alert-job:hover { color: #8a620c; text-shadow: none; }
+.job-card .card-top, .compact-card .card-top { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; }
+.job-card .card-top h3 { flex: 1 1 42%; min-width: 0; font-size: .75rem; color: var(--muted); line-height: 1.4; }
+.job-card .card-top p { flex: 1 1 54%; max-width: 58%; text-align: right; font-size: 1rem; line-height: 1.45; color: var(--text); }
 .card-meta { font-size: .6875rem; color: var(--muted); }
 .board-legend { color: var(--muted); opacity: .8; font-size: .6875rem; }
 .primary-button { border-radius: 6px; padding: 10px 16px; background: #315c40; color: #fff; font-size: .8125rem; text-transform: none; }
