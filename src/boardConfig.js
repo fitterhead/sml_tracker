@@ -222,7 +222,7 @@ export const getPileLayout = (lane, visibleCount, index) => {
       )
     : naturalXStep;
   const yStep = isCompactStack
-    ? Math.max(22, 30 - compression)
+    ? 40
     : Math.max(14, 42 - compression * 1.4);
   const scale = 1;
 

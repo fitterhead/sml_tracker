@@ -159,7 +159,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 @media (min-width: 721px) {
-  /* Let status cards size to their text instead of covering the previous title. */
+  /* Size each status section to its overlapping pile. */
   .side-status-column {
     grid-template-rows: auto;
     height: auto;
@@ -176,19 +176,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   }
 
   .side-status-column .pile-area {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     height: auto;
-    min-height: 0 !important;
-  }
-
-  .side-status-column .pile-slot {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 100%;
-    transform: none !important;
   }
 }
 
