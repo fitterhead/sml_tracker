@@ -35,6 +35,7 @@ import CardLogModal from './components/CardLogModal';
 import RichTextInput from './components/RichTextInput';
 import RichText from './components/RichText';
 import ExpandableText from './components/ExpandableText';
+import { getChecklistVisibility } from './lib/checklistVisibility';
 import { richTextToPlainText } from './lib/richText';
 import {
   fetchSession,
@@ -1664,7 +1665,10 @@ function CardShell({
   onEditChecklistItem,
 }) {
   const missingFields = getMissingFields(card);
-  const visibleChecklist = getActiveChecklistItems(card.checklist);
+  const [showCompletedChecklist, setShowCompletedChecklist] = useState(false);
+  const { items: visibleChecklist, hiddenCount: hiddenChecklistCount } = getChecklistVisibility(
+    getActiveChecklistItems(card.checklist), showCompletedChecklist
+  );
   const cardZone = getCardZone(card);
   const isOnHold = cardZone === 'hold';
   const isCompact = !forceFull && (cardZone === 'hold' || cardZone === 'done');
@@ -1855,6 +1859,10 @@ function CardShell({
               }}
             />
           ))}
+          {hiddenChecklistCount > 0 && <button type="button" className="text-see-more" aria-expanded={showCompletedChecklist} onClick={(event) => {
+            event.stopPropagation();
+            setShowCompletedChecklist((current) => !current);
+          }}>{showCompletedChecklist ? 'Show less' : `Show more (${hiddenChecklistCount} completed)`}</button>}
         </div>
       )}
 
@@ -2466,6 +2474,7 @@ function FocusModal({ card, onClose }) {
     [cards]
   );
   const [draft, setDraft] = useState(null);
+  const [showCompletedChecklist, setShowCompletedChecklist] = useState(false);
   const [pendingToggle, setPendingToggle] = useState(null);
   const [expandedDraftContexts, setExpandedDraftContexts] = useState({});
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
@@ -2520,6 +2529,7 @@ function FocusModal({ card, onClose }) {
       return;
     }
 
+    setShowCompletedChecklist(false);
     setDraft(buildDraftFromCard(card));
     setPendingToggle(null);
     setExpandedDraftContexts({});
@@ -3345,11 +3355,11 @@ function FocusModal({ card, onClose }) {
   const displayStartDate = draft.startDate
     ? formatCardDisplayDate(draft.startDate)
     : 'no date';
-  const visibleFocusChecklist = sortChecklistNewestFirst(
+  const { items: visibleFocusChecklist, hiddenCount: hiddenFocusChecklistCount } = getChecklistVisibility(sortChecklistNewestFirst(
     draft.checklist.filter(
       (item) => isCompletionChecklistItem(item) || isActiveChecklistItem(item)
     )
-  );
+  ), showCompletedChecklist);
   const hasActiveChecklistItems = getActiveChecklistItems(draft.checklist).length > 0;
 
   return (
@@ -3919,6 +3929,9 @@ function FocusModal({ card, onClose }) {
                 </div>
               );
             })}
+            {hiddenFocusChecklistCount > 0 && <button type="button" className="text-see-more" aria-expanded={showCompletedChecklist} onClick={() => setShowCompletedChecklist((current) => !current)}>
+              {showCompletedChecklist ? 'Show less' : `Show more (${hiddenFocusChecklistCount} completed)`}
+            </button>}
           </section>
           <div className="focus-command-row">
             {canMoveToTodo || canMoveToHold || canMoveToFinish ? (
