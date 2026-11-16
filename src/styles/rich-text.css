@@ -65,3 +65,37 @@
 }
 
 .focus-context-inline .rich-text { font-size: .8125rem; line-height: 1.5; }
+
+/* Keep the same exposed header strip in every stacked lane. */
+.pile-area .job-card {
+  padding: 2px 6px 12px;
+}
+.pile-area .job-card .card-top {
+  align-items: flex-start;
+  gap: 6px;
+}
+.pile-area .job-card .card-top h3,
+.pile-area .job-card .card-top p {
+  margin-top: 0;
+  line-height: 1.2;
+}
+.expandable-text { display: block; min-width: 0; overflow-wrap: anywhere; }
+.expandable-copy { display: block; white-space: pre-wrap; }
+.expandable-copy.is-collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  max-height: 4.5em;
+}
+.text-see-more {
+  display: inline-block;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .75rem;
+  cursor: pointer;
+  text-decoration: underline;
+}

@@ -34,6 +34,7 @@ import Header from './components/Header';
 import CardLogModal from './components/CardLogModal';
 import RichTextInput from './components/RichTextInput';
 import RichText from './components/RichText';
+import ExpandableText from './components/ExpandableText';
 import { richTextToPlainText } from './lib/richText';
 import {
   fetchSession,
@@ -657,7 +658,7 @@ function ContextSummary({ item }) {
     <div className="context-summary">
       <ContextMeta entry={latest} fallback="latest context" />
       <p>
-        <HighlightedText text={latest.note} />
+        <ExpandableText value={latest.note} />
       </p>
     </div>
   );
@@ -789,7 +790,7 @@ function ContextThreadEditor({
               ) : null}
             </div>
             <p className="context-entry-note">
-              <HighlightedText text={item.context} />
+              <ExpandableText value={item.context} />
             </p>
           </div>
         ) : null}
@@ -814,7 +815,7 @@ function ContextThreadEditor({
                 ) : null}
               </div>
               <p className="context-entry-note">
-                <HighlightedText text={entry.note || ''} />
+                <ExpandableText value={entry.note || ''} />
               </p>
             </div>
           ))}
@@ -911,7 +912,7 @@ function ChecklistConfirmModal({
         <p className="eyebrow">{eyebrow}</p>
         <h2>{actionText}</h2>
         <p className="confirm-item-text">
-          <HighlightedText text={itemText || ''} />
+          <ExpandableText value={itemText || ''} />
         </p>
         <ContextActionButton
           open={showContextField}
@@ -1115,7 +1116,7 @@ function DeleteChecklistModal({ open, itemText, onConfirm, onCancel }) {
         <p className="eyebrow">delete checklist item</p>
         <h2>do you want to delete this item?</h2>
         <p className="confirm-item-text">
-          <HighlightedText text={itemText || ''} />
+          <ExpandableText value={itemText || ''} />
         </p>
         <div className="focus-actions">
           <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
@@ -1583,21 +1584,7 @@ function ChecklistItem({
             <span className={`check-mark ${isReviewed ? 'completed' : ''}`} />
           </button>
         </div>
-        {onEdit ? (
-          <button
-            type="button"
-            className="check-label-button"
-            onClick={onEdit}
-          >
-            <span className="check-label">
-              <HighlightedText text={item.text} />
-            </span>
-          </button>
-        ) : (
-          <span className="check-label">
-            <HighlightedText text={item.text} />
-          </span>
-        )}
+        <ExpandableText value={item.text} onEdit={onEdit} className="check-label-button" />
         {formatChecklistTimeline(item) ? (
           <span className="check-date">{formatChecklistTimeline(item)}</span>
         ) : null}
@@ -1634,7 +1621,7 @@ function ChecklistItem({
                     ) : null}
                   </div>
                   <p className="context-entry-note">
-                    <HighlightedText text={item.context} />
+                    <ExpandableText value={item.context} />
                   </p>
                 </div>
               ) : null}
@@ -1653,7 +1640,7 @@ function ChecklistItem({
                     ) : null}
                   </div>
                   <p className="context-entry-note">
-                    <HighlightedText text={entry.note || ''} />
+                    <ExpandableText value={entry.note || ''} />
                   </p>
                 </div>
               ))}
@@ -2378,7 +2365,7 @@ function CreateCardPopup({
         <div className="composer-grid">
           <div className="field">
             <span>project</span>
-            <RichTextInput aria-label="Project name"
+            <input aria-label="Project name"
               value={composerDraft.taskName}
               onChange={(event) =>
                 setComposerDraft((draft) => ({
@@ -2420,7 +2407,7 @@ function CreateCardPopup({
           {(!composerDraft.jobChoice || composerDraft.jobChoice === '__new__') ? (
             <div className="field field-full">
               <span>add new client</span>
-              <RichTextInput aria-label="Client name"
+              <input aria-label="Client name"
                 value={composerDraft.jobName}
                 onChange={(event) =>
                   setComposerDraft((draft) => ({
@@ -3768,7 +3755,7 @@ function FocusModal({ card, onClose }) {
                     </div>
                     {item.context?.trim() ? (
                       <p className="focus-context-inline completion-context">
-                        <HighlightedText text={item.context} />
+                        <ExpandableText value={item.context} />
                       </p>
                     ) : null}
                     {isExpanded ? (
@@ -3776,14 +3763,14 @@ function FocusModal({ card, onClose }) {
                         {(item.phaseItems || []).map((phaseItem) => (
                           <div className="completion-phase-item" key={phaseItem.id}>
                             <span>
-                              <HighlightedText text={phaseItem.text} />
+                              <ExpandableText value={phaseItem.text} />
                             </span>
                             {formatChecklistTimeline(phaseItem) ? (
                               <small>{formatChecklistTimeline(phaseItem)}</small>
                             ) : null}
                             {phaseItem.context?.trim() ? (
                               <p>
-                                <HighlightedText text={phaseItem.context} />
+                                <ExpandableText value={phaseItem.context} />
                               </p>
                             ) : null}
                           </div>
@@ -3874,17 +3861,11 @@ function FocusModal({ card, onClose }) {
                           autoFocus
                         />
                       ) : (
-                        <button
-                          type="button"
-                          className="modal-check-label-button"
-                          onClick={() => setEditingDraftChecklistId(item.id)}
-                        >
-                          <HighlightedText text={item.text} />
-                        </button>
+                        <ExpandableText value={item.text} onEdit={() => setEditingDraftChecklistId(item.id)} className="modal-check-label-button" />
                       )}
                       {getChecklistContextPreview(item) ? (
                         <p className="focus-context-inline">
-                          <HighlightedText text={getChecklistContextPreview(item)} />
+                          <ExpandableText value={getChecklistContextPreview(item)} />
                         </p>
                       ) : null}
                     </div>
