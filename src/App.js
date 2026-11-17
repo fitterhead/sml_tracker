@@ -2241,15 +2241,15 @@ function CardSection({
       <div className={`section-topline ${showHeader ? '' : 'is-placeholder'}`}>
         {showHeader ? (
           <>
-          {showCreateButton ? (
-            <button type="button" className="plus-button" aria-label="create project" onClick={onCreateCard}>
-              <span aria-hidden="true">+</span><span className="add-card-label">Add card</span>
-            </button>
-          ) : null}
           <div className="section-title-block">
             <div className="section-title-row">
               <h2>{title || columnMeta[lane].title}</h2>
               <div className="section-topline-actions">
+                {showCreateButton ? (
+                  <button type="button" className="plus-button" aria-label="create project" onClick={onCreateCard}>
+                    <span aria-hidden="true">+</span><span className="add-card-label">Add card</span>
+                  </button>
+                ) : null}
                 {shouldShowSeeMore ? (
                   <button
                     type="button"

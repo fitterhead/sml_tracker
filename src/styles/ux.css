@@ -54,6 +54,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .section-topline { gap: 8px; margin-bottom: 12px; position: static; }
 .section-topline h2, .row-slot .section-topline h2 { font-size: .8125rem; letter-spacing: .04em; }
 .section-title-block { gap: 4px; }
+.row-slot .section-topline {
+  min-height: 64px;
+  align-items: flex-start;
+  padding: 0 0 16px;
+  margin-bottom: 8px;
+}
+.section-title-row { align-items: center; gap: 12px; min-height: 32px; }
+.section-title-row h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.section-topline-actions { gap: 12px; }
+.section-topline-actions .plus-button { order: initial; }
+.section-topline-actions button { white-space: nowrap; }
 .section-count { color: var(--muted); font-size: .6875rem; }
 .section-see-more-button { font-size: .6875rem; color: var(--muted); min-height: 32px; text-transform: none; }
 .job-card .card-top, .compact-card .card-top { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -159,6 +170,30 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 @media (min-width: 721px) {
+  /* Three equal lane widths, including the stacked status column. */
+  .board-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .todo-board { grid-column: span 2; }
+  .todo-grid { gap: var(--space-10); }
+  .side-status-column { min-width: 0; width: 100%; }
+  .side-status-column .row-slot,
+  .side-status-column .plain-section,
+  .side-status-column .pile-area { width: 100%; }
+  .row-hold .pile-slot,
+  .row-done .pile-slot { width: calc(100% - var(--todo-pile-spread)); }
+  .row-hold .job-card,
+  .row-done .job-card,
+  .drag-overlay .compact-card,
+  .compact-card.overlay { width: min(100%, 384px); }
+  .side-status-column .pile-area .compact-card .card-top { align-items: baseline; }
+  .side-status-column .compact-card .card-top h3 { flex: 0 1 32%; }
+  .side-status-column .compact-card .card-top p {
+    flex: 1 1 68%;
+    max-width: 68%;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+  }
   /* Size each status section to its overlapping pile. */
   .side-status-column {
     grid-template-rows: auto;
@@ -180,7 +215,36 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   }
 }
 
+/* Actions get their own row so they never steal the checklist text column. */
+.modal-check-main {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 4px;
+}
+.modal-check-main > .modal-check-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 14px;
+}
+.modal-check-actions > button { flex: 0 0 auto; white-space: nowrap; }
+.modal-check-main > .modal-check-actions > button { font-size: .75rem; min-height: 32px; padding: 4px 0; }
+@media (max-width: 1120px) and (min-width: 721px) {
+  .board-row { grid-template-columns: minmax(0, 1fr); }
+  .todo-board { grid-column: auto; }
+  .side-status-column { column-gap: var(--space-10); }
+  .todo-grid { column-gap: var(--space-10); }
+  .pile-area, .row-todo .pile-area, .row-hold .pile-area, .row-done .pile-area { width: 100%; }
+}
+
 @media (max-width: 720px) {
+  .side-status-column .row-slot,
+  .side-status-column .plain-section,
+  .side-status-column .pile-area { width: 100%; }
+  .row-hold .job-card,
+  .row-done .job-card { width: 100%; }
+  .section-topline-actions { gap: 8px; }
   .side-status-column .compact-card .card-top h3,
   .side-status-column .compact-card .card-top p {
     display: block;
