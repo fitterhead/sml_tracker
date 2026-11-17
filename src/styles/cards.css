@@ -44,11 +44,11 @@
 }
 
 .compact-card {
-  width: min(100%, 260px);
-  min-height: 0;
-  padding: var(--space-5) var(--space-6);
+  width: min(100%, 384px);
+  min-height: 86px;
+  padding: 12px;
   cursor: default;
-  border-top: 0;
+  border-top: 1px solid var(--line-soft);
 }
 
 .compact-card .card-top {
@@ -56,8 +56,8 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-5);
-  padding-bottom: 0;
-  border-bottom: 0;
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid rgba(95, 76, 49, 0.16);
 }
 
 .compact-card .card-top h3,

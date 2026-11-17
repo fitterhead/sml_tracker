@@ -65,6 +65,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .section-topline-actions { gap: 12px; }
 .section-topline-actions .plus-button { order: initial; }
 .section-topline-actions button { white-space: nowrap; }
+.job-card.compact-card { min-height: 86px; }
 .section-count { color: var(--muted); font-size: .6875rem; }
 .section-see-more-button { font-size: .6875rem; color: var(--muted); min-height: 32px; text-transform: none; }
 .job-card .card-top, .compact-card .card-top { display: flex; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -184,16 +185,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .row-done .job-card,
   .drag-overlay .compact-card,
   .compact-card.overlay { width: min(100%, 384px); }
-  .side-status-column .pile-area .compact-card .card-top { align-items: baseline; }
-  .side-status-column .compact-card .card-top h3 { flex: 0 1 32%; }
-  .side-status-column .compact-card .card-top p {
-    flex: 1 1 68%;
-    max-width: 68%;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-    overflow: hidden;
-  }
   /* Size each status section to its overlapping pile. */
   .side-status-column {
     grid-template-rows: auto;

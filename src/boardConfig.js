@@ -201,7 +201,7 @@ export const getStackLimit = (lane) => {
 };
 
 export const getPileLayout = (lane, visibleCount, index) => {
-  if (lane === 'active') {
+  if (lane === 'active' || lane === 'hold' || lane === 'done') {
     return {
       x: index * getTodoStackXStep(visibleCount),
       y: index * getTodoStackYStep(visibleCount),
