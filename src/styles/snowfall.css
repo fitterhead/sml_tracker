@@ -26,22 +26,6 @@
   100% { transform: translate(var(--snow-drift), calc(100vh + 12px)); }
 }
 
-.job-card::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: 8px;
-  right: 8px;
-  height: 6px;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 5px 2px at 9% 65%, #f9fcff 65%, transparent),
-    radial-gradient(ellipse 9px 3px at 24% 55%, #f9fcff 65%, transparent),
-    radial-gradient(ellipse 4px 2px at 62% 65%, #f9fcff 65%, transparent),
-    radial-gradient(ellipse 7px 3px at 82% 55%, #f9fcff 65%, transparent);
-  filter: drop-shadow(0 1px 1px #8da6bc80);
-}
-
 @media (max-width: 600px) {
   .snowflake:nth-child(even) {
     display: none;
