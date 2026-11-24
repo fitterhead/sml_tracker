@@ -407,7 +407,10 @@ test('autosave waits for the previous request and uses its revision', async () =
 
 test('attaches a compressed checklist image and only displays it on request', async () => {
   const image = 'data:image/webp;base64,UklGRg==';
-  resizeChecklistImage.mockResolvedValueOnce(image);
+  let finishCompression;
+  resizeChecklistImage
+    .mockRejectedValueOnce(new Error('Invalid image'))
+    .mockReturnValueOnce(new Promise((resolve) => { finishCompression = resolve; }));
   const board = {
     todoColumns: [{ id: 'todo-1', title: 'To Do' }],
     cards: [
@@ -433,10 +436,20 @@ test('attaches a compressed checklist image and only displays it on request', as
   render(<App />);
   fireEvent.click(await screen.findByRole('button', { name: 'Check the sample' }));
   const toolbar = screen.getByRole('group', { name: 'Text formatting' });
-  fireEvent.change(within(toolbar).getByLabelText('Attach image'), {
-    target: { files: [new File(['sample'], 'sample.png', { type: 'image/png' })] },
-  });
-  await screen.findByLabelText('Replace image');
+  const picker = within(toolbar).getByLabelText('Choose checklist image');
+  const openPicker = jest.spyOn(picker, 'click');
+  fireEvent.click(within(toolbar).getByRole('button', { name: 'Attach image' }));
+  expect(openPicker).toHaveBeenCalledTimes(1);
+  const selection = { target: { files: [new File(['sample'], 'sample.png', { type: 'image/png' })] } };
+  fireEvent.change(picker, selection);
+  expect(await within(toolbar).findByRole('alert')).toHaveTextContent('Could not prepare the image');
+  fireEvent.change(picker, selection);
+  expect(within(toolbar).queryByRole('alert')).not.toBeInTheDocument();
+  expect(within(toolbar).getByRole('progressbar', { name: 'Compressing image' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'SAVE' })).toBeDisabled();
+  await act(async () => finishCompression(image));
+  expect(within(toolbar).getByRole('status')).toHaveTextContent('Image ready');
+  expect(within(toolbar).queryByRole('progressbar')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
 
   expect(screen.queryByRole('img', { name: 'Checklist attachment' })).not.toBeInTheDocument();

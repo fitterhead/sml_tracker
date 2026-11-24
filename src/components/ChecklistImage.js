@@ -33,6 +33,8 @@ export function ChecklistImage({ image }) {
 export function ChecklistImageInput({ image, onChange, onBusyChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [preparedImage, setPreparedImage] = useState('');
+  const fileInput = useRef(null);
   const active = useRef(false);
   const busyCallback = useRef(onBusyChange);
   busyCallback.current = onBusyChange;
@@ -52,12 +54,14 @@ export function ChecklistImageInput({ image, onChange, onBusyChange }) {
     }
 
     setError('');
+    setPreparedImage('');
     setBusy(true);
     onBusyChange?.(true);
     try {
       const thumbnail = await resizeChecklistImage(file);
       if (active.current) {
         onChange(thumbnail);
+        setPreparedImage(thumbnail);
       }
     } catch {
       if (active.current) {
@@ -78,16 +82,32 @@ export function ChecklistImageInput({ image, onChange, onBusyChange }) {
       onKeyDown={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <label className="checklist-image-picker" onMouseDown={(event) => event.preventDefault()}>
-        <span>{busy ? 'Preparing image…' : image ? 'Replace image' : 'Attach image'}</span>
-        <input type="file" accept="image/*" disabled={busy} onChange={pickImage} />
-      </label>
+      <button
+        type="button"
+        disabled={busy}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => fileInput.current?.click()}
+      >
+        {image ? 'Replace image' : 'Attach image'}
+      </button>
+      <input ref={fileInput} type="file" accept="image/*" aria-label="Choose checklist image" hidden onChange={pickImage} />
       {image && (
         <button type="button" disabled={busy} onMouseDown={(event) => event.preventDefault()} onClick={() => onChange('')}>
           Remove image
         </button>
       )}
-      {error && <span role="alert">{error}</span>}
+      {busy && (
+        <div className="checklist-image-status" role="status">
+          <div>Compressing image…</div>
+          <progress aria-label="Compressing image" />
+        </div>
+      )}
+      {!busy && preparedImage && preparedImage === image && (
+        <div className="checklist-image-status" role="status">
+          Image ready. Save the checklist item to keep it.
+        </div>
+      )}
+      {error && <div className="checklist-image-status" role="alert">{error}</div>}
     </div>
   );
 }

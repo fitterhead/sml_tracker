@@ -2674,12 +2674,14 @@ function FocusModal({ card, onClose }) {
   };
 
   const saveAndCloseFocusModeFromKeyboard = () => {
+    if (preparingDraftImageItemId.current || isPreparingDraftChecklistImage) return;
     skipFocusBlurPromptRef.current = true;
     saveChangesFromKeyboard();
     exitFocusModeAfterKeyboardSave();
   };
 
   const saveFocusModeFromKeyboard = () => {
+    if (preparingDraftImageItemId.current || isPreparingDraftChecklistImage) return;
     skipFocusBlurPromptRef.current = true;
     saveChangesFromKeyboard();
     setEditingFocusField('');
@@ -3093,6 +3095,8 @@ function FocusModal({ card, onClose }) {
 
     event.preventDefault();
     event.stopPropagation();
+
+    if (preparingDraftImageItemId.current || isPreparingDraftChecklistImage) return;
 
     if (hasDraftChecklistComposerContent) {
       saveDraftChecklistComposerAndClose();

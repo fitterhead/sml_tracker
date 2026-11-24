@@ -269,6 +269,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  max-width: 100%;
   font-size: .75rem;
 }
 
@@ -276,38 +277,26 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   padding: 0 12px 7px;
 }
 
-.checklist-image-picker {
-  position: relative;
-  cursor: pointer;
-  color: var(--muted);
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
+.checklist-image-status {
+  flex: 1 0 100%;
   padding: 4px 7px;
+  color: var(--muted);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.checklist-image-picker:hover {
-  background: #38674a0c;
+.rich-toolbar > .checklist-image-input:has(.checklist-image-status) {
+  flex-basis: 100%;
 }
 
-.checklist-image-picker:focus-within {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
+.checklist-image-status progress {
+  display: block;
+  width: min(100%, 180px);
+  height: 6px;
+  margin-top: 5px;
+  accent-color: #315c40;
 }
 
-.checklist-image-picker input {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  opacity: 0;
-  cursor: inherit;
-}
-
-@media (max-width: 720px) {
-  .checklist-image-picker { min-height: 36px; }
-}
-
-.checklist-image-input [role='alert'] {
+.checklist-image-status[role='alert'] {
   color: #99422e;
 }
