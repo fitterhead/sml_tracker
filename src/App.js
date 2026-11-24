@@ -12,6 +12,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import * as XLSX from 'xlsx';
 import './App.css';
+import Snowfall from './components/Snowfall';
 import {
   AllCardsPage,
   BoardLayout,
@@ -4986,6 +4987,7 @@ function App() {
 
   return (
     <div className="app-shell" style={appAppearanceStyle}>
+      <Snowfall />
       <Header
         syncStatus={syncStatus}
         incompleteCount={cards.filter((card) => getMissingFields(card).length > 0).length}

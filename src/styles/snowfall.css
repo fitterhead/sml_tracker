@@ -1,0 +1,55 @@
+.snowfall {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.snowflake {
+  position: absolute;
+  top: -6px;
+  left: var(--snow-left);
+  width: var(--snow-size);
+  height: var(--snow-size);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 2px #6986a0;
+  opacity: var(--snow-opacity);
+  animation: snow-fall var(--snow-duration) var(--snow-delay) linear infinite;
+}
+
+@keyframes snow-fall {
+  0% { transform: translate(0, 0); }
+  35% { transform: translate(var(--snow-drift), 35vh); }
+  70% { transform: translate(0, 70vh); }
+  100% { transform: translate(var(--snow-drift), calc(100vh + 12px)); }
+}
+
+.job-card::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 5px 2px at 9% 65%, #f9fcff 65%, transparent),
+    radial-gradient(ellipse 9px 3px at 24% 55%, #f9fcff 65%, transparent),
+    radial-gradient(ellipse 4px 2px at 62% 65%, #f9fcff 65%, transparent),
+    radial-gradient(ellipse 7px 3px at 82% 55%, #f9fcff 65%, transparent);
+  filter: drop-shadow(0 1px 1px #8da6bc80);
+}
+
+@media (max-width: 600px) {
+  .snowflake:nth-child(even) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snowfall {
+    display: none;
+  }
+}
