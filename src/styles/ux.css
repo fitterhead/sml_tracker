@@ -251,3 +251,48 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     overflow: visible;
   }
 }
+
+.checklist-image,
+.checklist-image-input {
+  margin-top: var(--space-2);
+}
+
+.checklist-image img {
+  display: block;
+  max-width: min(100%, 320px);
+  height: auto;
+  margin-top: var(--space-2);
+  border-radius: 4px;
+}
+
+.checklist-image-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-sm);
+}
+
+.checklist-image-picker {
+  position: relative;
+  cursor: pointer;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.checklist-image-picker:focus-within {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.checklist-image-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.checklist-image-input [role='alert'] {
+  color: #99422e;
+}

@@ -37,6 +37,7 @@ const sendError = (response, error) => {
 };
 
 app.use(cors());
+app.use('/api/board', express.json({ limit: '4mb' }));
 app.use(express.json());
 
 app.get('/api/health', (_request, response) => {

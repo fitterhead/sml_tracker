@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from './App';
+import resizeChecklistImage from './lib/resizeChecklistImage';
 import { toEditorDocument } from './lib/richText';
 import { useBoardStore } from './store/useBoardStore';
+
+jest.mock('./lib/resizeChecklistImage');
 
 beforeEach(() => {
   localStorage.setItem('sml-tracker-auth-token', 'test-token');
@@ -399,4 +402,51 @@ test('autosave waits for the previous request and uses its revision', async () =
     unmount();
     jest.useRealTimers();
   }
+});
+
+
+test('attaches a compressed checklist image and only displays it on request', async () => {
+  const image = 'data:image/webp;base64,UklGRg==';
+  resizeChecklistImage.mockResolvedValueOnce(image);
+  const board = {
+    todoColumns: [{ id: 'todo-1', title: 'To Do' }],
+    cards: [
+      {
+        id: 'photo-card',
+        taskName: 'Photo project',
+        jobName: 'Photo client',
+        lane: 'active',
+        todoColumnId: 'todo-1',
+        checklist: [{ id: 'photo-item', text: 'Check the sample' }],
+      },
+    ],
+  };
+  global.fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      token: 'test-token',
+      user: { name: 'Andrew', role: 'manager' },
+      board,
+    }),
+  });
+
+  render(<App />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Check the sample' }));
+  fireEvent.change(screen.getByLabelText('Attach image'), {
+    target: { files: [new File(['sample'], 'sample.png', { type: 'image/png' })] },
+  });
+  await screen.findByLabelText('Replace image');
+  fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
+
+  expect(screen.queryByRole('img', { name: 'Checklist attachment' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'View image' }));
+  expect(screen.getByRole('img', { name: 'Checklist attachment' })).toHaveAttribute('src', image);
+  fireEvent.click(screen.getByRole('button', { name: 'Hide image' }));
+  expect(screen.queryByRole('img', { name: 'Checklist attachment' })).not.toBeInTheDocument();
+
+  await waitFor(() => {
+    const request = global.fetch.mock.calls.find(([, options]) => options.method === 'PUT');
+    const savedBoard = JSON.parse(request?.[1].body || '{}').board;
+    expect(savedBoard?.cards[0].checklist[0].image).toBe(image);
+  });
 });

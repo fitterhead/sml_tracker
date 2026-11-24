@@ -1,3 +1,4 @@
+import { ChecklistImage, ChecklistImageInput } from './components/ChecklistImage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
@@ -1591,6 +1592,7 @@ function ChecklistItem({
           <span className="check-date">{formatChecklistTimeline(item)}</span>
         ) : null}
       </div>
+      <ChecklistImage image={item.image} />
       {hasContext ? (
         <div className="check-context-block">
           <ContextActionButton
@@ -1678,20 +1680,22 @@ function CardShell({
   const [showAddChecklistComposer, setShowAddChecklistComposer] = useState(false);
   const [newChecklistText, setNewChecklistText] = useState('');
   const [newChecklistContext, setNewChecklistContext] = useState('');
+  const [newChecklistImage, setNewChecklistImage] = useState('');
+  const [isPreparingChecklistImage, setIsPreparingChecklistImage] = useState(false);
   const [showChecklistContextField, setShowChecklistContextField] = useState(false);
   const [showComposerUnsavedPrompt, setShowComposerUnsavedPrompt] = useState(false);
   const inlineComposerRef = useRef(null);
   const inlineChecklistInputRef = useRef(null);
   const skipInlineComposerPromptRef = useRef(false);
   const hasInlineComposerContent = Boolean(
-    newChecklistText.trim() || newChecklistContext.trim()
+    newChecklistText.trim() || newChecklistContext.trim() || newChecklistImage
   );
   useUnsavedChangesWarning(hasInlineComposerContent);
 
   const submitChecklistItem = (event) => {
     event?.stopPropagation?.();
     const trimmedText = newChecklistText.trim();
-    if (!trimmedText) {
+    if (!trimmedText || isPreparingChecklistImage) {
       return;
     }
 
@@ -1699,9 +1703,12 @@ function CardShell({
     onAddChecklistItem({
       text: trimmedText,
       context: newChecklistContext,
+      image: newChecklistImage,
     });
     setNewChecklistText('');
     setNewChecklistContext('');
+    setNewChecklistImage('');
+    setIsPreparingChecklistImage(false);
     setShowChecklistContextField(false);
     setShowAddChecklistComposer(false);
     setShowComposerUnsavedPrompt(false);
@@ -1714,6 +1721,8 @@ function CardShell({
     setShowAddChecklistComposer(false);
     setNewChecklistText('');
     setNewChecklistContext('');
+    setNewChecklistImage('');
+    setIsPreparingChecklistImage(false);
     setShowChecklistContextField(false);
     setShowComposerUnsavedPrompt(false);
   };
@@ -1907,6 +1916,12 @@ function CardShell({
                   rows={2}
                 />
               ) : null}
+              <ChecklistImageInput
+                image={newChecklistImage}
+                onChange={setNewChecklistImage}
+                onBusyChange={setIsPreparingChecklistImage}
+              />
+              <ChecklistImage image={newChecklistImage} />
               <div className="inline-checklist-actions">
                 <button
                   type="button"
@@ -1920,6 +1935,7 @@ function CardShell({
                   type="button"
                   className="ghost-button"
                   onClick={submitChecklistItem}
+                  disabled={isPreparingChecklistImage}
                 >
                   add
                 </button>
@@ -1957,6 +1973,7 @@ function ChecklistItemModal({
   open,
   item,
   onTextChange,
+  onImageChange,
   contextInput,
   onContextInputChange,
   onAddContext,
@@ -1966,6 +1983,10 @@ function ChecklistItemModal({
   onDelete,
   onCancel,
 }) {
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const save = () => {
+    if (!isPreparingImage) onSave();
+  };
   const [showContextField, setShowContextField] = useState(() =>
     Boolean(
       open &&
@@ -1985,7 +2006,7 @@ function ChecklistItemModal({
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !event.target.closest?.('.rich-editor') && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
-            onSave();
+            save();
           }
         }}
       >
@@ -1995,12 +2016,14 @@ function ChecklistItemModal({
           <span>item</span>
           <RichTextInput aria-label="Checklist item"
             value={item.text}
-            onKeyDown={(event) => triggerActionOnEnter(event, onSave)}
+            onKeyDown={(event) => triggerActionOnEnter(event, save)}
             onChange={(event) => onTextChange(event.target.value)}
             onFocus={selectEditableText}
             autoFocus
           />
         </div>
+        <ChecklistImageInput image={item.image} onChange={onImageChange} onBusyChange={setIsPreparingImage} />
+        <ChecklistImage image={item.image} />
         <ContextSummary item={item} />
         <ContextActionButton
           open={showContextField}
@@ -2023,7 +2046,7 @@ function ChecklistItemModal({
             delete
           </button>
           <button type="button" className="ghost-button muted" onClick={onCancel}>CANCEL</button>
-          <button type="button" className="ghost-button" onClick={onSave}>SAVE</button>
+          <button type="button" className="ghost-button" onClick={save} disabled={isPreparingImage}>SAVE</button>
         </div>
       </div>
     </div>
@@ -2489,6 +2512,8 @@ function FocusModal({ card, onClose }) {
   const [expandedCompletionIds, setExpandedCompletionIds] = useState({});
   const [newDraftChecklistText, setNewDraftChecklistText] = useState('');
   const [newDraftChecklistContext, setNewDraftChecklistContext] = useState('');
+  const [newDraftChecklistImage, setNewDraftChecklistImage] = useState('');
+  const [isPreparingDraftChecklistImage, setIsPreparingDraftChecklistImage] = useState(false);
   const [showNewDraftChecklistContext, setShowNewDraftChecklistContext] = useState(false);
   const [draftContextInputs, setDraftContextInputs] = useState({});
   const [clientRenameDraft, setClientRenameDraft] = useState('');
@@ -2520,6 +2545,8 @@ function FocusModal({ card, onClose }) {
       setExpandedCompletionIds({});
       setNewDraftChecklistText('');
       setNewDraftChecklistContext('');
+      setNewDraftChecklistImage('');
+      setIsPreparingDraftChecklistImage(false);
       setShowNewDraftChecklistContext(false);
       setDraftContextInputs({});
       setClientRenameDraft('');
@@ -2545,6 +2572,8 @@ function FocusModal({ card, onClose }) {
     setExpandedCompletionIds({});
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
+    setNewDraftChecklistImage('');
+    setIsPreparingDraftChecklistImage(false);
     setShowNewDraftChecklistContext(false);
     setDraftContextInputs({});
     setClientRenameDraft(card.jobName || '');
@@ -2559,7 +2588,7 @@ function FocusModal({ card, onClose }) {
     Boolean(card && draft) &&
     JSON.stringify(cleanCardDraft) !== JSON.stringify(draft);
   const hasDraftChecklistComposerContent = Boolean(
-    newDraftChecklistText.trim() || newDraftChecklistContext.trim()
+    newDraftChecklistText.trim() || newDraftChecklistContext.trim() || newDraftChecklistImage
   );
   const hasCompletionComposerContent = Boolean(
     completionEndDate || completionContext.trim()
@@ -2656,7 +2685,7 @@ function FocusModal({ card, onClose }) {
 
   const buildDraftWithNewChecklistItem = () => {
     const trimmedText = newDraftChecklistText.trim();
-    if (!trimmedText) {
+    if (!trimmedText || isPreparingDraftChecklistImage) {
       return null;
     }
 
@@ -2669,6 +2698,7 @@ function FocusModal({ card, onClose }) {
         {
           id: `draft-${Date.now()}`,
           text: trimmedText,
+          ...(newDraftChecklistImage && { image: newDraftChecklistImage }),
           state: CHECKLIST_STATES.UNCHECKED,
           checked: false,
           checkedBy: null,
@@ -2689,6 +2719,8 @@ function FocusModal({ card, onClose }) {
     setShowAddDraftChecklistComposer(false);
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
+    setNewDraftChecklistImage('');
+    setIsPreparingDraftChecklistImage(false);
     setShowNewDraftChecklistContext(false);
   };
 
@@ -2785,6 +2817,7 @@ function FocusModal({ card, onClose }) {
         createdAt: item.createdAt,
         completedAt: item.completedAt,
         context: item.context || '',
+        ...(item.image && { image: item.image }),
       })),
     };
 
@@ -3006,7 +3039,7 @@ function FocusModal({ card, onClose }) {
       hasChanges: hasTextValueChanged(item?.text || '', savedText),
       onSave: () => saveDraftChecklistTextEdit(itemId),
       onDiscard: () => {
-        updateDraftChecklistItem(itemId, savedText);
+        updateDraftChecklistItem(itemId, { text: savedText });
         setEditingDraftChecklistId(null);
       },
       onCancel: () =>
@@ -3020,6 +3053,8 @@ function FocusModal({ card, onClose }) {
     setShowAddDraftChecklistComposer(false);
     setNewDraftChecklistText('');
     setNewDraftChecklistContext('');
+    setNewDraftChecklistImage('');
+    setIsPreparingDraftChecklistImage(false);
     setShowNewDraftChecklistContext(false);
   };
 
@@ -3282,11 +3317,11 @@ function FocusModal({ card, onClose }) {
     setPendingToggle(null);
   };
 
-  const updateDraftChecklistItem = (itemId, text) => {
+  const updateDraftChecklistItem = (itemId, patch) => {
     setDraft((current) => ({
       ...current,
       checklist: current.checklist.map((item) =>
-        item.id === itemId ? { ...item, text } : item
+        item.id === itemId ? { ...item, ...patch } : item
       ),
     }));
   };
@@ -3664,6 +3699,7 @@ function FocusModal({ card, onClose }) {
                     type="button"
                     className="ghost-button"
                     onClick={saveDraftChecklistComposerAndClose}
+                    disabled={isPreparingDraftChecklistImage}
                   >
                     add
                   </button>
@@ -3673,6 +3709,12 @@ function FocusModal({ card, onClose }) {
                     onClick={discardDraftChecklistComposer}
                   >CANCEL</button>
                 </div>
+                <ChecklistImageInput
+                  image={newDraftChecklistImage}
+                  onChange={setNewDraftChecklistImage}
+                  onBusyChange={setIsPreparingDraftChecklistImage}
+                />
+                <ChecklistImage image={newDraftChecklistImage} />
                 {showNewDraftChecklistContext ? (
                   <RichTextInput aria-label="Context note"
                     value={newDraftChecklistContext}
@@ -3779,6 +3821,7 @@ function FocusModal({ card, onClose }) {
                             {formatChecklistTimeline(phaseItem) ? (
                               <small>{formatChecklistTimeline(phaseItem)}</small>
                             ) : null}
+                            <ChecklistImage image={phaseItem.image} />
                             {phaseItem.context?.trim() ? (
                               <p>
                                 <ExpandableText value={phaseItem.context} />
@@ -3858,7 +3901,7 @@ function FocusModal({ card, onClose }) {
                           }}
                           value={item.text}
                           onChange={(event) =>
-                            updateDraftChecklistItem(item.id, event.target.value)
+                            updateDraftChecklistItem(item.id, { text: event.target.value })
                           }
                           onFocus={selectEditableText}
                           onBlur={() => requestDraftChecklistTextExit(item.id)}
@@ -3911,6 +3954,11 @@ function FocusModal({ card, onClose }) {
                       </button>
                     </div>
                   </div>
+                  <ChecklistImageInput
+                    image={item.image}
+                    onChange={(image) => updateDraftChecklistItem(item.id, { image })}
+                  />
+                  <ChecklistImage image={item.image} />
                   {expandedDraftContexts[item.id] ? (
                     <ContextThreadEditor
                       item={item}
@@ -4702,6 +4750,8 @@ function App() {
       itemId: item.id,
       text: item.text || '',
       originalText: item.text || '',
+      image: item.image || '',
+      originalImage: item.image || '',
       context: item.context || '',
       originalContext: item.context || '',
       contextCreatedAt:
@@ -4768,6 +4818,7 @@ function App() {
           ? {
               ...item,
               text: editingChecklistTarget.text,
+              image: editingChecklistTarget.image,
               context: editingChecklistTarget.context,
               contextCreatedAt: editingChecklistTarget.contextCreatedAt || '',
               contextCompletedAt: editingChecklistTarget.contextCompletedAt || '',
@@ -4788,6 +4839,7 @@ function App() {
 
     return (
       editingChecklistTarget.text !== editingChecklistTarget.originalText ||
+      editingChecklistTarget.image !== editingChecklistTarget.originalImage ||
       editingChecklistTarget.context !== editingChecklistTarget.originalContext ||
       editingChecklistTarget.contextCreatedAt !==
         editingChecklistTarget.originalContextCreatedAt ||
@@ -5213,6 +5265,9 @@ function App() {
           setEditingChecklistTarget((current) =>
             current ? { ...current, text } : current
           )
+        }
+        onImageChange={(image) =>
+          setEditingChecklistTarget((current) => current ? { ...current, image } : current)
         }
         contextInput={editingChecklistTarget?.contextInput || ''}
         onContextInputChange={updateChecklistEditorContextInput}

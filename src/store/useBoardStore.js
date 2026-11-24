@@ -1,3 +1,4 @@
+import { normalizeChecklistImage } from '../lib/checklistImageData';
 import { richTextToPlainText } from '../lib/richText';
 import { buildLogPreview, parseCardLog } from '../lib/cardLog';
 import { create } from 'zustand';
@@ -162,6 +163,7 @@ const bumpCardOrder = (cards, cardId) => {
 const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
   id: item.id || createId(),
   type: item.type || CHECKLIST_ITEM_TYPES.TASK,
+  ...(normalizeChecklistImage(item.image) && { image: item.image }),
   text: item.text || 'checklist item',
   state: item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
   checked: item.state
@@ -196,6 +198,7 @@ const normalizeChecklistItem = (item = {}, createdBy = 'manager') => ({
     ? item.phaseItems.map((entry = {}) => ({
         id: entry.id || createId(),
         text: entry.text || 'checklist item',
+        ...(normalizeChecklistImage(entry.image) && { image: entry.image }),
         state: entry.state || CHECKLIST_STATES.UNCHECKED,
         checked: Boolean(entry.checked),
         checkedBy: entry.checkedBy || null,
@@ -677,6 +680,7 @@ export const useBoardStore = create(
                         : {
                             text: input?.text || '',
                             context: input?.context || '',
+                            image: normalizeChecklistImage(input?.image),
                           };
 
                     return {
@@ -695,6 +699,7 @@ export const useBoardStore = create(
                           nextInput.text || 'new checklist item',
                           state.currentUser.role,
                           {
+                            ...(nextInput.image && { image: nextInput.image }),
                             context: nextInput.context.trim(),
                             contextCreatedAt: nextInput.context.trim()
                               ? new Date().toISOString()

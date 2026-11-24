@@ -1,3 +1,4 @@
+const { normalizeChecklistImage } = require('../src/lib/checklistImageData');
 const { randomUUID } = require('node:crypto');
 
 const ACTIVE = 'active';
@@ -111,6 +112,26 @@ const createInitialState = () => {
 const normalizeChecklistItem = (item = {}) => ({
   id: item.id || createId(),
   text: item.text || 'checklist item',
+  ...(normalizeChecklistImage(item.image) && { image: item.image }),
+  ...(item.archivedInCompletionId && { archivedInCompletionId: item.archivedInCompletionId }),
+  ...(item.type === 'completion' && {
+    type: item.type,
+    phaseNumber: Number(item.phaseNumber) || 0,
+    phaseItemIds: Array.isArray(item.phaseItemIds) ? item.phaseItemIds : [],
+    phaseItems: Array.isArray(item.phaseItems)
+      ? item.phaseItems.map((entry = {}) => ({
+          id: entry.id || createId(),
+          text: entry.text || 'checklist item',
+          state: entry.state || CHECKLIST_STATES.UNCHECKED,
+          checked: Boolean(entry.checked),
+          checkedBy: entry.checkedBy || null,
+          createdAt: entry.createdAt || '',
+          completedAt: entry.completedAt || '',
+          context: entry.context || '',
+          ...(normalizeChecklistImage(entry.image) && { image: entry.image }),
+        }))
+      : [],
+  }),
   state: item.state || (item.checked ? CHECKLIST_STATES.COMPLETED : CHECKLIST_STATES.UNCHECKED),
   checked: item.state
     ? item.state === CHECKLIST_STATES.COMPLETED
