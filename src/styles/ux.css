@@ -179,10 +179,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .side-status-column .row-slot,
   .side-status-column .plain-section,
   .side-status-column .pile-area { width: 100%; }
-  .row-hold .pile-slot,
-  .row-done .pile-slot { width: calc(100% - var(--todo-pile-spread)); }
-  .row-hold .job-card,
-  .row-done .job-card,
+  .board-row .pile-slot { width: calc(100% - var(--todo-pile-spread)); }
   .drag-overlay .compact-card,
   .compact-card.overlay { width: min(100%, 384px); }
   /* Size each status section to its overlapping pile. */
@@ -229,12 +226,23 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .pile-area, .row-todo .pile-area, .row-hold .pile-area, .row-done .pile-area { width: 100%; }
 }
 
+@media (min-width: 1121px) {
+  .board-row {
+    grid-template-columns: repeat(3, calc((100% - 2 * var(--space-10)) / 3));
+  }
+  .todo-board,
+  .todo-grid {
+    grid-template-columns: subgrid;
+  }
+  .todo-grid {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 720px) {
   .side-status-column .row-slot,
   .side-status-column .plain-section,
   .side-status-column .pile-area { width: 100%; }
-  .row-hold .job-card,
-  .row-done .job-card { width: 100%; }
   .section-topline-actions { gap: 8px; }
   .side-status-column .compact-card .card-top h3,
   .side-status-column .compact-card .card-top p {
