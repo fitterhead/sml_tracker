@@ -20,6 +20,7 @@ export function ChecklistImage({ image }) {
         type="button"
         className="text-see-more"
         aria-expanded={open}
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setVisibleImage(open ? '' : image)}
       >
         {open ? 'Hide image' : 'View image'}
@@ -33,9 +34,14 @@ export function ChecklistImageInput({ image, onChange, onBusyChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const active = useRef(false);
+  const busyCallback = useRef(onBusyChange);
+  busyCallback.current = onBusyChange;
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; };
+    return () => {
+      active.current = false;
+      busyCallback.current?.(false);
+    };
   }, []);
 
   const pickImage = async (event) => {
@@ -72,12 +78,12 @@ export function ChecklistImageInput({ image, onChange, onBusyChange }) {
       onKeyDown={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <label className="checklist-image-picker">
+      <label className="checklist-image-picker" onMouseDown={(event) => event.preventDefault()}>
         <span>{busy ? 'Preparing image…' : image ? 'Replace image' : 'Attach image'}</span>
         <input type="file" accept="image/*" disabled={busy} onChange={pickImage} />
       </label>
       {image && (
-        <button type="button" className="text-see-more" disabled={busy} onClick={() => onChange('')}>
+        <button type="button" disabled={busy} onMouseDown={(event) => event.preventDefault()} onClick={() => onChange('')}>
           Remove image
         </button>
       )}

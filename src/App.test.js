@@ -432,7 +432,8 @@ test('attaches a compressed checklist image and only displays it on request', as
 
   render(<App />);
   fireEvent.click(await screen.findByRole('button', { name: 'Check the sample' }));
-  fireEvent.change(screen.getByLabelText('Attach image'), {
+  const toolbar = screen.getByRole('group', { name: 'Text formatting' });
+  fireEvent.change(within(toolbar).getByLabelText('Attach image'), {
     target: { files: [new File(['sample'], 'sample.png', { type: 'image/png' })] },
   });
   await screen.findByLabelText('Replace image');

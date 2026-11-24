@@ -1889,6 +1889,14 @@ function CardShell({
               <RichTextInput aria-label="Checklist item"
                 ref={inlineChecklistInputRef}
                 value={newChecklistText}
+                toolbarActions={
+                  <ChecklistImageInput
+                    image={newChecklistImage}
+                    onChange={setNewChecklistImage}
+                    onBusyChange={setIsPreparingChecklistImage}
+                  />
+                }
+                footerContent={<ChecklistImage image={newChecklistImage} />}
                 onChange={(event) => setNewChecklistText(event.target.value)}
                 onFocus={selectEditableText}
                 onKeyDown={(event) =>
@@ -1916,12 +1924,6 @@ function CardShell({
                   rows={2}
                 />
               ) : null}
-              <ChecklistImageInput
-                image={newChecklistImage}
-                onChange={setNewChecklistImage}
-                onBusyChange={setIsPreparingChecklistImage}
-              />
-              <ChecklistImage image={newChecklistImage} />
               <div className="inline-checklist-actions">
                 <button
                   type="button"
@@ -2016,14 +2018,20 @@ function ChecklistItemModal({
           <span>item</span>
           <RichTextInput aria-label="Checklist item"
             value={item.text}
+            toolbarActions={
+              <ChecklistImageInput
+                image={item.image}
+                onChange={onImageChange}
+                onBusyChange={setIsPreparingImage}
+              />
+            }
+            footerContent={<ChecklistImage image={item.image} />}
             onKeyDown={(event) => triggerActionOnEnter(event, save)}
             onChange={(event) => onTextChange(event.target.value)}
             onFocus={selectEditableText}
             autoFocus
           />
         </div>
-        <ChecklistImageInput image={item.image} onChange={onImageChange} onBusyChange={setIsPreparingImage} />
-        <ChecklistImage image={item.image} />
         <ContextSummary item={item} />
         <ContextActionButton
           open={showContextField}
@@ -2518,6 +2526,7 @@ function FocusModal({ card, onClose }) {
   const [draftContextInputs, setDraftContextInputs] = useState({});
   const [clientRenameDraft, setClientRenameDraft] = useState('');
   const [editingDraftChecklistId, setEditingDraftChecklistId] = useState(null);
+  const preparingDraftImageItemId = useRef(null);
   const [editingFocusField, setEditingFocusField] = useState('');
   const [showClientRename, setShowClientRename] = useState(false);
   const [showUnsavedExit, setShowUnsavedExit] = useState(false);
@@ -2864,21 +2873,14 @@ function FocusModal({ card, onClose }) {
     setShowCompletionArchiveWarning(true);
   };
 
-  const buildDraftWithChecklistItem = (itemId, patch) => ({
-    ...draft,
-    checklist: draft.checklist.map((item) =>
-      item.id === itemId ? { ...item, ...patch } : item
-    ),
-  });
-
   const saveDraftChecklistTextEdit = (itemId) => {
     const item = draft.checklist.find((entry) => entry.id === itemId);
-    if (!item) {
+    if (!item || preparingDraftImageItemId.current === itemId) {
       return;
     }
 
     skipFocusBlurPromptRef.current = true;
-    saveCardDraft(buildDraftWithChecklistItem(itemId, { text: item.text }));
+    saveCardDraft();
     setEditingDraftChecklistId(null);
     setFieldUnsavedPrompt(null);
     blurActiveInput();
@@ -3024,22 +3026,21 @@ function FocusModal({ card, onClose }) {
     });
   };
 
-  const getSavedDraftChecklistText = (itemId) =>
-    cleanCardDraft.checklist.find((item) => item.id === itemId)?.text || '';
-
   const requestDraftChecklistTextExit = (itemId) => {
-    if (skipFocusBlurPromptRef.current) {
+    if (skipFocusBlurPromptRef.current || preparingDraftImageItemId.current === itemId) {
       return;
     }
 
     const item = draft.checklist.find((entry) => entry.id === itemId);
-    const savedText = getSavedDraftChecklistText(itemId);
+    const savedItem = cleanCardDraft.checklist.find((entry) => entry.id === itemId);
+    const savedText = savedItem?.text || '';
+    const savedImage = savedItem?.image || '';
 
     requestUnsavedFieldExit({
-      hasChanges: hasTextValueChanged(item?.text || '', savedText),
+      hasChanges: hasTextValueChanged(item?.text || '', savedText) || (item?.image || '') !== savedImage,
       onSave: () => saveDraftChecklistTextEdit(itemId),
       onDiscard: () => {
-        updateDraftChecklistItem(itemId, { text: savedText });
+        updateDraftChecklistItem(itemId, { text: savedText, image: savedImage });
         setEditingDraftChecklistId(null);
       },
       onCancel: () =>
@@ -3681,6 +3682,14 @@ function FocusModal({ card, onClose }) {
                   <RichTextInput aria-label="Checklist item"
                     ref={draftChecklistInputRef}
                     value={newDraftChecklistText}
+                    toolbarActions={
+                      <ChecklistImageInput
+                        image={newDraftChecklistImage}
+                        onChange={setNewDraftChecklistImage}
+                        onBusyChange={setIsPreparingDraftChecklistImage}
+                      />
+                    }
+                    footerContent={<ChecklistImage image={newDraftChecklistImage} />}
                     onChange={(event) => setNewDraftChecklistText(event.target.value)}
                     onFocus={selectEditableText}
                     onKeyDown={(event) =>
@@ -3709,12 +3718,6 @@ function FocusModal({ card, onClose }) {
                     onClick={discardDraftChecklistComposer}
                   >CANCEL</button>
                 </div>
-                <ChecklistImageInput
-                  image={newDraftChecklistImage}
-                  onChange={setNewDraftChecklistImage}
-                  onBusyChange={setIsPreparingDraftChecklistImage}
-                />
-                <ChecklistImage image={newDraftChecklistImage} />
                 {showNewDraftChecklistContext ? (
                   <RichTextInput aria-label="Context note"
                     value={newDraftChecklistContext}
@@ -3900,6 +3903,16 @@ function FocusModal({ card, onClose }) {
                             focusFieldRefs.current[`checklist-${item.id}`] = node;
                           }}
                           value={item.text}
+                          toolbarActions={
+                            <ChecklistImageInput
+                              image={item.image}
+                              onChange={(image) => updateDraftChecklistItem(item.id, { image })}
+                              onBusyChange={(busy) => {
+                                preparingDraftImageItemId.current = busy ? item.id : null;
+                              }}
+                            />
+                          }
+                          footerContent={<ChecklistImage image={item.image} />}
                           onChange={(event) =>
                             updateDraftChecklistItem(item.id, { text: event.target.value })
                           }
@@ -3954,11 +3967,7 @@ function FocusModal({ card, onClose }) {
                       </button>
                     </div>
                   </div>
-                  <ChecklistImageInput
-                    image={item.image}
-                    onChange={(image) => updateDraftChecklistItem(item.id, { image })}
-                  />
-                  <ChecklistImage image={item.image} />
+                  {editingDraftChecklistId !== item.id && <ChecklistImage image={item.image} />}
                   {expandedDraftContexts[item.id] ? (
                     <ContextThreadEditor
                       item={item}

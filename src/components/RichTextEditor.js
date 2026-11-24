@@ -6,7 +6,7 @@ import { normalizeTextColor, serializeRichText, toEditorDocument } from '../lib/
 
 const COLORS = ['#111111', '#99422e', '#8a620c', '#315c40', '#2457a6', '#784d9d'];
 
-const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, onBlur, onFocus, onKeyDown, placeholder = '', autoFocus = false, className = '', rows = 2, 'aria-label': ariaLabel }, forwardedRef) {
+const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, onBlur, onFocus, onKeyDown, placeholder = '', autoFocus = false, className = '', rows = 2, toolbarActions, footerContent, 'aria-label': ariaLabel }, forwardedRef) {
   const wrapperRef = useRef(null);
   const callbacks = useRef({ onChange, onKeyDown });
   callbacks.current = { onChange, onKeyDown };
@@ -75,6 +75,7 @@ const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, 
         {action('Numbered list', '1. List', formatting?.orderedList, (chain) => chain.toggleOrderedList())}
         <button type="button" aria-label="Text colour" title="Text colour" aria-expanded={colorsOpen} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => setColorsOpen(!colorsOpen)}><span className="rich-color-icon" style={{ borderColor: formatting?.color || 'currentColor' }}>A</span></button>
         {action('Clear formatting', 'Clear', null, (chain) => chain.unsetAllMarks().clearNodes())}
+        {toolbarActions}
       </div>
       {colorsOpen && <div className="rich-color-palette" role="group" aria-label="Text colour palette">
         {COLORS.map((color) => <button type="button" key={color} aria-label={`Use ${color}`} aria-pressed={formatting?.color === color} style={{ backgroundColor: color }} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => { command((chain) => chain.setColor(color)); setColorsOpen(false); }} />)}
@@ -82,6 +83,7 @@ const RichTextInput = forwardRef(function RichTextInput({ value = '', onChange, 
         <button type="button" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => { command((chain) => chain.unsetColor()); setColorsOpen(false); }}>Default</button>
       </div>}
       <EditorContent editor={editor} />
+      {footerContent}
       <small className="rich-input-hint">Shift + Enter for a new line</small>
     </div>
   );
